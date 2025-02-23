@@ -77,6 +77,13 @@ class GravitySDK private constructor() {
         }
     }
 
+    fun showFullScreen(context: Context, data: FullScreenData) {
+        val dismissController = DismissController()
+        showOverlay(context, dismissController) {
+            GravityFullScreen(data, dismissController::dismiss)
+        }
+    }
+
     private fun showOverlay(
         context: Context,
         dismissController: DismissController = DismissController(),

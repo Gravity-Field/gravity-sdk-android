@@ -1,6 +1,7 @@
 package ai.gravityfield.sdk
 
 import ai.gravityfield.gravity_sdk.GravitySDK
+import ai.gravityfield.gravity_sdk.mockFullScreenData
 import ai.gravityfield.gravity_sdk.mockModalData
 import ai.gravityfield.gravity_sdk.mockSnackbarData
 import ai.gravityfield.sdk.ui.theme.GravitySDKTheme
@@ -58,6 +59,14 @@ class MainActivity : ComponentActivity() {
                                 },
                             ) {
                                 Text(text = "Show snackbar")
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            ShowContentButton(
+                                onClick = {
+                                    GravitySDK.instance.showFullScreen(context, mockFullScreenData)
+                                },
+                            ) {
+                                Text(text = "Show fullscreen")
                             }
                         }
                     }
