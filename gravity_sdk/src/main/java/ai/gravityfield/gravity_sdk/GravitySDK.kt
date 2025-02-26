@@ -10,8 +10,12 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -66,7 +70,9 @@ class GravitySDK private constructor() {
                     dismissController.dismiss()
                 }
             }
-            Column(modifier = Modifier.fillMaxHeight(), verticalArrangement = Arrangement.Bottom) {
+            Column(
+                modifier = Modifier.fillMaxHeight(), verticalArrangement = Arrangement.Bottom,
+            ) {
                 SnackbarHost(
                     hostState = snackbarHostState,
                 ) { _ ->
@@ -81,6 +87,28 @@ class GravitySDK private constructor() {
         val dismissController = DismissController()
         showOverlay(context, dismissController) {
             GravityFullScreen(data, dismissController::dismiss)
+        }
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    fun showBottomSheet(context: Context, data: BottomSheetData) {
+        val dismissController = DismissController()
+        showOverlay(context, dismissController) {
+            val state = rememberModalBottomSheetState()
+            val scope = rememberCoroutineScope()
+            ModalBottomSheet(
+                onDismissRequest = dismissController::dismiss,
+                shape = RoundedCornerShape(
+                    topStart = data.borderRadius, topEnd = data.borderRadius
+                ),
+                containerColor = data.color,
+                dragHandle = null,
+                sheetState = state,
+            ) {
+                GravityBottomSheetType1(mockBottomSheetData) {
+                    scope.launch { state.hide() }.invokeOnCompletion { dismissController.dismiss() }
+                }
+            }
         }
     }
 

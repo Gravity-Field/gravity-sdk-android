@@ -1,6 +1,5 @@
 package ai.gravityfield.gravity_sdk
 
-import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -28,7 +27,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -38,7 +36,7 @@ fun GravityModalType1(
     dismiss: () -> Unit,
 ) {
     Surface(
-        shape = RoundedCornerShape(data.borderRadius),
+        shape = RoundedCornerShape(data.cornerRadius),
         color = data.color,
     ) {
         Box {
@@ -57,8 +55,8 @@ fun GravityModalType1(
                     Image(
                         modifier = Modifier
                             .padding(horizontal = 12.dp)
-                            .requiredSize(data.imageSize),
-                        painter = painterResource(data.image),
+                            .requiredSize(data.image.size),
+                        painter = painterResource(data.image.url),
                         contentDescription = null,
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -94,17 +92,24 @@ fun GravityModalType1(
                     modifier = Modifier
                         .defaultMinSize(minHeight = 48.dp)
                         .padding(horizontal = 16.dp)
-                        .fillMaxWidth(),
-                    shape = RoundedCornerShape(8.dp),
+                        .fillMaxWidth()
+                        .border(
+                            width = 1.dp,
+                            color = data.button.outlineColor,
+                            shape = RoundedCornerShape(data.button.cornerRadius)
+                        ),
+                    shape = RoundedCornerShape(data.button.cornerRadius),
                     onClick = dismiss,
-                    colors = ButtonDefaults.buttonColors(containerColor = data.buttonColor),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = data.button.color,
+                    ),
                 ) {
                     Text(
-                        text = data.buttonTitle.text,
-                        color = data.buttonTitle.color,
-                        fontSize = data.buttonTitle.fontSize,
-                        fontWeight = data.buttonTitle.fontWeight,
-                        lineHeight = data.buttonTitle.lineHeight,
+                        text = data.button.title.text,
+                        color = data.button.title.color,
+                        fontSize = data.button.title.fontSize,
+                        fontWeight = data.button.title.fontWeight,
+                        lineHeight = data.button.title.lineHeight,
                     )
                 }
                 Spacer(modifier = Modifier.height(12.dp))
@@ -115,22 +120,21 @@ fun GravityModalType1(
                         .fillMaxWidth()
                         .border(
                             width = 1.dp,
-                            color = data.secondaryButtonOutlineColor,
-                            shape = RoundedCornerShape(8.dp)
+                            color = data.secondaryButton.outlineColor,
+                            shape = RoundedCornerShape(data.secondaryButton.cornerRadius)
                         ),
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(data.secondaryButton.cornerRadius),
                     onClick = dismiss,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = data.secondaryButtonColor,
-                        contentColor = data.secondaryButtonOutlineColor
+                        containerColor = data.secondaryButton.color,
                     ),
                 ) {
                     Text(
-                        text = data.secondaryButtonTitle.text,
-                        color = data.secondaryButtonTitle.color,
-                        fontSize = data.secondaryButtonTitle.fontSize,
-                        fontWeight = data.secondaryButtonTitle.fontWeight,
-                        lineHeight = data.secondaryButtonTitle.lineHeight,
+                        text = data.secondaryButton.title.text,
+                        color = data.secondaryButton.title.color,
+                        fontSize = data.secondaryButton.title.fontSize,
+                        fontWeight = data.secondaryButton.title.fontWeight,
+                        lineHeight = data.secondaryButton.title.lineHeight,
                     )
                 }
             }
@@ -144,9 +148,9 @@ fun GravityModalType1(
                 Image(
                     modifier = Modifier
                         .padding(all = 10.dp)
-                        .requiredSize(data.closeButtonImageSize)
+                        .requiredSize(data.closeButtonImage.size)
                         .align(Alignment.Center),
-                    painter = painterResource(data.closeButtonImage),
+                    painter = painterResource(data.closeButtonImage.url),
                     contentDescription = null,
                 )
 
@@ -158,24 +162,18 @@ fun GravityModalType1(
 data class ModalData(
     val color: Color,
     val contentAlignment: Alignment.Horizontal,
-    val borderRadius: Dp,
+    val cornerRadius: Dp,
     val title: GravityText,
     val subtitle: GravityText,
-    val buttonTitle: GravityText,
-    val buttonColor: Color,
-    val buttonOutlineColor: Color,
-    val secondaryButtonTitle: GravityText,
-    val secondaryButtonColor: Color,
-    val secondaryButtonOutlineColor: Color,
-    @DrawableRes val image: Int,
-    val imageSize: DpSize,
-    @DrawableRes val closeButtonImage: Int,
-    val closeButtonImageSize: DpSize,
+    val button: GravityButton,
+    val secondaryButton: GravityButton,
+    val image: GravityImage,
+    val closeButtonImage: GravityImage,
 )
 
 val mockModalData = ModalData(
     color = Color(0xFFFFFFFF),
-    borderRadius = 16.dp,
+    cornerRadius = 16.dp,
     contentAlignment = Alignment.Start,
     title = GravityText(
         text = "Скидка 5% \uD83D\uDD25",
@@ -191,34 +189,38 @@ val mockModalData = ModalData(
         fontWeight = FontWeight.W400,
         lineHeight = 20.sp,
     ),
-    buttonTitle = GravityText(
-        text = "Скопировать",
+    button = GravityButton(
+        title = GravityText(
+            text = "Скопировать",
+            color = Color(0xFFFFFFFF),
+            fontSize = 16.sp,
+            fontWeight = FontWeight.W600,
+            lineHeight = 24.sp,
+        ),
+        color = Color(0xFF7F56D9),
+        outlineColor = Color(0xFF7F56D9),
+        pressColor = null,
+        cornerRadius = 8.dp,
+    ),
+    secondaryButton = GravityButton(
+        title = GravityText(
+            text = "Отмена",
+            color = Color(0xFF414651),
+            fontSize = 16.sp,
+            fontWeight = FontWeight.W600,
+            lineHeight = 24.sp,
+        ),
         color = Color(0xFFFFFFFF),
-        fontSize = 16.sp,
-        fontWeight = FontWeight.W600,
-        lineHeight = 24.sp,
+        outlineColor = Color(0xFF000000),
+        pressColor = null,
+        cornerRadius = 8.dp,
     ),
-    buttonColor = Color(0xFF7F56D9),
-    buttonOutlineColor = Color(0xFF7F56D9),
-    secondaryButtonTitle = GravityText(
-        text = "Отмена",
-        color = Color(0xFF414651),
-        fontSize = 16.sp,
-        fontWeight = FontWeight.W600,
-        lineHeight = 24.sp,
+    image = GravityImage(
+        url = R.drawable.ic_check,
+        size = DpSize(width = 56.dp, height = 56.dp),
     ),
-    secondaryButtonColor = Color(0xFFFFFFFF),
-    secondaryButtonOutlineColor = Color(0xFF000000),
-    image = R.drawable.ic_check,
-    imageSize = DpSize(width = 56.dp, height = 56.dp),
-    closeButtonImage = R.drawable.ic_close,
-    closeButtonImageSize = DpSize(width = 24.dp, height = 24.dp),
-)
-
-class GravityText(
-    val text: String,
-    val color: Color,
-    val fontSize: TextUnit,
-    val fontWeight: FontWeight,
-    val lineHeight: TextUnit,
+    closeButtonImage = GravityImage(
+        url = R.drawable.ic_close,
+        size = DpSize(width = 24.dp, height = 24.dp),
+    ),
 )
