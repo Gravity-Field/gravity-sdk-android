@@ -80,6 +80,23 @@ class MainActivity : ComponentActivity() {
                             ) {
                                 Text(text = "Show BottomSheet")
                             }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            ShowContentButton(
+                                onClick = {
+                                    GravitySDK.instance.showModal1(context)
+                                },
+                            ) {
+                                Text(text = "Show modal 1")
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+                            ShowContentButton(
+                                onClick = {
+                                    GravitySDK.instance.showModal2(context)
+                                },
+                            ) {
+                                Text(text = "Show modal 2")
+                            }
                         }
                     }
                 }

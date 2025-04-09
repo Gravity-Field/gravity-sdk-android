@@ -1,5 +1,8 @@
 package ai.gravityfield.gravity_sdk
 
+import ai.gravityfield.gravity_sdk.models.DeliveryMethod
+import ai.gravityfield.gravity_sdk.network.GravityRepository
+import ai.gravityfield.gravity_sdk.ui.GravityModalContent
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -24,7 +27,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.window.Dialog
 import androidx.core.view.children
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 
 class GravitySDK private constructor() {
@@ -45,6 +51,8 @@ class GravitySDK private constructor() {
             _instance = GravitySDK()
         }
     }
+
+    private val repository = GravityRepository()
 
     fun showModal(context: Context, data: ModalData) {
         val dismissController = DismissController()
@@ -107,6 +115,40 @@ class GravitySDK private constructor() {
             ) {
                 GravityBottomSheetType1(mockBottomSheetData) {
                     scope.launch { state.hide() }.invokeOnCompletion { dismissController.dismiss() }
+                }
+            }
+        }
+    }
+
+    fun showModal1(context: Context) {
+        showBackendContent(context, "modal-template-1")
+    }
+
+    fun showModal2(context: Context) {
+        showBackendContent(context, "modal-template-2")
+    }
+
+    private fun showBackendContent(context: Context, templateId: String) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val result = repository.getContent(templateId)
+            val content = result.data.first().payload.first().contents.first()
+
+            withContext(Dispatchers.Main) {
+                when (content.deliveryMethod) {
+                    DeliveryMethod.MODAL -> {
+                        val dismissController = DismissController()
+                        showOverlay(context, dismissController) {
+                            Dialog(onDismissRequest = dismissController::dismiss) {
+                                GravityModalContent(content, dismissController::dismiss)
+                            }
+                        }
+                    }
+
+                    DeliveryMethod.SNACK_BAR -> TODO()
+                    DeliveryMethod.BOTTOM_SHEET -> TODO()
+                    DeliveryMethod.FULL_SCREEN -> TODO()
+                    DeliveryMethod.INLINE -> TODO()
+                    DeliveryMethod.UNKNOWN -> TODO()
                 }
             }
         }
