@@ -1,7 +1,9 @@
 package ai.gravityfield.gravity_sdk
 
+import ai.gravityfield.gravity_sdk.models.Content
 import ai.gravityfield.gravity_sdk.models.DeliveryMethod
 import ai.gravityfield.gravity_sdk.network.GravityRepository
+import ai.gravityfield.gravity_sdk.ui.GravityBottomSheetContent
 import ai.gravityfield.gravity_sdk.ui.GravityModalContent
 import android.app.Activity
 import android.content.Context
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SnackbarHost
@@ -25,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.core.view.children
 import kotlinx.coroutines.CoroutineScope
@@ -128,6 +132,14 @@ class GravitySDK private constructor() {
         showBackendContent(context, "modal-template-2")
     }
 
+    fun showBottomSheet(context: Context) {
+        showBackendContent(context, "bottom-sheet-template-1")
+    }
+
+    fun showBottomSheetBanner(context: Context) {
+        showBackendContent(context, "bottom-sheet-banner")
+    }
+
     private fun showBackendContent(context: Context, templateId: String) {
         CoroutineScope(Dispatchers.IO).launch {
             val result = repository.getContent(templateId)
@@ -135,20 +147,48 @@ class GravitySDK private constructor() {
 
             withContext(Dispatchers.Main) {
                 when (content.deliveryMethod) {
-                    DeliveryMethod.MODAL -> {
-                        val dismissController = DismissController()
-                        showOverlay(context, dismissController) {
-                            Dialog(onDismissRequest = dismissController::dismiss) {
-                                GravityModalContent(content, dismissController::dismiss)
-                            }
-                        }
-                    }
+                    DeliveryMethod.MODAL -> showModal(context, content)
+                    DeliveryMethod.BOTTOM_SHEET -> showBottomSheet(context, content)
 
                     DeliveryMethod.SNACK_BAR -> TODO()
-                    DeliveryMethod.BOTTOM_SHEET -> TODO()
                     DeliveryMethod.FULL_SCREEN -> TODO()
                     DeliveryMethod.INLINE -> TODO()
                     DeliveryMethod.UNKNOWN -> TODO()
+                }
+            }
+        }
+    }
+
+    private fun showModal(context: Context, content: Content) {
+        val dismissController = DismissController()
+        showOverlay(context, dismissController) {
+            Dialog(onDismissRequest = dismissController::dismiss) {
+                GravityModalContent(content, dismissController::dismiss)
+            }
+        }
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
+    private fun showBottomSheet(context: Context, content: Content) {
+        val container = content.variables.frameUI.container
+        val cornerRadius = container.style.cornerRadius ?: 0.0
+
+        val dismissController = DismissController()
+        showOverlay(context, dismissController) {
+            val state = rememberModalBottomSheetState()
+            val scope = rememberCoroutineScope()
+            ModalBottomSheet(
+                onDismissRequest = dismissController::dismiss,
+                shape = RoundedCornerShape(
+                    topStart = cornerRadius.dp, topEnd = cornerRadius.dp
+                ),
+                containerColor = container.style.backgroundColor
+                    ?: BottomSheetDefaults.ContainerColor,
+                dragHandle = null,
+                sheetState = state,
+            ) {
+                GravityBottomSheetContent(content) {
+                    scope.launch { state.hide() }.invokeOnCompletion { dismissController.dismiss() }
                 }
             }
         }

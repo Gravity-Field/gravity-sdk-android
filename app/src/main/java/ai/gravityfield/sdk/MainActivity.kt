@@ -80,6 +80,7 @@ class MainActivity : ComponentActivity() {
                             ) {
                                 Text(text = "Show BottomSheet")
                             }
+
                             Spacer(modifier = Modifier.height(8.dp))
                             ShowContentButton(
                                 onClick = {
@@ -96,6 +97,24 @@ class MainActivity : ComponentActivity() {
                                 },
                             ) {
                                 Text(text = "Show modal 2")
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+                            ShowContentButton(
+                                onClick = {
+                                    GravitySDK.instance.showBottomSheet(context)
+                                },
+                            ) {
+                                Text(text = "Show BottomSheet")
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+                            ShowContentButton(
+                                onClick = {
+                                    GravitySDK.instance.showBottomSheetBanner(context)
+                                },
+                            ) {
+                                Text(text = "Show BottomSheet banner")
                             }
                         }
                     }
