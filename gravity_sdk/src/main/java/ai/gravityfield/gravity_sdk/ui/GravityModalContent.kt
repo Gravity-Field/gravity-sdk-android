@@ -20,7 +20,7 @@ fun GravityModalContent(
     content: Content,
     dismiss: () -> Unit,
 ) {
-    val frameUi = content.variables.frameUI
+    val frameUi = content.variables.frameUI ?: return
     val container = frameUi.container
     val close = frameUi.close
     val elements = content.variables.elements
@@ -43,7 +43,7 @@ fun GravityModalContent(
                     },
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                elements.map { GravityElement(element = it) }
+                elements.map { GravityElement(it, content.products) }
             }
 
             close?.let {

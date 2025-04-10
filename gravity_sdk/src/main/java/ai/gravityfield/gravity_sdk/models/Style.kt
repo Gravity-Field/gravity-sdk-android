@@ -23,7 +23,8 @@ data class Style(
     val fit: ContentScale?,
     val contentAlignment: GravityContentAlignment?,
     val layoutWidth: GravityLayoutWidth?,
-    val positioned: GravityPositioned?
+    val positioned: GravityPositioned?,
+    val rows: Int?,
 ) {
     companion object {
         @Suppress("UNCHECKED_CAST")
@@ -47,7 +48,8 @@ data class Style(
                     )
                 },
                 layoutWidth = json["layoutWidth"]?.let { GravityLayoutWidth.fromString(it as String) },
-                positioned = json["positioned"]?.let { GravityPositioned.fromJson(it as Map<String, Any?>) }
+                positioned = json["positioned"]?.let { GravityPositioned.fromJson(it as Map<String, Any?>) },
+                rows = json["rows"] as Int?
             )
         }
     }

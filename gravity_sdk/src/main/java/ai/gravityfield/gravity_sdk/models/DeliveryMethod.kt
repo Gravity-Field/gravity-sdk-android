@@ -13,7 +13,7 @@ enum class DeliveryMethod {
             return when (value) {
                 "snackBar" -> SNACK_BAR
                 "modal" -> MODAL
-                "bottomSheet", "bottom-sheet" -> BOTTOM_SHEET
+                "bottomSheet", "bottom-sheet", "BOTTOM_SHEET" -> BOTTOM_SHEET
                 "fullScreen" -> FULL_SCREEN
                 "inline" -> INLINE
                 else -> UNKNOWN

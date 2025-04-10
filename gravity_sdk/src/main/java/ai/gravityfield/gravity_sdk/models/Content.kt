@@ -6,6 +6,7 @@ data class Content(
     val deliveryMethod: DeliveryMethod,
     val contentType: String,
     val variables: Variables,
+    val products: Products?,
     val events: List<Event>
 ) {
     companion object {
@@ -17,6 +18,7 @@ data class Content(
                 deliveryMethod = DeliveryMethod.fromString(json["deliveryMethod"] as String?),
                 contentType = json["contentType"] as String,
                 variables = Variables.fromJson(json["variables"] as Map<String, Any?>),
+                products = if (json["products"] != null) Products.fromJson(json["products"] as Map<String, Any?>) else null,
                 events = (json["events"] as List<Map<String, Any?>>).map { Event.fromJson(it) }
             )
         }

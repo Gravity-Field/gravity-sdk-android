@@ -18,8 +18,9 @@ fun GravityBottomSheetContent(
     dismiss: () -> Unit,
 ) {
     val frameUi = content.variables.frameUI
-    val container = frameUi.container
-    val close = frameUi.close
+    val container = frameUi?.container
+    val padding = container?.style?.padding
+    val close = frameUi?.close
     val elements = content.variables.elements
 
     Box(
@@ -27,19 +28,19 @@ fun GravityBottomSheetContent(
     ) {
         Column(
             modifier = Modifier
-                .conditional(container.style.padding != null)
+                .conditional(padding != null)
                 {
                     padding(
-                        start = container.style.padding!!.left.dp,
-                        top = container.style.padding.top.dp,
-                        end = container.style.padding.right.dp,
-                        bottom = container.style.padding.bottom.dp,
+                        start = padding!!.left.dp,
+                        top = padding.top.dp,
+                        end = padding.right.dp,
+                        bottom = padding.bottom.dp
                     )
                 },
-            horizontalAlignment = container.style.contentAlignment?.toHorizontalAlignment()
+            horizontalAlignment = container?.style?.contentAlignment?.toHorizontalAlignment()
                 ?: Alignment.CenterHorizontally
         ) {
-            elements.map { GravityElement(element = it) }
+            elements.map { GravityElement(it, content.products) }
         }
 
         close?.let {

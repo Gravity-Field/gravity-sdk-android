@@ -19,6 +19,7 @@ fun GravityImage(
     element: Element,
 ) {
     val style = element.style
+
     Image(
         modifier = Modifier
             .conditional(style.margin != null) {

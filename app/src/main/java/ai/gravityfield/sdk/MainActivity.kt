@@ -1,9 +1,7 @@
 package ai.gravityfield.sdk
 
 import ai.gravityfield.gravity_sdk.GravitySDK
-import ai.gravityfield.gravity_sdk.mockBottomSheetData
 import ai.gravityfield.gravity_sdk.mockFullScreenData
-import ai.gravityfield.gravity_sdk.mockModalData
 import ai.gravityfield.gravity_sdk.mockSnackbarData
 import ai.gravityfield.sdk.ui.theme.GravitySDKTheme
 import android.os.Bundle
@@ -46,13 +44,6 @@ class MainActivity : ComponentActivity() {
                                 .align(Alignment.Center)
                         ) {
                             val context = LocalContext.current
-                            ShowContentButton(
-                                onClick = {
-                                    GravitySDK.instance.showModal(context, mockModalData)
-                                },
-                            ) {
-                                Text(text = "Show modal")
-                            }
                             Spacer(modifier = Modifier.height(8.dp))
                             ShowContentButton(
                                 onClick = {
@@ -68,17 +59,6 @@ class MainActivity : ComponentActivity() {
                                 },
                             ) {
                                 Text(text = "Show FullScreen")
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            ShowContentButton(
-                                onClick = {
-                                    GravitySDK.instance.showBottomSheet(
-                                        context,
-                                        mockBottomSheetData
-                                    )
-                                },
-                            ) {
-                                Text(text = "Show BottomSheet")
                             }
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -115,6 +95,24 @@ class MainActivity : ComponentActivity() {
                                 },
                             ) {
                                 Text(text = "Show BottomSheet banner")
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+                            ShowContentButton(
+                                onClick = {
+                                    GravitySDK.instance.showBottomSheetProductsGrid(context)
+                                },
+                            ) {
+                                Text(text = "Show BottomSheet products grid")
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+                            ShowContentButton(
+                                onClick = {
+                                    GravitySDK.instance.showBottomSheetProductsRow(context)
+                                },
+                            ) {
+                                Text(text = "Show BottomSheet products row")
                             }
                         }
                     }

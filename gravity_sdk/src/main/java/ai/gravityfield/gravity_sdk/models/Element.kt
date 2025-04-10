@@ -4,6 +4,8 @@ enum class ElementType {
     IMAGE,
     TEXT,
     BUTTON,
+    SPACER,
+    PRODUCTS_CONTAINER,
     UNKNOWN;
 
     companion object {
@@ -12,6 +14,8 @@ enum class ElementType {
                 "image" -> IMAGE
                 "text" -> TEXT
                 "button" -> BUTTON
+                "spacer" -> SPACER
+                "productsContainer", "products-container" -> PRODUCTS_CONTAINER
                 else -> UNKNOWN
             }
         }

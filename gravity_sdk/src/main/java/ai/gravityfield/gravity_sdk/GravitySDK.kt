@@ -140,6 +140,14 @@ class GravitySDK private constructor() {
         showBackendContent(context, "bottom-sheet-banner")
     }
 
+    fun showBottomSheetProductsGrid(context: Context) {
+        showBackendContent(context, "bottom-sheet-products-grid-2")
+    }
+
+    fun showBottomSheetProductsRow(context: Context) {
+        showBackendContent(context, "bottom-sheet-products-row")
+    }
+
     private fun showBackendContent(context: Context, templateId: String) {
         CoroutineScope(Dispatchers.IO).launch {
             val result = repository.getContent(templateId)
@@ -170,19 +178,23 @@ class GravitySDK private constructor() {
 
     @OptIn(ExperimentalMaterial3Api::class)
     private fun showBottomSheet(context: Context, content: Content) {
-        val container = content.variables.frameUI.container
-        val cornerRadius = container.style.cornerRadius ?: 0.0
+        val frameUI = content.variables.frameUI
+        val container = frameUI?.container
+        val cornerRadius = container?.style?.cornerRadius ?: 0.0
+
+        // todo
+        //.height(fixedHeight + WindowInsets.systemBars.asPaddingValues().calculateTopPadding()
 
         val dismissController = DismissController()
         showOverlay(context, dismissController) {
-            val state = rememberModalBottomSheetState()
+            val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
             val scope = rememberCoroutineScope()
             ModalBottomSheet(
                 onDismissRequest = dismissController::dismiss,
                 shape = RoundedCornerShape(
                     topStart = cornerRadius.dp, topEnd = cornerRadius.dp
                 ),
-                containerColor = container.style.backgroundColor
+                containerColor = container?.style?.backgroundColor
                     ?: BottomSheetDefaults.ContainerColor,
                 dragHandle = null,
                 sheetState = state,
