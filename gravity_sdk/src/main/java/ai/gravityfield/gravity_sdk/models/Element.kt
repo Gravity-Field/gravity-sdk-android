@@ -35,7 +35,7 @@ data class Element(
                 type = ElementType.fromString(json["type"] as String),
                 text = json["text"] as? String,
                 src = json["src"] as? String,
-                style = Style.fromJson(json["style"] as Map<String, Any?>)
+                style = if (json["style"] != null) Style.fromJson(json["style"] as Map<String, Any?>) else Style.empty
             )
         }
     }

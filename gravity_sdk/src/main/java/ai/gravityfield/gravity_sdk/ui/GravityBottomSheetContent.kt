@@ -2,7 +2,7 @@ package ai.gravityfield.gravity_sdk.ui
 
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.Content
-import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElement
+import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,7 +21,6 @@ fun GravityBottomSheetContent(
     val container = frameUi?.container
     val padding = container?.style?.padding
     val close = frameUi?.close
-    val elements = content.variables.elements
 
     Box(
         modifier = Modifier.fillMaxWidth()
@@ -40,7 +39,7 @@ fun GravityBottomSheetContent(
             horizontalAlignment = container?.style?.contentAlignment?.toHorizontalAlignment()
                 ?: Alignment.CenterHorizontally
         ) {
-            elements.map { GravityElement(it, content.products) }
+            GravityElements(content)
         }
 
         close?.let {

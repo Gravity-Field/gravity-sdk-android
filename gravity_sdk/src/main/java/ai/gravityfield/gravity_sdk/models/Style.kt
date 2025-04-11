@@ -9,24 +9,27 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 
 data class Style(
-    val backgroundColor: Color?,
-    val pressColor: Color?,
-    val outlineColor: Color?,
-    val cornerRadius: Double?,
-    val size: GravitySize?,
-    val margin: GravityMargin?,
-    val padding: GravityPadding?,
-    val fontSize: TextUnit?,
-    val fontWeight: FontWeight?,
-    val textColor: Color?,
-    val textStyle: GravityTextStyle?,
-    val fit: ContentScale?,
-    val contentAlignment: GravityContentAlignment?,
-    val layoutWidth: GravityLayoutWidth?,
-    val positioned: GravityPositioned?,
-    val rows: Int?,
+    val backgroundColor: Color? = null,
+    val pressColor: Color? = null,
+    val outlineColor: Color? = null,
+    val cornerRadius: Double? = null,
+    val size: GravitySize? = null,
+    val margin: GravityMargin? = null,
+    val padding: GravityPadding? = null,
+    val fontSize: TextUnit? = null,
+    val fontWeight: FontWeight? = null,
+    val textColor: Color? = null,
+    val textStyle: GravityTextStyle? = null,
+    val fit: ContentScale? = null,
+    val contentAlignment: GravityContentAlignment? = null,
+    val layoutWidth: GravityLayoutWidth? = null,
+    val positioned: GravityPositioned? = null,
+    val rows: Int? = null,
+    val weight: Float? = null
 ) {
     companion object {
+        val empty = Style()
+
         @Suppress("UNCHECKED_CAST")
         fun fromJson(json: Map<String, Any?>): Style {
             return Style(
@@ -49,7 +52,8 @@ data class Style(
                 },
                 layoutWidth = json["layoutWidth"]?.let { GravityLayoutWidth.fromString(it as String) },
                 positioned = json["positioned"]?.let { GravityPositioned.fromJson(it as Map<String, Any?>) },
-                rows = json["rows"] as Int?
+                rows = json["rows"] as Int?,
+                weight = (json["rows"] as Number?)?.toFloat() ?: 1f
             )
         }
     }

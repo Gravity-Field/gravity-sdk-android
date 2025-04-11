@@ -4,6 +4,7 @@ import ai.gravityfield.gravity_sdk.models.Content
 import ai.gravityfield.gravity_sdk.models.DeliveryMethod
 import ai.gravityfield.gravity_sdk.network.GravityRepository
 import ai.gravityfield.gravity_sdk.ui.GravityBottomSheetContent
+import ai.gravityfield.gravity_sdk.ui.GravityFullScreenContent
 import ai.gravityfield.gravity_sdk.ui.GravityModalContent
 import android.app.Activity
 import android.content.Context
@@ -148,6 +149,10 @@ class GravitySDK private constructor() {
         showBackendContent(context, "bottom-sheet-products-row")
     }
 
+    fun showFullScreen(context: Context) {
+        showBackendContent(context, "fullscreen-banner")
+    }
+
     private fun showBackendContent(context: Context, templateId: String) {
         CoroutineScope(Dispatchers.IO).launch {
             val result = repository.getContent(templateId)
@@ -157,9 +162,9 @@ class GravitySDK private constructor() {
                 when (content.deliveryMethod) {
                     DeliveryMethod.MODAL -> showModal(context, content)
                     DeliveryMethod.BOTTOM_SHEET -> showBottomSheet(context, content)
+                    DeliveryMethod.FULL_SCREEN -> showFullScreen(context, content)
 
                     DeliveryMethod.SNACK_BAR -> TODO()
-                    DeliveryMethod.FULL_SCREEN -> TODO()
                     DeliveryMethod.INLINE -> TODO()
                     DeliveryMethod.UNKNOWN -> TODO()
                 }
@@ -203,6 +208,13 @@ class GravitySDK private constructor() {
                     scope.launch { state.hide() }.invokeOnCompletion { dismissController.dismiss() }
                 }
             }
+        }
+    }
+
+    private fun showFullScreen(context: Context, content: Content) {
+        val dismissController = DismissController()
+        showOverlay(context, dismissController) {
+            GravityFullScreenContent(content, dismissController::dismiss)
         }
     }
 

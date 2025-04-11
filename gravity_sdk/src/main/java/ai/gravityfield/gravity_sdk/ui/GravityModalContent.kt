@@ -2,7 +2,7 @@ package ai.gravityfield.gravity_sdk.ui
 
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.Content
-import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElement
+import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,7 +23,6 @@ fun GravityModalContent(
     val frameUi = content.variables.frameUI ?: return
     val container = frameUi.container
     val close = frameUi.close
-    val elements = content.variables.elements
 
     Surface(
         shape = RoundedCornerShape(container.style.cornerRadius?.dp ?: 0.dp),
@@ -43,7 +42,7 @@ fun GravityModalContent(
                     },
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                elements.map { GravityElement(it, content.products) }
+                GravityElements(content)
             }
 
             close?.let {

@@ -1,7 +1,6 @@
 package ai.gravityfield.sdk
 
 import ai.gravityfield.gravity_sdk.GravitySDK
-import ai.gravityfield.gravity_sdk.mockFullScreenData
 import ai.gravityfield.gravity_sdk.mockSnackbarData
 import ai.gravityfield.sdk.ui.theme.GravitySDKTheme
 import android.os.Bundle
@@ -51,14 +50,6 @@ class MainActivity : ComponentActivity() {
                                 },
                             ) {
                                 Text(text = "Show snackbar")
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                            ShowContentButton(
-                                onClick = {
-                                    GravitySDK.instance.showFullScreen(context, mockFullScreenData)
-                                },
-                            ) {
-                                Text(text = "Show FullScreen")
                             }
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -113,6 +104,15 @@ class MainActivity : ComponentActivity() {
                                 },
                             ) {
                                 Text(text = "Show BottomSheet products row")
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+                            ShowContentButton(
+                                onClick = {
+                                    GravitySDK.instance.showFullScreen(context)
+                                },
+                            ) {
+                                Text(text = "Show FullScreen")
                             }
                         }
                     }

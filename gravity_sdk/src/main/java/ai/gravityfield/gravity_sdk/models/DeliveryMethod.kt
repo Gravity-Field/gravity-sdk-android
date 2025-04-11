@@ -11,10 +11,10 @@ enum class DeliveryMethod {
     companion object {
         fun fromString(value: String?): DeliveryMethod {
             return when (value) {
-                "snackBar" -> SNACK_BAR
+                "snackBar", "snackbar", "snack_bar" -> SNACK_BAR
                 "modal" -> MODAL
-                "bottomSheet", "bottom-sheet", "BOTTOM_SHEET" -> BOTTOM_SHEET
-                "fullScreen" -> FULL_SCREEN
+                "bottomSheet", "bottom-sheet", "BOTTOM_SHEET", "bottom_sheet" -> BOTTOM_SHEET
+                "fullscreen" -> FULL_SCREEN
                 "inline" -> INLINE
                 else -> UNKNOWN
             }
