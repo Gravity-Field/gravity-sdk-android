@@ -19,6 +19,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
@@ -51,6 +52,7 @@ fun GravityProduct(
             Text(
                 text = item.name,
                 maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Normal,
                 color = Color.Black,

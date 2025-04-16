@@ -52,7 +52,7 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)
-    implementation(libs.coil)
+    implementation(libs.coil.compose)
     implementation(libs.coil.network)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

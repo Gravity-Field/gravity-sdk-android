@@ -2,6 +2,7 @@ package ai.gravityfield.sdk
 
 import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.mockSnackbarData
+import ai.gravityfield.gravity_sdk.models.Slot
 import ai.gravityfield.sdk.ui.theme.GravitySDKTheme
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -31,7 +32,13 @@ import androidx.compose.ui.unit.dp
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        GravitySDK.init()
+        GravitySDK.init(
+            productViewBuilder = { context, slot ->
+                ProductView(context, slot.item)
+            },
+            productFilter = ::checkSlotValid,
+        )
+
         enableEdgeToEdge()
         setContent {
             GravitySDKTheme {
@@ -119,6 +126,10 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun checkSlotValid(slot: Slot): Boolean {
+        return slot.item.price != "82990"
     }
 }
 

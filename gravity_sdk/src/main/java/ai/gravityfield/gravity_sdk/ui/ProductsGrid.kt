@@ -22,7 +22,7 @@ fun ProductsGrid(
     val style = element.style
     val height = style.size?.height
     val margin = style.margin
-    val rows = style.rows ?: 3
+    val columns = style.gridColumns ?: 3
 
     LazyVerticalGrid(
         modifier = Modifier
@@ -42,7 +42,7 @@ fun ProductsGrid(
             {
                 background(color = style.backgroundColor!!)
             },
-        columns = GridCells.Fixed(rows),
+        columns = GridCells.Fixed(columns),
 
         // todo: add to style
         // contentPadding = PaddingValues(horizontal = 16.dp),

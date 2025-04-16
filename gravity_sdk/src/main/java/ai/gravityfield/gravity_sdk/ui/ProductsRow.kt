@@ -1,5 +1,6 @@
 package ai.gravityfield.gravity_sdk.ui
 
+import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.Element
 import ai.gravityfield.gravity_sdk.models.Products
@@ -13,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 
 @Composable
 fun ProductsRow(
@@ -34,7 +36,7 @@ fun ProductsRow(
                     bottom = margin.bottom.dp
                 )
             }
-            .conditional(height != null) {
+            .conditional(height != null && GravitySDK.instance.productViewBuilder == null) {
                 height(height!!.dp)
             }
     ) {
@@ -49,7 +51,15 @@ fun ProductsRow(
         ) {
             items(products.slots.size) { index ->
                 val slot = products.slots[index]
-                GravityProduct(slot)
+                if (GravitySDK.instance.productViewBuilder != null) {
+                    AndroidView(
+                        factory = {
+                            GravitySDK.instance.productViewBuilder!!(it, slot)
+                        }
+                    )
+                } else {
+                    GravityProduct(slot)
+                }
             }
         }
     }

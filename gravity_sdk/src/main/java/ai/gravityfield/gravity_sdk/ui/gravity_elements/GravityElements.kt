@@ -2,6 +2,7 @@ package ai.gravityfield.gravity_sdk.ui.gravity_elements
 
 import ai.gravityfield.gravity_sdk.models.Content
 import ai.gravityfield.gravity_sdk.models.ElementType
+import ai.gravityfield.gravity_sdk.models.ProductContainerType
 import ai.gravityfield.gravity_sdk.ui.ProductsGrid
 import ai.gravityfield.gravity_sdk.ui.ProductsRow
 import androidx.compose.foundation.layout.ColumnScope
@@ -22,11 +23,11 @@ fun ColumnScope.GravityElements(content: Content) {
             ElementType.SPACER -> Spacer(modifier = Modifier.weight(it.style.weight ?: 1f))
             ElementType.PRODUCTS_CONTAINER -> {
                 if (products != null) {
-                    val row = it.style.rows
-                    if (row == null)
-                        ProductsRow(it, products)
-                    else
-                        ProductsGrid(it, products)
+                    when (it.style.productContainerType) {
+                        ProductContainerType.ROW -> ProductsRow(it, products)
+                        ProductContainerType.GRID -> ProductsGrid(it, products)
+                        else -> {}
+                    }
                 }
             }
 

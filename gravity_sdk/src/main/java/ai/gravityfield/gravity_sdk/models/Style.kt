@@ -24,8 +24,9 @@ data class Style(
     val contentAlignment: GravityContentAlignment? = null,
     val layoutWidth: GravityLayoutWidth? = null,
     val positioned: GravityPositioned? = null,
-    val rows: Int? = null,
-    val weight: Float? = null
+    val weight: Float? = null,
+    val productContainerType: ProductContainerType? = null,
+    val gridColumns: Int? = null
 ) {
     companion object {
         val empty = Style()
@@ -52,8 +53,9 @@ data class Style(
                 },
                 layoutWidth = json["layoutWidth"]?.let { GravityLayoutWidth.fromString(it as String) },
                 positioned = json["positioned"]?.let { GravityPositioned.fromJson(it as Map<String, Any?>) },
-                rows = json["rows"] as Int?,
-                weight = (json["rows"] as Number?)?.toFloat() ?: 1f
+                weight = (json["rows"] as Number?)?.toFloat() ?: 1f,
+                productContainerType = ProductContainerType.fromString(json["productContainerType"] as String?),
+                gridColumns = (json["gridColumns"] as Number?)?.toInt()
             )
         }
     }
@@ -186,6 +188,21 @@ enum class GravityLayoutWidth {
                 "match_parent" -> MATCH_PARENT
                 "wrap_content" -> WRAP_CONTENT
                 else -> MATCH_PARENT
+            }
+        }
+    }
+}
+
+enum class ProductContainerType {
+    ROW,
+    GRID;
+
+    companion object {
+        fun fromString(type: String?): ProductContainerType? {
+            return when (type) {
+                "row" -> ROW
+                "grid" -> GRID
+                else -> null
             }
         }
     }

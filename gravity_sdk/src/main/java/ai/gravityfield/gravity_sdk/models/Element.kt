@@ -1,5 +1,26 @@
 package ai.gravityfield.gravity_sdk.models
 
+data class Element(
+    val type: ElementType,
+    val text: String?,
+    val src: String?,
+    val onClick: OnClick?,
+    val style: Style
+) {
+    companion object {
+        @Suppress("UNCHECKED_CAST")
+        fun fromJson(json: Map<String, Any?>): Element {
+            return Element(
+                type = ElementType.fromString(json["type"] as String),
+                text = json["text"] as? String,
+                src = json["src"] as? String,
+                onClick = if (json["onClick"] != null) OnClick.fromJson(json["onClick"] as Map<String, Any?>) else null,
+                style = if (json["style"] != null) Style.fromJson(json["style"] as Map<String, Any?>) else Style.empty
+            )
+        }
+    }
+}
+
 enum class ElementType {
     IMAGE,
     TEXT,
@@ -15,27 +36,29 @@ enum class ElementType {
                 "text" -> TEXT
                 "button" -> BUTTON
                 "spacer" -> SPACER
-                "productsContainer", "products-container" -> PRODUCTS_CONTAINER
+                "productsContainer", "products-container", "products_container" -> PRODUCTS_CONTAINER
                 else -> UNKNOWN
             }
         }
     }
 }
 
-data class Element(
-    val type: ElementType,
-    val text: String?,
-    val src: String?,
-    val style: Style
+data class OnClick(
+    val action: String,
+    val copyData: String?,
+    val step: Int?,
+    val url: String?,
+    val deeplink: String?,
 ) {
     companion object {
         @Suppress("UNCHECKED_CAST")
-        fun fromJson(json: Map<String, Any?>): Element {
-            return Element(
-                type = ElementType.fromString(json["type"] as String),
-                text = json["text"] as? String,
-                src = json["src"] as? String,
-                style = if (json["style"] != null) Style.fromJson(json["style"] as Map<String, Any?>) else Style.empty
+        fun fromJson(json: Map<String, Any?>): OnClick {
+            return OnClick(
+                action = json["action"] as String,
+                copyData = json["copyData"] as? String,
+                step = json["step"] as? Int,
+                url = json["url"] as? String,
+                deeplink = json["deeplink"] as? String
             )
         }
     }

@@ -2,6 +2,7 @@ package ai.gravityfield.gravity_sdk
 
 import ai.gravityfield.gravity_sdk.models.Content
 import ai.gravityfield.gravity_sdk.models.DeliveryMethod
+import ai.gravityfield.gravity_sdk.models.Slot
 import ai.gravityfield.gravity_sdk.network.GravityRepository
 import ai.gravityfield.gravity_sdk.ui.GravityBottomSheetContent
 import ai.gravityfield.gravity_sdk.ui.GravityFullScreenContent
@@ -9,6 +10,7 @@ import ai.gravityfield.gravity_sdk.ui.GravityModalContent
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
 import android.view.ViewGroup.MarginLayoutParams
@@ -37,8 +39,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+typealias ProductViewBuilder = (Context, Slot) -> View
+typealias ProductFilter = (Slot) -> Boolean
 
-class GravitySDK private constructor() {
+class GravitySDK private constructor(
+    internal val productViewBuilder: ProductViewBuilder?,
+    internal val productFilter: ProductFilter?,
+) {
 
     companion object {
         private var _instance: GravitySDK? = null
@@ -52,25 +59,18 @@ class GravitySDK private constructor() {
             }
 
         // todo: add initialization params
-        fun init() {
-            _instance = GravitySDK()
+        fun init(
+            productViewBuilder: ProductViewBuilder? = null,
+            productFilter: ProductFilter? = null,
+        ) {
+            _instance = GravitySDK(
+                productViewBuilder,
+                productFilter,
+            )
         }
     }
 
     private val repository = GravityRepository()
-
-    fun showModal(context: Context, data: ModalData) {
-        val dismissController = DismissController()
-        showOverlay(context, dismissController) {
-            Dialog(
-                onDismissRequest = {
-                    dismissController.dismiss()
-                },
-            ) {
-                GravityModalType1(data, dismissController::dismiss)
-            }
-        }
-    }
 
     fun showSnackbar(context: Context, data: SnackbarData) {
         val dismissController = DismissController()
@@ -93,35 +93,6 @@ class GravitySDK private constructor() {
                 }
             }
 
-        }
-    }
-
-    fun showFullScreen(context: Context, data: FullScreenData) {
-        val dismissController = DismissController()
-        showOverlay(context, dismissController) {
-            GravityFullScreen(data, dismissController::dismiss)
-        }
-    }
-
-    @OptIn(ExperimentalMaterial3Api::class)
-    fun showBottomSheet(context: Context, data: BottomSheetData) {
-        val dismissController = DismissController()
-        showOverlay(context, dismissController) {
-            val state = rememberModalBottomSheetState()
-            val scope = rememberCoroutineScope()
-            ModalBottomSheet(
-                onDismissRequest = dismissController::dismiss,
-                shape = RoundedCornerShape(
-                    topStart = data.borderRadius, topEnd = data.borderRadius
-                ),
-                containerColor = data.color,
-                dragHandle = null,
-                sheetState = state,
-            ) {
-                GravityBottomSheetType1(mockBottomSheetData) {
-                    scope.launch { state.hide() }.invokeOnCompletion { dismissController.dismiss() }
-                }
-            }
         }
     }
 
@@ -186,9 +157,6 @@ class GravitySDK private constructor() {
         val frameUI = content.variables.frameUI
         val container = frameUI?.container
         val cornerRadius = container?.style?.cornerRadius ?: 0.0
-
-        // todo
-        //.height(fixedHeight + WindowInsets.systemBars.asPaddingValues().calculateTopPadding()
 
         val dismissController = DismissController()
         showOverlay(context, dismissController) {
