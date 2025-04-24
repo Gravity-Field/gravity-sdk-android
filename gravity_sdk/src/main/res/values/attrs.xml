@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="GravityInlineView">
+        <attr name="companyId" format="string" />
+        <attr name="color" format="color|reference" />
+        <attr name="cornerRadius" format="dimension" />
+        <attr name="cornerRadiusTopStart" format="dimension" />
+        <attr name="cornerRadiusTopEnd" format="dimension" />
+        <attr name="cornerRadiusBottomStart" format="dimension" />
+        <attr name="cornerRadiusBottomEnd" format="dimension" />
+    </declare-styleable>
+</resources>

@@ -4,6 +4,7 @@ import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.mockSnackbarData
 import ai.gravityfield.gravity_sdk.models.Slot
 import ai.gravityfield.sdk.ui.theme.GravitySDKTheme
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -11,11 +12,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -46,11 +45,10 @@ class MainActivity : ComponentActivity() {
                     Box(modifier = Modifier.padding(innerPadding)) {
                         Column(
                             modifier = Modifier
-                                .padding(horizontal = 16.dp, vertical = 45.dp)
+                                .padding(top = 32.dp)
                                 .align(Alignment.Center)
                         ) {
                             val context = LocalContext.current
-                            Spacer(modifier = Modifier.height(8.dp))
                             ShowContentButton(
                                 onClick = {
                                     GravitySDK.instance.showSnackbar(context, mockSnackbarData)
@@ -59,7 +57,6 @@ class MainActivity : ComponentActivity() {
                                 Text(text = "Show snackbar")
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
                             ShowContentButton(
                                 onClick = {
                                     GravitySDK.instance.showModal1(context)
@@ -68,7 +65,6 @@ class MainActivity : ComponentActivity() {
                                 Text(text = "Show modal 1")
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
                             ShowContentButton(
                                 onClick = {
                                     GravitySDK.instance.showModal2(context)
@@ -77,7 +73,6 @@ class MainActivity : ComponentActivity() {
                                 Text(text = "Show modal 2")
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
                             ShowContentButton(
                                 onClick = {
                                     GravitySDK.instance.showBottomSheet(context)
@@ -86,7 +81,6 @@ class MainActivity : ComponentActivity() {
                                 Text(text = "Show BottomSheet")
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
                             ShowContentButton(
                                 onClick = {
                                     GravitySDK.instance.showBottomSheetBanner(context)
@@ -95,7 +89,6 @@ class MainActivity : ComponentActivity() {
                                 Text(text = "Show BottomSheet banner")
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
                             ShowContentButton(
                                 onClick = {
                                     GravitySDK.instance.showBottomSheetProductsGrid(context)
@@ -104,7 +97,6 @@ class MainActivity : ComponentActivity() {
                                 Text(text = "Show BottomSheet products grid")
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
                             ShowContentButton(
                                 onClick = {
                                     GravitySDK.instance.showBottomSheetProductsRow(context)
@@ -113,13 +105,30 @@ class MainActivity : ComponentActivity() {
                                 Text(text = "Show BottomSheet products row")
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
                             ShowContentButton(
                                 onClick = {
                                     GravitySDK.instance.showFullScreen(context)
                                 },
                             ) {
                                 Text(text = "Show FullScreen")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    val intent = Intent(context, InlineBannerActivity::class.java)
+                                    context.startActivity(intent)
+                                },
+                            ) {
+                                Text(text = "Show inline banner")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    val intent = Intent(context, InlineProductsActivity::class.java)
+                                    context.startActivity(intent)
+                                },
+                            ) {
+                                Text(text = "Show inline products")
                             }
                         }
                     }
@@ -140,6 +149,7 @@ fun ShowContentButton(
 ) {
     Button(
         modifier = Modifier
+            .padding(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 4.dp)
             .defaultMinSize(minHeight = 48.dp)
             .fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),

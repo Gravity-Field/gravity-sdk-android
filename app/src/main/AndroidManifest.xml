@@ -13,9 +13,18 @@
         android:theme="@style/Theme.GravitySDK"
         tools:targetApi="31">
         <activity
+            android:name=".InlineProductsActivity"
+            android:exported="false"
+            android:label="Inline products"
+            android:theme="@style/Theme.AppCompat.Light" />
+        <activity
+            android:name=".InlineBannerActivity"
+            android:exported="false"
+            android:label="Inline banner"
+            android:theme="@style/Theme.AppCompat.Light" />
+        <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="@string/app_name"
             android:theme="@style/Theme.GravitySDK">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

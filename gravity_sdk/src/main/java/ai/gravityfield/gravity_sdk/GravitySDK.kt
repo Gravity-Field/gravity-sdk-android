@@ -3,6 +3,7 @@ package ai.gravityfield.gravity_sdk
 import ai.gravityfield.gravity_sdk.models.Content
 import ai.gravityfield.gravity_sdk.models.DeliveryMethod
 import ai.gravityfield.gravity_sdk.models.Slot
+import ai.gravityfield.gravity_sdk.network.ContentResponse
 import ai.gravityfield.gravity_sdk.network.GravityRepository
 import ai.gravityfield.gravity_sdk.ui.GravityBottomSheetContent
 import ai.gravityfield.gravity_sdk.ui.GravityFullScreenContent
@@ -122,6 +123,10 @@ class GravitySDK private constructor(
 
     fun showFullScreen(context: Context) {
         showBackendContent(context, "fullscreen-banner")
+    }
+
+    internal suspend fun getCompany(companyId: String): ContentResponse {
+        return repository.getContent(companyId)
     }
 
     private fun showBackendContent(context: Context, templateId: String) {
