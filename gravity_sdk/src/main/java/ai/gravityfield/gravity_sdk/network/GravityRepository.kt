@@ -27,6 +27,11 @@ class GravityRepository {
         val json = JSONObject(data).toMap()
         return ContentResponse.fromJson(json)
     }
+
+    suspend fun trackEngagementEvent(urls: List<String>) {
+        // todo: uncomment when back will send urls values
+        // urls.forEach { client.get(it) }
+    }
 }
 
 fun JSONObject.toMap(): Map<String, Any> {

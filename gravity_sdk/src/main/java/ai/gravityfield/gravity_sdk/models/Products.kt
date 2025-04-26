@@ -34,7 +34,7 @@ data class Slot(
     val fallback: Boolean,
     val strId: Int,
     val slotId: String,
-    val events: List<Event>
+    val events: List<ProductEvent>
 ) {
     companion object {
         @Suppress("UNCHECKED_CAST")
@@ -44,7 +44,7 @@ data class Slot(
                 fallback = json["fallback"] as Boolean,
                 strId = (json["strId"] as Number).toInt(),
                 slotId = json["slotId"] as String,
-                events = (json["events"] as List<Map<String, Any?>>).map { Event.fromJson(it) }
+                events = (json["events"] as List<Map<String, Any?>>).map { ProductEvent.fromJson(it) }
             )
         }
     }

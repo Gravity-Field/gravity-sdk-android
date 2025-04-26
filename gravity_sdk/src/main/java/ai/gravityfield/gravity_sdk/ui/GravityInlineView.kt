@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.AbstractComposeView
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 
@@ -135,6 +136,8 @@ private fun GravityView(
                 val frameUi = content!!.variables.frameUI
                 val container = frameUi?.container
                 val padding = container?.style?.padding
+                val context = LocalContext.current
+
                 Column(
                     modifier = Modifier
                         .conditional(padding != null)
@@ -149,7 +152,15 @@ private fun GravityView(
                     horizontalAlignment = container?.style?.contentAlignment?.toHorizontalAlignment()
                         ?: Alignment.CenterHorizontally
                 ) {
-                    GravityElements(content!!)
+                    GravityElements(
+                        content!!,
+                        onClickCallback = { onClickModel ->
+                            GravitySDK.instance.onClickHandler(
+                                onClickModel,
+                                content!!,
+                            )
+                        }
+                    )
                 }
             }
 

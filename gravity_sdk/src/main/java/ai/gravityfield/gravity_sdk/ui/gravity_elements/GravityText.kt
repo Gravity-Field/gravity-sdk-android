@@ -1,7 +1,10 @@
 package ai.gravityfield.gravity_sdk.ui.gravity_elements
 
+import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.Element
 import ai.gravityfield.gravity_sdk.models.GravityContentAlignment
+import ai.gravityfield.gravity_sdk.models.OnClickModel
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
@@ -17,6 +20,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun GravityText(
     element: Element,
+    onClickCallback: (model: OnClickModel) -> Unit,
 ) {
     val style = element.style
 
@@ -44,7 +48,11 @@ fun GravityText(
 
 
     Text(
-        modifier = Modifier.padding(paddingValues),
+        modifier = Modifier
+            .padding(paddingValues)
+            .conditional(element.onClick != null) {
+                clickable { onClickCallback.invoke(element.onClick!!) }
+            },
         text = element.text ?: "",
         textAlign = textAlign,
         style = textStyle,

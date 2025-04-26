@@ -3,7 +3,9 @@ package ai.gravityfield.gravity_sdk.ui.gravity_elements
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.Element
 import ai.gravityfield.gravity_sdk.models.GravityLayoutWidth
+import ai.gravityfield.gravity_sdk.models.OnClickModel
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -17,6 +19,7 @@ import coil3.compose.rememberAsyncImagePainter
 @Composable
 fun GravityImage(
     element: Element,
+    onClickCallback: (model: OnClickModel) -> Unit,
 ) {
     val style = element.style
 
@@ -38,6 +41,9 @@ fun GravityImage(
             }
             .conditional(style.layoutWidth == GravityLayoutWidth.MATCH_PARENT) {
                 fillMaxWidth()
+            }
+            .conditional(element.onClick != null) {
+                clickable { onClickCallback.invoke(element.onClick!!) }
             },
         painter = rememberAsyncImagePainter(model = element.src),
         contentDescription = null,

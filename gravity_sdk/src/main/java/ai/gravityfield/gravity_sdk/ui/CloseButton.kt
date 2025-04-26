@@ -2,6 +2,7 @@ package ai.gravityfield.gravity_sdk.ui
 
 import ai.gravityfield.gravity_sdk.extensions.absolutePosition
 import ai.gravityfield.gravity_sdk.models.Close
+import ai.gravityfield.gravity_sdk.models.OnClickModel
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
@@ -16,7 +17,7 @@ import coil3.compose.rememberAsyncImagePainter
 @Composable
 fun CloseButton(
     close: Close,
-    onClick: () -> Unit,
+    onClickCallback: (model: OnClickModel) -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -28,7 +29,9 @@ fun CloseButton(
             )
     ) {
         IconButton(
-            onClick = onClick
+            onClick = {
+                if (close.onClick != null) onClickCallback.invoke(close.onClick)
+            }
         ) {
             if (close.image != null) {
                 Image(

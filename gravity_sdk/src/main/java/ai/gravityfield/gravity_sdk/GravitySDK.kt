@@ -1,7 +1,10 @@
 package ai.gravityfield.gravity_sdk
 
+import ai.gravityfield.gravity_sdk.models.Action
 import ai.gravityfield.gravity_sdk.models.Content
 import ai.gravityfield.gravity_sdk.models.DeliveryMethod
+import ai.gravityfield.gravity_sdk.models.Event
+import ai.gravityfield.gravity_sdk.models.OnClickModel
 import ai.gravityfield.gravity_sdk.models.Slot
 import ai.gravityfield.gravity_sdk.network.ContentResponse
 import ai.gravityfield.gravity_sdk.network.GravityRepository
@@ -75,7 +78,7 @@ class GravitySDK private constructor(
 
     fun showSnackbar(context: Context, data: SnackbarData) {
         val dismissController = DismissController()
-        showOverlay(context, dismissController) {
+        showOverlay(context, dismissController, dismissController::dismiss) {
             val snackbarHostState = remember { SnackbarHostState() }
             val scope = rememberCoroutineScope()
             LaunchedEffect(data) {
@@ -129,6 +132,15 @@ class GravitySDK private constructor(
         return repository.getContent(companyId)
     }
 
+    private fun trackEngagementEvent(action: Action, events: List<Event>) {
+        events.find { it.name == action }?.let { event ->
+            CoroutineScope(Dispatchers.IO).launch {
+                repository.trackEngagementEvent(event.urls)
+            }
+        }
+
+    }
+
     private fun showBackendContent(context: Context, templateId: String) {
         CoroutineScope(Dispatchers.IO).launch {
             val result = repository.getContent(templateId)
@@ -141,8 +153,8 @@ class GravitySDK private constructor(
                     DeliveryMethod.FULL_SCREEN -> showFullScreen(context, content)
 
                     DeliveryMethod.SNACK_BAR -> TODO()
-                    DeliveryMethod.INLINE -> TODO()
-                    DeliveryMethod.UNKNOWN -> TODO()
+                    DeliveryMethod.INLINE -> {}
+                    DeliveryMethod.UNKNOWN -> {}
                 }
             }
         }
@@ -150,9 +162,23 @@ class GravitySDK private constructor(
 
     private fun showModal(context: Context, content: Content) {
         val dismissController = DismissController()
-        showOverlay(context, dismissController) {
-            Dialog(onDismissRequest = dismissController::dismiss) {
-                GravityModalContent(content, dismissController::dismiss)
+        fun dismiss() {
+            trackEngagementEvent(Action.CLOSE, content.events)
+            dismissController.dismiss()
+        }
+
+        showOverlay(
+            context = context,
+            dismissController = dismissController,
+            onBack = ::dismiss
+        ) {
+            Dialog(onDismissRequest = ::dismiss) {
+                GravityModalContent(
+                    content,
+                    onClickCallback = { onClickModel ->
+                        onClickHandler(onClickModel, content, dismissController::dismiss)
+                    }
+                )
             }
         }
     }
@@ -164,11 +190,20 @@ class GravitySDK private constructor(
         val cornerRadius = container?.style?.cornerRadius ?: 0.0
 
         val dismissController = DismissController()
-        showOverlay(context, dismissController) {
+        fun dismiss() {
+            trackEngagementEvent(Action.CLOSE, content.events)
+            dismissController.dismiss()
+        }
+
+        showOverlay(
+            context = context,
+            dismissController = dismissController,
+            onBack = ::dismiss
+        ) {
             val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
             val scope = rememberCoroutineScope()
             ModalBottomSheet(
-                onDismissRequest = dismissController::dismiss,
+                onDismissRequest = ::dismiss,
                 shape = RoundedCornerShape(
                     topStart = cornerRadius.dp, topEnd = cornerRadius.dp
                 ),
@@ -177,29 +212,79 @@ class GravitySDK private constructor(
                 dragHandle = null,
                 sheetState = state,
             ) {
-                GravityBottomSheetContent(content) {
-                    scope.launch { state.hide() }.invokeOnCompletion { dismissController.dismiss() }
-                }
+                GravityBottomSheetContent(
+                    content,
+                    onClickCallback = { onClickModel ->
+                        onClickHandler(
+                            onClickModel,
+                            content,
+                            dismissCallback = {
+                                scope.launch { state.hide() }
+                                    .invokeOnCompletion { dismissController.dismiss() }
+                            }
+                        )
+                    }
+                )
             }
         }
     }
 
     private fun showFullScreen(context: Context, content: Content) {
         val dismissController = DismissController()
-        showOverlay(context, dismissController) {
-            GravityFullScreenContent(content, dismissController::dismiss)
+        fun dismiss() {
+            trackEngagementEvent(Action.CLOSE, content.events)
+            dismissController.dismiss()
+        }
+
+        showOverlay(
+            context = context,
+            dismissController = dismissController,
+            onBack = ::dismiss
+        ) {
+            GravityFullScreenContent(
+                content,
+                onClickCallback = { onClickModel ->
+                    onClickHandler(onClickModel, content, dismissController::dismiss)
+                }
+            )
         }
     }
+
+    internal fun onClickHandler(
+        onClickModel: OnClickModel,
+        content: Content,
+        dismissCallback: (() -> Unit)? = null,
+    ) {
+        val action = onClickModel.action
+
+        trackEngagementEvent(action, content.events)
+
+        when (action) {
+            Action.LOAD -> {}
+            Action.IMPRESSION -> {}
+            Action.VISIBLE_IMPRESSION -> {}
+            Action.COPY -> {}
+            Action.CLOSE -> dismissCallback?.invoke()
+            Action.CANCEL -> dismissCallback?.invoke()
+            Action.FOLLOW_URL -> {}
+            Action.FOLLOW_DEEPLINK -> {}
+            Action.REQUEST_PUSH -> {}
+            Action.REQUEST_TRACKING -> {}
+            Action.UNKNOWN -> {}
+        }
+    }
+
 
     private fun showOverlay(
         context: Context,
         dismissController: DismissController = DismissController(),
+        onBack: () -> Unit,
         content: @Composable () -> Unit,
     ) {
         val decorView = findOwner<Activity>(context)?.window?.decorView as ViewGroup
         val view = ComposeView(context).apply {
             setContent {
-                BackHandler { dismissController.dismiss() }
+                BackHandler { onBack.invoke() }
                 content()
             }
             z = decorView.children.maxOf { it.z } + 1

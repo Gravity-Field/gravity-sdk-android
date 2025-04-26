@@ -3,6 +3,7 @@ package ai.gravityfield.gravity_sdk.ui.gravity_elements
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.Element
 import ai.gravityfield.gravity_sdk.models.GravityLayoutWidth
+import ai.gravityfield.gravity_sdk.models.OnClickModel
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -24,6 +25,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun GravityButton(
     element: Element,
+    onClickCallback: (model: OnClickModel) -> Unit,
 ) {
     val style = element.style
     val textStyle = style.textStyle
@@ -56,7 +58,11 @@ fun GravityButton(
         values = if (ripple == null) emptyArray() else arrayOf(LocalRippleTheme provides ripple)
     ) {
         Button(
-            onClick = { /* Handle button click */ },
+            onClick = {
+                if (element.onClick != null) {
+                    onClickCallback.invoke(element.onClick)
+                }
+            },
             colors = buttonColors,
             modifier = Modifier
                 .conditional(style.margin != null) {

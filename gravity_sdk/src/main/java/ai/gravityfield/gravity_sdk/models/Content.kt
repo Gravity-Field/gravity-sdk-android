@@ -24,3 +24,13 @@ data class Content(
         }
     }
 }
+
+data class ContentActionModel(val action: Action) {
+    companion object {
+        fun fromJson(json: Map<String, Any?>): ContentActionModel {
+            return ContentActionModel(
+                action = Action.fromString(json["action"] as String)
+            )
+        }
+    }
+}

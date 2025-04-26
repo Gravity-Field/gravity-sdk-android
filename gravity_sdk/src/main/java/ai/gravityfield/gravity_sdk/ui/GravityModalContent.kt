@@ -2,6 +2,7 @@ package ai.gravityfield.gravity_sdk.ui
 
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.Content
+import ai.gravityfield.gravity_sdk.models.OnClickModel
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,7 +19,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun GravityModalContent(
     content: Content,
-    dismiss: () -> Unit,
+    onClickCallback: (model: OnClickModel) -> Unit,
 ) {
     val frameUi = content.variables.frameUI ?: return
     val container = frameUi.container
@@ -42,11 +43,11 @@ fun GravityModalContent(
                     },
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                GravityElements(content)
+                GravityElements(content, onClickCallback)
             }
 
             close?.let {
-                CloseButton(it, dismiss)
+                CloseButton(it, onClickCallback)
             }
         }
     }
