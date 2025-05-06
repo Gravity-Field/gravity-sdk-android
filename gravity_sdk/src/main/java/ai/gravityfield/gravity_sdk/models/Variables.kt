@@ -5,7 +5,8 @@ data class Variables(
     val elements: List<Element>,
     val onLoad: ContentActionModel,
     val onImpression: ContentActionModel,
-    val onVisibleImpression: ContentActionModel
+    val onVisibleImpression: ContentActionModel,
+    val onClose: ContentActionModel?
 ) {
     companion object {
         @Suppress("UNCHECKED_CAST")
@@ -16,6 +17,7 @@ data class Variables(
                 onLoad = ContentActionModel.fromJson(json["onLoad"] as Map<String, Any?>),
                 onImpression = ContentActionModel.fromJson(json["onImpression"] as Map<String, Any?>),
                 onVisibleImpression = ContentActionModel.fromJson(json["onVisibleImpression"] as Map<String, Any?>),
+                onClose = if (json["onClose"] != null) ContentActionModel.fromJson(json["onClose"] as Map<String, Any?>) else null,
             )
         }
     }

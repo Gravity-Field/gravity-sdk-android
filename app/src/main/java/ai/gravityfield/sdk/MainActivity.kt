@@ -3,6 +3,10 @@ package ai.gravityfield.sdk
 import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.mockSnackbarData
 import ai.gravityfield.gravity_sdk.models.Slot
+import ai.gravityfield.gravity_sdk.models.external.AddToCartEvent
+import ai.gravityfield.gravity_sdk.models.external.ContextType
+import ai.gravityfield.gravity_sdk.models.external.CustomEvent
+import ai.gravityfield.gravity_sdk.models.external.PageContext
 import ai.gravityfield.sdk.ui.theme.GravitySDKTheme
 import android.content.Intent
 import android.os.Bundle
@@ -27,11 +31,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         GravitySDK.init(
+            apiKey = "api_key",
+            section = "section",
             productViewBuilder = { context, slot ->
                 ProductView(context, slot.item)
             },
@@ -129,6 +138,41 @@ class MainActivity : ComponentActivity() {
                                 },
                             ) {
                                 Text(text = "Show inline products")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        GravitySDK.instance.trackView(PageContext(type = ContextType.CART))
+                                    }
+                                },
+                            ) {
+                                Text(text = "Trigger event")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    CoroutineScope(Dispatchers.IO).launch {
+                                        GravitySDK.instance.triggerEvent(
+                                            events = listOf(
+                                                AddToCartEvent(
+                                                    value = 118.26,
+                                                    currency = "any supported currency code",
+                                                    productId = "item-34454",
+                                                    quantity = 2,
+                                                    cart = emptyList()
+                                                ),
+                                                CustomEvent(
+                                                    type = "new_type",
+                                                    name = "New name",
+                                                )
+                                            ),
+                                            pageContext = PageContext(type = ContextType.CART)
+                                        )
+                                    }
+                                },
+                            ) {
+                                Text(text = "Trigger event")
                             }
                         }
                     }

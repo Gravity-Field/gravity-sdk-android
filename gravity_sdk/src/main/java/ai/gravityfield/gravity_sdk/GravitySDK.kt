@@ -6,6 +6,11 @@ import ai.gravityfield.gravity_sdk.models.DeliveryMethod
 import ai.gravityfield.gravity_sdk.models.Event
 import ai.gravityfield.gravity_sdk.models.OnClickModel
 import ai.gravityfield.gravity_sdk.models.Slot
+import ai.gravityfield.gravity_sdk.models.User
+import ai.gravityfield.gravity_sdk.models.external.ContentSettings
+import ai.gravityfield.gravity_sdk.models.external.Options
+import ai.gravityfield.gravity_sdk.models.external.PageContext
+import ai.gravityfield.gravity_sdk.models.external.TriggerEvent
 import ai.gravityfield.gravity_sdk.network.ContentResponse
 import ai.gravityfield.gravity_sdk.network.GravityRepository
 import ai.gravityfield.gravity_sdk.ui.GravityBottomSheetContent
@@ -47,6 +52,8 @@ typealias ProductViewBuilder = (Context, Slot) -> View
 typealias ProductFilter = (Slot) -> Boolean
 
 class GravitySDK private constructor(
+    internal val apiKey: String,
+    internal val section: String,
     internal val productViewBuilder: ProductViewBuilder?,
     internal val productFilter: ProductFilter?,
 ) {
@@ -62,19 +69,50 @@ class GravitySDK private constructor(
                 return _instance!!
             }
 
-        // todo: add initialization params
         fun init(
+            apiKey: String,
+            section: String,
             productViewBuilder: ProductViewBuilder? = null,
             productFilter: ProductFilter? = null,
         ) {
             _instance = GravitySDK(
+                apiKey,
+                section,
                 productViewBuilder,
                 productFilter,
             )
         }
     }
 
+    private var user: User? = null
+    private var options = Options()
+    private var contentSettings = ContentSettings()
+
     private val repository = GravityRepository()
+
+    fun setOptions(
+        options: Options? = null,
+        contentSettings: ContentSettings? = null
+    ) {
+        if (options != null) {
+            this.options = options
+        }
+        if (contentSettings != null) {
+            this.contentSettings = contentSettings
+        }
+    }
+
+    fun setUser(userId: String, sessionId: String) {
+        user = User(custom = userId, ses = sessionId)
+    }
+
+    suspend fun trackView(pageContext: PageContext) {
+        repository.visit(pageContext, options, user)
+    }
+
+    suspend fun triggerEvent(events: List<TriggerEvent>, pageContext: PageContext) {
+        repository.event(events, pageContext, options, user)
+    }
 
     fun showSnackbar(context: Context, data: SnackbarData) {
         val dismissController = DismissController()
@@ -128,8 +166,12 @@ class GravitySDK private constructor(
         showBackendContent(context, "fullscreen-banner")
     }
 
-    internal suspend fun getCompany(companyId: String): ContentResponse {
-        return repository.getContent(companyId)
+    internal suspend fun getContent(templateId: String): ContentResponse {
+        return repository.getContent(
+            templateId = templateId,
+            options = options,
+            contentSettings = contentSettings
+        )
     }
 
     private fun trackEngagementEvent(action: Action, events: List<Event>) {
@@ -138,12 +180,16 @@ class GravitySDK private constructor(
                 repository.trackEngagementEvent(event.urls)
             }
         }
+    }
 
+    private fun trackOutsideClosing(content: Content) {
+        val action = content.variables.onClose?.action ?: return
+        trackEngagementEvent(action, content.events)
     }
 
     private fun showBackendContent(context: Context, templateId: String) {
         CoroutineScope(Dispatchers.IO).launch {
-            val result = repository.getContent(templateId)
+            val result = getContent(templateId)
             val content = result.data.first().payload.first().contents.first()
 
             withContext(Dispatchers.Main) {
@@ -163,7 +209,7 @@ class GravitySDK private constructor(
     private fun showModal(context: Context, content: Content) {
         val dismissController = DismissController()
         fun dismiss() {
-            trackEngagementEvent(Action.CLOSE, content.events)
+            trackOutsideClosing(content)
             dismissController.dismiss()
         }
 
@@ -191,7 +237,7 @@ class GravitySDK private constructor(
 
         val dismissController = DismissController()
         fun dismiss() {
-            trackEngagementEvent(Action.CLOSE, content.events)
+            trackOutsideClosing(content)
             dismissController.dismiss()
         }
 
@@ -232,7 +278,7 @@ class GravitySDK private constructor(
     private fun showFullScreen(context: Context, content: Content) {
         val dismissController = DismissController()
         fun dismiss() {
-            trackEngagementEvent(Action.CLOSE, content.events)
+            trackOutsideClosing(content)
             dismissController.dismiss()
         }
 

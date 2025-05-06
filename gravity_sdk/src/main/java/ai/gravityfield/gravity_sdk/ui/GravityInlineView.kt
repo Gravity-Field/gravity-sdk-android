@@ -31,6 +31,9 @@ import androidx.compose.ui.platform.AbstractComposeView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class GravityInlineView @JvmOverloads constructor(
     context: Context,
@@ -104,8 +107,10 @@ private fun GravityView(
         content = null
 
         try {
-            val result = GravitySDK.instance.getCompany(companyId)
-            content = result.data.first().payload.first().contents.first()
+            CoroutineScope(Dispatchers.IO).launch {
+                val result = GravitySDK.instance.getContent(companyId)
+                content = result.data.first().payload.first().contents.first()
+            }
         } catch (e: Exception) {
             // skip
         } finally {
