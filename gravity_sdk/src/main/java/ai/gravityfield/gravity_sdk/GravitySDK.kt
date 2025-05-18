@@ -21,6 +21,10 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
@@ -325,7 +329,20 @@ class GravitySDK private constructor(
             Action.CANCEL -> dismissCallback?.invoke()
             Action.FOLLOW_URL -> {}
             Action.FOLLOW_DEEPLINK -> {}
-            Action.REQUEST_PUSH -> {}
+            Action.REQUEST_PUSH -> {
+                val intent = Intent().apply {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        this.action = Settings.ACTION_APP_NOTIFICATION_SETTINGS
+                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    } else {
+                        this.action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                        data = Uri.fromParts("package", context.packageName, null)
+                    }
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            }
+
             Action.REQUEST_TRACKING -> {}
             Action.UNKNOWN -> {}
         }
