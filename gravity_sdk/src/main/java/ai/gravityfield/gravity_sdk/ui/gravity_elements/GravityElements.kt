@@ -1,6 +1,6 @@
 package ai.gravityfield.gravity_sdk.ui.gravity_elements
 
-import ai.gravityfield.gravity_sdk.models.Content
+import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.ElementType
 import ai.gravityfield.gravity_sdk.models.OnClickModel
 import ai.gravityfield.gravity_sdk.models.ProductContainerType
@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 
 @Composable
 fun ColumnScope.GravityElements(
-    content: Content,
+    content: CampaignContent,
     onClickCallback: (model: OnClickModel) -> Unit,
 ) {
     val elements = content.variables.elements

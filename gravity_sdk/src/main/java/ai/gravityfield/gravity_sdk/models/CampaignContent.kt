@@ -1,6 +1,6 @@
 package ai.gravityfield.gravity_sdk.models
 
-data class Content(
+data class CampaignContent(
     val contentId: String,
     val templateId: String,
     val deliveryMethod: DeliveryMethod,
@@ -11,8 +11,8 @@ data class Content(
 ) {
     companion object {
         @Suppress("UNCHECKED_CAST")
-        fun fromJson(json: Map<String, Any?>): Content {
-            return Content(
+        fun fromJson(json: Map<String, Any?>): CampaignContent {
+            return CampaignContent(
                 contentId = json["contentId"] as String,
                 templateId = json["templateId"] as String,
                 deliveryMethod = DeliveryMethod.fromString(json["deliveryMethod"] as String?),

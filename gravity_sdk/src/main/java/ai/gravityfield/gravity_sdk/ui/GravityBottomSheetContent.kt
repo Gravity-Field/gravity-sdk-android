@@ -1,7 +1,7 @@
 package ai.gravityfield.gravity_sdk.ui
 
 import ai.gravityfield.gravity_sdk.extensions.conditional
-import ai.gravityfield.gravity_sdk.models.Content
+import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.OnClickModel
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import androidx.compose.foundation.layout.Box
@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun GravityBottomSheetContent(
-    content: Content,
+    content: CampaignContent,
     onClickCallback: (model: OnClickModel) -> Unit,
 ) {
     val frameUi = content.variables.frameUI

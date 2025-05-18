@@ -1,33 +1,35 @@
 package ai.gravityfield.gravity_sdk.network
 
-import ai.gravityfield.gravity_sdk.models.Payload
+import ai.gravityfield.gravity_sdk.models.CampaignVariation
 import ai.gravityfield.gravity_sdk.models.User
 
 data class ContentResponse(
     val user: User,
-    val data: List<DataItem>
+    val data: List<Campaign>
 ) {
     companion object {
         @Suppress("UNCHECKED_CAST")
         fun fromJson(json: Map<String, Any?>): ContentResponse {
             return ContentResponse(
                 user = User.fromJson(json["user"] as Map<String, Any?>),
-                data = (json["data"] as List<Map<String, Any?>>).map { DataItem.fromJson(it) }
+                data = (json["data"] as List<Map<String, Any?>>).map { Campaign.fromJson(it) }
             )
         }
     }
 }
 
-data class DataItem(
+data class Campaign(
     val selector: String,
-    val payload: List<Payload>
+    val payload: List<CampaignVariation>
 ) {
     companion object {
         @Suppress("UNCHECKED_CAST")
-        fun fromJson(json: Map<String, Any?>): DataItem {
-            return DataItem(
+        fun fromJson(json: Map<String, Any?>): Campaign {
+            return Campaign(
                 selector = json["selector"] as String,
-                payload = (json["payload"] as List<Map<String, Any?>>).map { Payload.fromJson(it) }
+                payload = (json["payload"] as List<Map<String, Any?>>).map {
+                    CampaignVariation.fromJson(it)
+                }
             )
         }
     }

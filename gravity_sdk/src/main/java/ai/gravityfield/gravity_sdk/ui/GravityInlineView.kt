@@ -3,7 +3,7 @@ package ai.gravityfield.gravity_sdk.ui
 import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.R
 import ai.gravityfield.gravity_sdk.extensions.conditional
-import ai.gravityfield.gravity_sdk.models.Content
+import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import android.content.Context
 import android.util.AttributeSet
@@ -99,7 +99,7 @@ private fun GravityView(
     cornerRadiusBottomStart: Float,
     cornerRadiusBottomEnd: Float,
 ) {
-    var content by remember { mutableStateOf<Content?>(null) }
+    var content by remember { mutableStateOf<CampaignContent?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
     LaunchedEffect(companyId) {

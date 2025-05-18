@@ -1,7 +1,7 @@
 package ai.gravityfield.gravity_sdk
 
 import ai.gravityfield.gravity_sdk.models.Action
-import ai.gravityfield.gravity_sdk.models.Content
+import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.DeliveryMethod
 import ai.gravityfield.gravity_sdk.models.Event
 import ai.gravityfield.gravity_sdk.models.OnClickModel
@@ -223,7 +223,7 @@ class GravitySDK private constructor(
         }
     }
 
-    private fun trackOutsideClosing(content: Content) {
+    private fun trackOutsideClosing(content: CampaignContent) {
         val action = content.variables.onClose?.action ?: return
         trackEngagementEvent(action, content.events)
     }
@@ -247,7 +247,7 @@ class GravitySDK private constructor(
         }
     }
 
-    private fun showModal(context: Context, content: Content) {
+    private fun showModal(context: Context, content: CampaignContent) {
         val dismissController = DismissController()
         fun dismiss() {
             trackOutsideClosing(content)
@@ -271,7 +271,7 @@ class GravitySDK private constructor(
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
-    private fun showBottomSheet(context: Context, content: Content) {
+    private fun showBottomSheet(context: Context, content: CampaignContent) {
         val frameUI = content.variables.frameUI
         val container = frameUI?.container
         val cornerRadius = container?.style?.cornerRadius ?: 0.0
@@ -317,7 +317,7 @@ class GravitySDK private constructor(
         }
     }
 
-    private fun showFullScreen(context: Context, content: Content) {
+    private fun showFullScreen(context: Context, content: CampaignContent) {
         val dismissController = DismissController()
         fun dismiss() {
             trackOutsideClosing(content)
@@ -340,7 +340,7 @@ class GravitySDK private constructor(
 
     internal fun onClickHandler(
         onClickModel: OnClickModel,
-        content: Content,
+        content: CampaignContent,
         context: Context,
         dismissCallback: (() -> Unit)? = null,
     ) {
