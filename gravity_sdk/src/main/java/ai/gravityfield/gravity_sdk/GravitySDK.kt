@@ -5,11 +5,15 @@ import ai.gravityfield.gravity_sdk.models.Content
 import ai.gravityfield.gravity_sdk.models.DeliveryMethod
 import ai.gravityfield.gravity_sdk.models.Event
 import ai.gravityfield.gravity_sdk.models.OnClickModel
+import ai.gravityfield.gravity_sdk.models.ProductAction
 import ai.gravityfield.gravity_sdk.models.Slot
 import ai.gravityfield.gravity_sdk.models.User
+import ai.gravityfield.gravity_sdk.models.external.ContentEngagement
 import ai.gravityfield.gravity_sdk.models.external.ContentSettings
 import ai.gravityfield.gravity_sdk.models.external.Options
 import ai.gravityfield.gravity_sdk.models.external.PageContext
+import ai.gravityfield.gravity_sdk.models.external.ProductClickEngagement
+import ai.gravityfield.gravity_sdk.models.external.ProductEngagement
 import ai.gravityfield.gravity_sdk.models.external.TriggerEvent
 import ai.gravityfield.gravity_sdk.network.ContentResponse
 import ai.gravityfield.gravity_sdk.network.GravityRepository
@@ -113,11 +117,34 @@ class GravitySDK private constructor(
     }
 
     suspend fun trackView(pageContext: PageContext) {
-        repository.visit(pageContext, options, user)
+        CoroutineScope(Dispatchers.IO).launch {
+            repository.visit(pageContext, options, user)
+        }
     }
 
     suspend fun triggerEvent(events: List<TriggerEvent>, pageContext: PageContext) {
-        repository.event(events, pageContext, options, user)
+        CoroutineScope(Dispatchers.IO).launch {
+            repository.event(events, pageContext, options, user)
+        }
+    }
+
+    suspend fun sendContentEngagement(engagement: ContentEngagement) {
+        CoroutineScope(Dispatchers.IO).launch {
+
+        }
+    }
+
+    suspend fun sendProductEngagement(engagement: ProductEngagement) {
+        when (engagement) {
+            is ProductClickEngagement -> {
+                val events = engagement.slot.events
+                events.find { it.name == ProductAction.PCLICK }?.let { event ->
+                    CoroutineScope(Dispatchers.IO).launch {
+                        repository.trackEngagementEvent(event.urls)
+                    }
+                }
+            }
+        }
     }
 
     fun showSnackbar(context: Context, data: SnackbarData) {
