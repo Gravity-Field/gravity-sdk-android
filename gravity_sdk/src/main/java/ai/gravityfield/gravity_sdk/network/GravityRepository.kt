@@ -77,7 +77,7 @@ class GravityRepository {
         customerUser: User?
     ): ContentResponse {
         val jsonBody = buildJsonObject {
-            put("type", json.encodeToJsonElement("mobile"))
+            put("type", json.encodeToJsonElement("screenview"))
             put("user", json.encodeToJsonElement(userForRequest(customerUser)))
             put("ctx", json.encodeToJsonElement(pageContext))
             put("options", json.encodeToJsonElement(options))
