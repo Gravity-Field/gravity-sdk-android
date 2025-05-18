@@ -200,11 +200,19 @@ class GravitySDK private constructor(
     }
 
     internal suspend fun getContent(templateId: String): ContentResponse {
-        return repository.getContent(
+        val response = repository.getContent(
             templateId = templateId,
             options = options,
             contentSettings = contentSettings
         )
+        for (campaign in response.data) {
+            for (payload in campaign.payload) {
+                for (content in payload.contents) {
+                    trackEngagementEvent(content.variables.onLoad.action, content.events)
+                }
+            }
+        }
+        return response
     }
 
     private fun trackEngagementEvent(action: Action, events: List<Event>) {
