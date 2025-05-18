@@ -11,10 +11,10 @@ sealed class TriggerEvent {
 @Serializable
 class AddToCartEvent(
     val value: Double,
-    val currency: String,
     val productId: String,
     val quantity: Int,
-    val cart: List<CartItem>,
+    val currency: String?,
+    val cart: List<CartItem>?,
 ) : TriggerEvent() {
     override val type: String = "add-to-cart-v1"
     override val name: String = "Add to Cart"
