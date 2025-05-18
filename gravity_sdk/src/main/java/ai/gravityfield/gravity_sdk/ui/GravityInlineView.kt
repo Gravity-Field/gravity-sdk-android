@@ -163,6 +163,7 @@ private fun GravityView(
                             GravitySDK.instance.onClickHandler(
                                 onClickModel,
                                 content!!,
+                                context,
                             )
                         }
                     )

@@ -17,6 +17,8 @@ import ai.gravityfield.gravity_sdk.ui.GravityBottomSheetContent
 import ai.gravityfield.gravity_sdk.ui.GravityFullScreenContent
 import ai.gravityfield.gravity_sdk.ui.GravityModalContent
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.view.View
@@ -222,7 +224,7 @@ class GravitySDK private constructor(
                 GravityModalContent(
                     content,
                     onClickCallback = { onClickModel ->
-                        onClickHandler(onClickModel, content, dismissController::dismiss)
+                        onClickHandler(onClickModel, content, context, dismissController::dismiss)
                     }
                 )
             }
@@ -264,6 +266,7 @@ class GravitySDK private constructor(
                         onClickHandler(
                             onClickModel,
                             content,
+                            context,
                             dismissCallback = {
                                 scope.launch { state.hide() }
                                     .invokeOnCompletion { dismissController.dismiss() }
@@ -290,7 +293,7 @@ class GravitySDK private constructor(
             GravityFullScreenContent(
                 content,
                 onClickCallback = { onClickModel ->
-                    onClickHandler(onClickModel, content, dismissController::dismiss)
+                    onClickHandler(onClickModel, content, context, dismissController::dismiss)
                 }
             )
         }
@@ -299,6 +302,7 @@ class GravitySDK private constructor(
     internal fun onClickHandler(
         onClickModel: OnClickModel,
         content: Content,
+        context: Context,
         dismissCallback: (() -> Unit)? = null,
     ) {
         val action = onClickModel.action
@@ -309,7 +313,14 @@ class GravitySDK private constructor(
             Action.LOAD -> {}
             Action.IMPRESSION -> {}
             Action.VISIBLE_IMPRESSION -> {}
-            Action.COPY -> {}
+            Action.COPY -> {
+                val textToCopy = onClickModel.copyData ?: return
+                val clipboard =
+                    context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val clip = ClipData.newPlainText("", textToCopy)
+                clipboard.setPrimaryClip(clip)
+            }
+
             Action.CLOSE -> dismissCallback?.invoke()
             Action.CANCEL -> dismissCallback?.invoke()
             Action.FOLLOW_URL -> {}
