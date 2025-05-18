@@ -4,6 +4,7 @@ import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.OnClickModel
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
+import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,7 +28,7 @@ fun GravityModalContent(
     val close = frameUi.close
 
     LaunchedEffect(Unit) {
-
+        ContentEventService.instance.sendContentImpression(content)
     }
 
     Surface(

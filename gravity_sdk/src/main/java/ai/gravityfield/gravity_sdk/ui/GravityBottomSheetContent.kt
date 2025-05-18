@@ -4,11 +4,13 @@ import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.OnClickModel
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
+import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -22,6 +24,10 @@ fun GravityBottomSheetContent(
     val container = frameUi?.container
     val padding = container?.style?.padding
     val close = frameUi?.close
+
+    LaunchedEffect(Unit) {
+        ContentEventService.instance.sendContentImpression(content)
+    }
 
     Box(
         modifier = Modifier.fillMaxWidth()

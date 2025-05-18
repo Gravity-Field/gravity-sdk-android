@@ -5,6 +5,7 @@ import ai.gravityfield.gravity_sdk.R
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
+import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import android.content.Context
 import android.util.AttributeSet
 import androidx.compose.foundation.background
@@ -142,6 +143,10 @@ private fun GravityView(
                 val container = frameUi?.container
                 val padding = container?.style?.padding
                 val context = LocalContext.current
+
+                LaunchedEffect(Unit) {
+                    ContentEventService.instance.sendContentImpression(content!!)
+                }
 
                 Column(
                     modifier = Modifier
