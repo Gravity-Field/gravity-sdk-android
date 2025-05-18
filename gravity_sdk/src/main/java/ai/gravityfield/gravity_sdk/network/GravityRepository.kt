@@ -35,7 +35,14 @@ private const val GET_CONTENT = "$BASE_URL/choose"
 private const val VISIT = "$BASE_URL/visit"
 private const val EVENT = "$BASE_URL/event"
 
-class GravityRepository {
+class GravityRepository private constructor() {
+
+    companion object {
+        private var _instance = GravityRepository()
+
+        val instance: GravityRepository
+            get() = _instance
+    }
 
     @OptIn(ExperimentalSerializationApi::class)
     private val json = Json {

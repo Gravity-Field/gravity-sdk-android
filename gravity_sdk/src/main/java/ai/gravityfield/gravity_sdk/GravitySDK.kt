@@ -20,6 +20,7 @@ import ai.gravityfield.gravity_sdk.network.GravityRepository
 import ai.gravityfield.gravity_sdk.ui.GravityBottomSheetContent
 import ai.gravityfield.gravity_sdk.ui.GravityFullScreenContent
 import ai.gravityfield.gravity_sdk.ui.GravityModalContent
+import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -98,7 +99,8 @@ class GravitySDK private constructor(
     private var options = Options()
     private var contentSettings = ContentSettings()
 
-    private val repository = GravityRepository()
+    private val repository = GravityRepository.instance
+    private val contentEventService = ContentEventService.instance
 
     fun setOptions(
         options: Options? = null,
@@ -208,7 +210,7 @@ class GravitySDK private constructor(
         for (campaign in response.data) {
             for (payload in campaign.payload) {
                 for (content in payload.contents) {
-                    trackEngagementEvent(content.variables.onLoad.action, content.events)
+                    contentEventService.sendContentLoaded(content)
                 }
             }
         }
@@ -221,11 +223,6 @@ class GravitySDK private constructor(
                 repository.trackEngagementEvent(event.urls)
             }
         }
-    }
-
-    private fun trackOutsideClosing(content: CampaignContent) {
-        val action = content.variables.onClose?.action ?: return
-        trackEngagementEvent(action, content.events)
     }
 
     private fun showBackendContent(context: Context, templateId: String) {
@@ -250,7 +247,7 @@ class GravitySDK private constructor(
     private fun showModal(context: Context, content: CampaignContent) {
         val dismissController = DismissController()
         fun dismiss() {
-            trackOutsideClosing(content)
+            contentEventService.sendContentClosed(content)
             dismissController.dismiss()
         }
 
@@ -278,7 +275,7 @@ class GravitySDK private constructor(
 
         val dismissController = DismissController()
         fun dismiss() {
-            trackOutsideClosing(content)
+            contentEventService.sendContentClosed(content)
             dismissController.dismiss()
         }
 
@@ -320,7 +317,7 @@ class GravitySDK private constructor(
     private fun showFullScreen(context: Context, content: CampaignContent) {
         val dismissController = DismissController()
         fun dismiss() {
-            trackOutsideClosing(content)
+            contentEventService.sendContentClosed(content)
             dismissController.dismiss()
         }
 

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -24,6 +25,10 @@ fun GravityModalContent(
     val frameUi = content.variables.frameUI ?: return
     val container = frameUi.container
     val close = frameUi.close
+
+    LaunchedEffect(Unit) {
+
+    }
 
     Surface(
         shape = RoundedCornerShape(container.style.cornerRadius?.dp ?: 0.dp),
