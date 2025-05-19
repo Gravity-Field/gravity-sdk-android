@@ -7,12 +7,16 @@ import ai.gravityfield.gravity_sdk.models.Event
 import ai.gravityfield.gravity_sdk.models.OnClickModel
 import ai.gravityfield.gravity_sdk.models.Slot
 import ai.gravityfield.gravity_sdk.models.User
+import ai.gravityfield.gravity_sdk.models.external.ContentCloseEngagement
 import ai.gravityfield.gravity_sdk.models.external.ContentEngagement
+import ai.gravityfield.gravity_sdk.models.external.ContentImpressionEngagement
 import ai.gravityfield.gravity_sdk.models.external.ContentSettings
+import ai.gravityfield.gravity_sdk.models.external.ContentVisibleImpressionEngagement
 import ai.gravityfield.gravity_sdk.models.external.Options
 import ai.gravityfield.gravity_sdk.models.external.PageContext
 import ai.gravityfield.gravity_sdk.models.external.ProductClickEngagement
 import ai.gravityfield.gravity_sdk.models.external.ProductEngagement
+import ai.gravityfield.gravity_sdk.models.external.ProductVisibleImpressionEngagement
 import ai.gravityfield.gravity_sdk.models.external.TriggerEvent
 import ai.gravityfield.gravity_sdk.network.ContentResponse
 import ai.gravityfield.gravity_sdk.network.GravityRepository
@@ -132,14 +136,22 @@ class GravitySDK private constructor(
     }
 
     suspend fun sendContentEngagement(engagement: ContentEngagement) {
-        CoroutineScope(Dispatchers.IO).launch {
+        when (engagement) {
+            is ContentImpressionEngagement ->
+                contentEventService.sendContentImpression(engagement.content)
 
+            is ContentVisibleImpressionEngagement ->
+                contentEventService.sendContentVisibleImpression(engagement.content)
+
+            is ContentCloseEngagement -> contentEventService.sendContentClosed(engagement.content)
         }
     }
 
     suspend fun sendProductEngagement(engagement: ProductEngagement) {
         when (engagement) {
             is ProductClickEngagement -> productEventService.sendProductClick(engagement.slot)
+            is ProductVisibleImpressionEngagement ->
+                productEventService.sendProductVisibleImpression(engagement.slot)
         }
     }
 
