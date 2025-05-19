@@ -5,7 +5,6 @@ import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.DeliveryMethod
 import ai.gravityfield.gravity_sdk.models.Event
 import ai.gravityfield.gravity_sdk.models.OnClickModel
-import ai.gravityfield.gravity_sdk.models.ProductAction
 import ai.gravityfield.gravity_sdk.models.Slot
 import ai.gravityfield.gravity_sdk.models.User
 import ai.gravityfield.gravity_sdk.models.external.ContentEngagement
@@ -21,6 +20,7 @@ import ai.gravityfield.gravity_sdk.ui.GravityBottomSheetContent
 import ai.gravityfield.gravity_sdk.ui.GravityFullScreenContent
 import ai.gravityfield.gravity_sdk.ui.GravityModalContent
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
+import ai.gravityfield.gravity_sdk.utils.ProductEventService
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -101,6 +101,7 @@ class GravitySDK private constructor(
 
     private val repository = GravityRepository.instance
     private val contentEventService = ContentEventService.instance
+    private val productEventService = ProductEventService.instance
 
     fun setOptions(
         options: Options? = null,
@@ -138,14 +139,7 @@ class GravitySDK private constructor(
 
     suspend fun sendProductEngagement(engagement: ProductEngagement) {
         when (engagement) {
-            is ProductClickEngagement -> {
-                val events = engagement.slot.events
-                events.find { it.name == ProductAction.PCLICK }?.let { event ->
-                    CoroutineScope(Dispatchers.IO).launch {
-                        repository.trackEngagementEvent(event.urls)
-                    }
-                }
-            }
+            is ProductClickEngagement -> productEventService.sendProductClick(engagement.slot)
         }
     }
 

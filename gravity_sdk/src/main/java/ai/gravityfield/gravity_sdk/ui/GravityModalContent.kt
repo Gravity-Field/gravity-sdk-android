@@ -31,29 +31,33 @@ fun GravityModalContent(
         ContentEventService.instance.sendContentImpression(content)
     }
 
-    Surface(
-        shape = RoundedCornerShape(container.style.cornerRadius?.dp ?: 0.dp),
-        color = container.style.backgroundColor ?: Color.White,
+    VisibilityDetector(
+        onVisible = { ContentEventService.instance.sendContentVisibleImpression(content) }
     ) {
-        Box {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .conditional(container.style.padding != null) {
-                        padding(
-                            start = container.style.padding!!.left.dp,
-                            top = container.style.padding.top.dp,
-                            end = container.style.padding.right.dp,
-                            bottom = container.style.padding.bottom.dp
-                        )
-                    },
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                GravityElements(content, onClickCallback)
-            }
+        Surface(
+            shape = RoundedCornerShape(container.style.cornerRadius?.dp ?: 0.dp),
+            color = container.style.backgroundColor ?: Color.White,
+        ) {
+            Box {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .conditional(container.style.padding != null) {
+                            padding(
+                                start = container.style.padding!!.left.dp,
+                                top = container.style.padding.top.dp,
+                                end = container.style.padding.right.dp,
+                                bottom = container.style.padding.bottom.dp
+                            )
+                        },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    GravityElements(content, onClickCallback)
+                }
 
-            close?.let {
-                CloseButton(it, onClickCallback)
+                close?.let {
+                    CloseButton(it, onClickCallback)
+                }
             }
         }
     }

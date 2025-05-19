@@ -29,28 +29,32 @@ fun GravityBottomSheetContent(
         ContentEventService.instance.sendContentImpression(content)
     }
 
-    Box(
-        modifier = Modifier.fillMaxWidth()
+    VisibilityDetector(
+        onVisible = { ContentEventService.instance.sendContentVisibleImpression(content) }
     ) {
-        Column(
-            modifier = Modifier
-                .conditional(padding != null)
-                {
-                    padding(
-                        start = padding!!.left.dp,
-                        top = padding.top.dp,
-                        end = padding.right.dp,
-                        bottom = padding.bottom.dp
-                    )
-                },
-            horizontalAlignment = container?.style?.contentAlignment?.toHorizontalAlignment()
-                ?: Alignment.CenterHorizontally
+        Box(
+            modifier = Modifier.fillMaxWidth()
         ) {
-            GravityElements(content, onClickCallback)
-        }
+            Column(
+                modifier = Modifier
+                    .conditional(padding != null)
+                    {
+                        padding(
+                            start = padding!!.left.dp,
+                            top = padding.top.dp,
+                            end = padding.right.dp,
+                            bottom = padding.bottom.dp
+                        )
+                    },
+                horizontalAlignment = container?.style?.contentAlignment?.toHorizontalAlignment()
+                    ?: Alignment.CenterHorizontally
+            ) {
+                GravityElements(content, onClickCallback)
+            }
 
-        close?.let {
-            CloseButton(it, onClickCallback)
+            close?.let {
+                CloseButton(it, onClickCallback)
+            }
         }
     }
 }

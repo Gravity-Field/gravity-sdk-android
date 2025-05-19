@@ -4,6 +4,7 @@ import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.Element
 import ai.gravityfield.gravity_sdk.models.Products
+import ai.gravityfield.gravity_sdk.utils.ProductEventService
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,14 +52,18 @@ fun ProductsRow(
         ) {
             items(products.slots.size) { index ->
                 val slot = products.slots[index]
-                if (GravitySDK.instance.productViewBuilder != null) {
-                    AndroidView(
-                        factory = {
-                            GravitySDK.instance.productViewBuilder!!(it, slot)
-                        }
-                    )
-                } else {
-                    GravityProduct(slot)
+                VisibilityDetector(
+                    onVisible = { ProductEventService.instance.sendProductVisibleImpression(slot) }
+                ) {
+                    if (GravitySDK.instance.productViewBuilder != null) {
+                        AndroidView(
+                            factory = {
+                                GravitySDK.instance.productViewBuilder!!(it, slot)
+                            }
+                        )
+                    } else {
+                        GravityProduct(slot)
+                    }
                 }
             }
         }

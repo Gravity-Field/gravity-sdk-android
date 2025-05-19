@@ -31,34 +31,39 @@ fun GravityFullScreenContent(
         ContentEventService.instance.sendContentImpression(content)
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = container?.style?.backgroundColor ?: MaterialTheme.colorScheme.background
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-        ) {
-            Column(
+    VisibilityDetector(
+        onVisible = { ContentEventService.instance.sendContentVisibleImpression(content) }
+    ) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = container?.style?.backgroundColor
+                ?: MaterialTheme.colorScheme.background
+        ) { innerPadding ->
+            Box(
                 modifier = Modifier
-                    .conditional(padding != null)
-                    {
-                        padding(
-                            start = padding!!.left.dp,
-                            top = padding.top.dp,
-                            end = padding.right.dp,
-                            bottom = padding.bottom.dp
-                        )
-                    },
-                horizontalAlignment = container?.style?.contentAlignment?.toHorizontalAlignment()
-                    ?: Alignment.CenterHorizontally
+                    .padding(innerPadding)
+                    .fillMaxSize()
             ) {
-                GravityElements(content, onClickCallback)
-            }
+                Column(
+                    modifier = Modifier
+                        .conditional(padding != null)
+                        {
+                            padding(
+                                start = padding!!.left.dp,
+                                top = padding.top.dp,
+                                end = padding.right.dp,
+                                bottom = padding.bottom.dp
+                            )
+                        },
+                    horizontalAlignment = container?.style?.contentAlignment?.toHorizontalAlignment()
+                        ?: Alignment.CenterHorizontally
+                ) {
+                    GravityElements(content, onClickCallback)
+                }
 
-            close?.let {
-                CloseButton(it, onClickCallback)
+                close?.let {
+                    CloseButton(it, onClickCallback)
+                }
             }
         }
     }
