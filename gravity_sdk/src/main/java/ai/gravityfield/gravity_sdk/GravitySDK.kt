@@ -111,21 +111,20 @@ class GravitySDK private constructor(
     private var user: User? = null
     private var options = Options()
     private var contentSettings = ContentSettings()
+    internal var proxyUrl: String? = null
 
     private val repository = GravityRepository.instance
     private val contentEventService = ContentEventService.instance
     private val productEventService = ProductEventService.instance
 
     fun setOptions(
-        options: Options? = null,
-        contentSettings: ContentSettings? = null
+        options: Options?,
+        contentSettings: ContentSettings?,
+        proxyUrl: String?
     ) {
-        if (options != null) {
-            this.options = options
-        }
-        if (contentSettings != null) {
-            this.contentSettings = contentSettings
-        }
+        this.options = options ?: Options()
+        this.contentSettings = contentSettings ?: ContentSettings()
+        this.proxyUrl = proxyUrl
     }
 
     fun setUser(userId: String, sessionId: String) {

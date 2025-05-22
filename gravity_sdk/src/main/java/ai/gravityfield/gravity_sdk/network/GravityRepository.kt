@@ -34,9 +34,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 private const val BASE_URL = "https://mock.apidog.com/m1/807903-786789-default"
-private const val GET_CONTENT = "$BASE_URL/choose"
-private const val VISIT = "$BASE_URL/visit"
-private const val EVENT = "$BASE_URL/event"
+private const val GET_CONTENT = "/choose"
+private const val VISIT = "/visit"
+private const val EVENT = "/event"
 
 class GravityRepository private constructor() {
 
@@ -61,7 +61,6 @@ class GravityRepository private constructor() {
 
     private val client = HttpClient(CIO) {
         defaultRequest {
-            url(BASE_URL)
             contentType(ContentType.Application.Json)
         }
 
@@ -89,6 +88,9 @@ class GravityRepository private constructor() {
     private var userIdCache: String? = null
     private var sessionIdCache: String? = null
 
+    private val baseUrl: String
+        get() = GravitySDK.instance.proxyUrl ?: BASE_URL
+
     suspend fun visit(
         pageContext: PageContext,
         options: Options,
@@ -103,7 +105,7 @@ class GravityRepository private constructor() {
             put("options", json.encodeToJsonElement(options))
         }
 
-        val data = client.post(VISIT) {
+        val data = client.post("$baseUrl$VISIT") {
             setBody(jsonBody.toString())
         }.body<String>()
 
@@ -130,7 +132,7 @@ class GravityRepository private constructor() {
             put("options", json.encodeToJsonElement(options))
         }
 
-        val data = client.post(EVENT) {
+        val data = client.post("$baseUrl$EVENT") {
             setBody(jsonBody)
         }.body<String>()
 
@@ -158,9 +160,7 @@ class GravityRepository private constructor() {
             put("contentSettings", json.encodeToJsonElement(contentSettings))
         }
 
-        val data = client.post(
-            GET_CONTENT,
-        ) {
+        val data = client.post("$baseUrl$GET_CONTENT") {
             parameter("templateId", templateId)
             setBody(jsonBody)
         }.body<String>()
