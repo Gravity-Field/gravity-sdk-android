@@ -3,6 +3,7 @@ package ai.gravityfield.gravity_sdk
 import ai.gravityfield.gravity_sdk.models.Action
 import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.DeliveryMethod
+import ai.gravityfield.gravity_sdk.models.Device
 import ai.gravityfield.gravity_sdk.models.Event
 import ai.gravityfield.gravity_sdk.models.OnClickModel
 import ai.gravityfield.gravity_sdk.models.Slot
@@ -24,6 +25,7 @@ import ai.gravityfield.gravity_sdk.ui.GravityBottomSheetContent
 import ai.gravityfield.gravity_sdk.ui.GravityFullScreenContent
 import ai.gravityfield.gravity_sdk.ui.GravityModalContent
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
+import ai.gravityfield.gravity_sdk.utils.DeviceUtils
 import ai.gravityfield.gravity_sdk.utils.ProductEventService
 import android.app.Activity
 import android.content.ClipData
@@ -69,6 +71,7 @@ typealias ProductFilter = (Slot) -> Boolean
 class GravitySDK private constructor(
     internal val apiKey: String,
     internal val section: String,
+    internal val device: Device,
     internal val productViewBuilder: ProductViewBuilder?,
     internal val productFilter: ProductFilter?,
 ) {
@@ -84,15 +87,21 @@ class GravitySDK private constructor(
                 return _instance!!
             }
 
-        fun init(
+        fun initialize(
+            context: Context,
             apiKey: String,
             section: String,
             productViewBuilder: ProductViewBuilder? = null,
             productFilter: ProductFilter? = null,
         ) {
+            val device = Device(
+                id = DeviceUtils.getDeviceId(context),
+                userAgent = DeviceUtils.getUserAgent(context)
+            )
             _instance = GravitySDK(
                 apiKey,
                 section,
+                device,
                 productViewBuilder,
                 productFilter,
             )

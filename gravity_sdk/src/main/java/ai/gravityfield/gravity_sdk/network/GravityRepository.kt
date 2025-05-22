@@ -1,5 +1,6 @@
 package ai.gravityfield.gravity_sdk.network
 
+import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.models.User
 import ai.gravityfield.gravity_sdk.models.external.ContentSettings
 import ai.gravityfield.gravity_sdk.models.external.Options
@@ -10,12 +11,14 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.api.createClientPlugin
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.plugins.logging.DEFAULT
+import io.ktor.client.plugins.logging.ANDROID
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
+import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -50,6 +53,12 @@ class GravityRepository private constructor() {
         classDiscriminatorMode = ClassDiscriminatorMode.NONE
     }
 
+    private val authInterceptor = createClientPlugin("AuthInterceptor") {
+        onRequest { request, _ ->
+            request.header("Authorization", "Bearer ${GravitySDK.instance.apiKey}")
+        }
+    }
+
     private val client = HttpClient(CIO) {
         defaultRequest {
             url(BASE_URL)
@@ -62,14 +71,16 @@ class GravityRepository private constructor() {
             )
         }
 
+        install(authInterceptor)
+
         install(HttpTimeout) {
             connectTimeoutMillis = 5000
             requestTimeoutMillis = 5000
         }
 
         install(Logging) {
-            logger = Logger.DEFAULT
-            level = LogLevel.BODY
+            logger = Logger.ANDROID
+            level = LogLevel.ALL
         }
     }
 
@@ -84,6 +95,8 @@ class GravityRepository private constructor() {
         customerUser: User?
     ): ContentResponse {
         val jsonBody = buildJsonObject {
+            put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
+            put("device", json.encodeToJsonElement(GravitySDK.instance.device))
             put("type", json.encodeToJsonElement("screenview"))
             put("user", json.encodeToJsonElement(userForRequest(customerUser)))
             put("ctx", json.encodeToJsonElement(pageContext))
@@ -109,6 +122,8 @@ class GravityRepository private constructor() {
         customerUser: User?
     ): ContentResponse {
         val jsonBody = buildJsonObject {
+            put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
+            put("device", json.encodeToJsonElement(GravitySDK.instance.device))
             put("events", json.encodeToJsonElement(events))
             put("user", json.encodeToJsonElement(userForRequest(customerUser)))
             put("ctx", json.encodeToJsonElement(pageContext))
@@ -134,11 +149,20 @@ class GravityRepository private constructor() {
         customerUser: User? = null,
         pageContext: PageContext? = null
     ): ContentResponse {
+        val jsonBody = buildJsonObject {
+            put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
+            put("device", json.encodeToJsonElement(GravitySDK.instance.device))
+            put("user", json.encodeToJsonElement(userForRequest(customerUser)))
+            put("ctx", json.encodeToJsonElement(pageContext))
+            put("options", json.encodeToJsonElement(options))
+            put("contentSettings", json.encodeToJsonElement(contentSettings))
+        }
+
         val data = client.post(
             GET_CONTENT,
         ) {
             parameter("templateId", templateId)
-            setBody(userForRequest(customerUser))
+            setBody(jsonBody)
         }.body<String>()
 
         val json = JSONObject(data).toMap()

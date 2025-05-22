@@ -38,7 +38,8 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        GravitySDK.init(
+        GravitySDK.initialize(
+            this,
             apiKey = "api_key",
             section = "section",
             productViewBuilder = { context, slot ->
