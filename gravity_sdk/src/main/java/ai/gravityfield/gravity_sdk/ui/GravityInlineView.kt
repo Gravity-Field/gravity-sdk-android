@@ -3,7 +3,7 @@ package ai.gravityfield.gravity_sdk.ui
 import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.R
 import ai.gravityfield.gravity_sdk.extensions.conditional
-import ai.gravityfield.gravity_sdk.models.CampaignContent
+import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import android.content.Context
@@ -100,17 +100,17 @@ private fun GravityView(
     cornerRadiusBottomStart: Float,
     cornerRadiusBottomEnd: Float,
 ) {
-    var content by remember { mutableStateOf<CampaignContent?>(null) }
+    var campaign by remember { mutableStateOf<Campaign?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
     LaunchedEffect(companyId) {
         isLoading = true
-        content = null
+        campaign = null
 
         try {
             CoroutineScope(Dispatchers.IO).launch {
                 val result = GravitySDK.instance.getContent(companyId)
-                content = result.data.first().payload.first().contents.first()
+                campaign = result.data.first()
             }
         } catch (e: Exception) {
             // skip
@@ -138,14 +138,16 @@ private fun GravityView(
     ) {
         when {
             isLoading -> CircularProgressIndicator()
-            content != null -> {
-                val frameUi = content!!.variables.frameUI
+            campaign != null -> {
+                // todo: use selector
+                val content = campaign!!.payload.first().contents.first()
+                val frameUi = content.variables.frameUI
                 val container = frameUi?.container
                 val padding = container?.style?.padding
                 val context = LocalContext.current
 
                 LaunchedEffect(Unit) {
-                    ContentEventService.instance.sendContentImpression(content!!)
+                    ContentEventService.instance.sendContentImpression(content, campaign!!)
                 }
 
                 Column(
@@ -163,11 +165,13 @@ private fun GravityView(
                         ?: Alignment.CenterHorizontally
                 ) {
                     GravityElements(
-                        content!!,
+                        content,
+                        campaign!!,
                         onClickCallback = { onClickModel ->
                             GravitySDK.instance.onClickHandler(
                                 onClickModel,
-                                content!!,
+                                content,
+                                campaign!!,
                                 context,
                             )
                         }

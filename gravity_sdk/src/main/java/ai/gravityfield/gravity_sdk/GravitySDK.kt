@@ -9,16 +9,22 @@ import ai.gravityfield.gravity_sdk.models.OnClickModel
 import ai.gravityfield.gravity_sdk.models.Slot
 import ai.gravityfield.gravity_sdk.models.User
 import ai.gravityfield.gravity_sdk.models.external.ContentCloseEngagement
+import ai.gravityfield.gravity_sdk.models.external.ContentCloseEvent
 import ai.gravityfield.gravity_sdk.models.external.ContentEngagement
 import ai.gravityfield.gravity_sdk.models.external.ContentImpressionEngagement
 import ai.gravityfield.gravity_sdk.models.external.ContentSettings
 import ai.gravityfield.gravity_sdk.models.external.ContentVisibleImpressionEngagement
+import ai.gravityfield.gravity_sdk.models.external.CopyEvent
+import ai.gravityfield.gravity_sdk.models.external.FollowUrlEvent
 import ai.gravityfield.gravity_sdk.models.external.Options
 import ai.gravityfield.gravity_sdk.models.external.PageContext
 import ai.gravityfield.gravity_sdk.models.external.ProductClickEngagement
 import ai.gravityfield.gravity_sdk.models.external.ProductEngagement
 import ai.gravityfield.gravity_sdk.models.external.ProductVisibleImpressionEngagement
+import ai.gravityfield.gravity_sdk.models.external.RequestPushEvent
+import ai.gravityfield.gravity_sdk.models.external.TrackingEvent
 import ai.gravityfield.gravity_sdk.models.external.TriggerEvent
+import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.network.ContentResponse
 import ai.gravityfield.gravity_sdk.network.GravityRepository
 import ai.gravityfield.gravity_sdk.ui.GravityBottomSheetContent
@@ -67,11 +73,13 @@ import kotlinx.coroutines.withContext
 
 typealias ProductViewBuilder = (Context, Slot) -> View
 typealias ProductFilter = (Slot) -> Boolean
+typealias GravityEventCallback = (TrackingEvent) -> Unit
 
 class GravitySDK private constructor(
     internal val apiKey: String,
     internal val section: String,
     internal val device: Device,
+    internal val gravityEventCallback: GravityEventCallback,
     internal val productViewBuilder: ProductViewBuilder?,
     internal val productFilter: ProductFilter?,
 ) {
@@ -91,6 +99,7 @@ class GravitySDK private constructor(
             context: Context,
             apiKey: String,
             section: String,
+            gravityEventCallback: GravityEventCallback,
             productViewBuilder: ProductViewBuilder? = null,
             productFilter: ProductFilter? = null,
         ) {
@@ -102,6 +111,7 @@ class GravitySDK private constructor(
                 apiKey,
                 section,
                 device,
+                gravityEventCallback,
                 productViewBuilder,
                 productFilter,
             )
@@ -146,20 +156,44 @@ class GravitySDK private constructor(
     suspend fun sendContentEngagement(engagement: ContentEngagement) {
         when (engagement) {
             is ContentImpressionEngagement ->
-                contentEventService.sendContentImpression(engagement.content)
+                contentEventService.sendContentImpression(
+                    engagement.content,
+                    engagement.campaign,
+                    false
+                )
 
             is ContentVisibleImpressionEngagement ->
-                contentEventService.sendContentVisibleImpression(engagement.content)
+                contentEventService.sendContentVisibleImpression(
+                    engagement.content,
+                    engagement.campaign,
+                    false
+                )
 
-            is ContentCloseEngagement -> contentEventService.sendContentClosed(engagement.content)
+            is ContentCloseEngagement ->
+                contentEventService.sendContentClosed(
+                    engagement.content,
+                    engagement.campaign,
+                    false
+                )
         }
     }
 
     suspend fun sendProductEngagement(engagement: ProductEngagement) {
         when (engagement) {
-            is ProductClickEngagement -> productEventService.sendProductClick(engagement.slot)
+            is ProductClickEngagement -> productEventService.sendProductClick(
+                engagement.slot,
+                engagement.content,
+                engagement.campaign,
+                false
+            )
+
             is ProductVisibleImpressionEngagement ->
-                productEventService.sendProductVisibleImpression(engagement.slot)
+                productEventService.sendProductVisibleImpression(
+                    engagement.slot,
+                    engagement.content,
+                    engagement.campaign,
+                    false
+                )
         }
     }
 
@@ -224,7 +258,7 @@ class GravitySDK private constructor(
         for (campaign in response.data) {
             for (payload in campaign.payload) {
                 for (content in payload.contents) {
-                    contentEventService.sendContentLoaded(content)
+                    contentEventService.sendContentLoaded(content, campaign)
                 }
             }
         }
@@ -242,13 +276,14 @@ class GravitySDK private constructor(
     private fun showBackendContent(context: Context, templateId: String) {
         CoroutineScope(Dispatchers.IO).launch {
             val result = getContent(templateId)
-            val content = result.data.first().payload.first().contents.first()
+            val campaign = result.data.first()
+            val content = campaign.payload.first().contents.first()
 
             withContext(Dispatchers.Main) {
                 when (content.deliveryMethod) {
-                    DeliveryMethod.MODAL -> showModal(context, content)
-                    DeliveryMethod.BOTTOM_SHEET -> showBottomSheet(context, content)
-                    DeliveryMethod.FULL_SCREEN -> showFullScreen(context, content)
+                    DeliveryMethod.MODAL -> showModal(context, content, campaign)
+                    DeliveryMethod.BOTTOM_SHEET -> showBottomSheet(context, content, campaign)
+                    DeliveryMethod.FULL_SCREEN -> showFullScreen(context, content, campaign)
 
                     DeliveryMethod.SNACK_BAR -> TODO()
                     DeliveryMethod.INLINE -> {}
@@ -258,10 +293,11 @@ class GravitySDK private constructor(
         }
     }
 
-    private fun showModal(context: Context, content: CampaignContent) {
+    private fun showModal(context: Context, content: CampaignContent, campaign: Campaign) {
         val dismissController = DismissController()
         fun dismiss() {
-            contentEventService.sendContentClosed(content)
+            contentEventService.sendContentClosed(content, campaign)
+            gravityEventCallback.invoke(ContentCloseEvent(content, campaign))
             dismissController.dismiss()
         }
 
@@ -273,8 +309,15 @@ class GravitySDK private constructor(
             Dialog(onDismissRequest = ::dismiss) {
                 GravityModalContent(
                     content,
+                    campaign,
                     onClickCallback = { onClickModel ->
-                        onClickHandler(onClickModel, content, context, dismissController::dismiss)
+                        onClickHandler(
+                            onClickModel,
+                            content,
+                            campaign,
+                            context,
+                            ::dismiss
+                        )
                     }
                 )
             }
@@ -282,14 +325,15 @@ class GravitySDK private constructor(
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
-    private fun showBottomSheet(context: Context, content: CampaignContent) {
+    private fun showBottomSheet(context: Context, content: CampaignContent, campaign: Campaign) {
         val frameUI = content.variables.frameUI
         val container = frameUI?.container
         val cornerRadius = container?.style?.cornerRadius ?: 0.0
 
         val dismissController = DismissController()
         fun dismiss() {
-            contentEventService.sendContentClosed(content)
+            contentEventService.sendContentClosed(content, campaign)
+            gravityEventCallback.invoke(ContentCloseEvent(content, campaign))
             dismissController.dismiss()
         }
 
@@ -312,14 +356,16 @@ class GravitySDK private constructor(
             ) {
                 GravityBottomSheetContent(
                     content,
+                    campaign,
                     onClickCallback = { onClickModel ->
                         onClickHandler(
                             onClickModel,
                             content,
+                            campaign,
                             context,
                             dismissCallback = {
                                 scope.launch { state.hide() }
-                                    .invokeOnCompletion { dismissController.dismiss() }
+                                    .invokeOnCompletion { dismiss() }
                             }
                         )
                     }
@@ -328,10 +374,11 @@ class GravitySDK private constructor(
         }
     }
 
-    private fun showFullScreen(context: Context, content: CampaignContent) {
+    private fun showFullScreen(context: Context, content: CampaignContent, campaign: Campaign) {
         val dismissController = DismissController()
         fun dismiss() {
-            contentEventService.sendContentClosed(content)
+            contentEventService.sendContentClosed(content, campaign)
+            gravityEventCallback.invoke(ContentCloseEvent(content, campaign))
             dismissController.dismiss()
         }
 
@@ -342,8 +389,15 @@ class GravitySDK private constructor(
         ) {
             GravityFullScreenContent(
                 content,
+                campaign,
                 onClickCallback = { onClickModel ->
-                    onClickHandler(onClickModel, content, context, dismissController::dismiss)
+                    onClickHandler(
+                        onClickModel,
+                        content,
+                        campaign,
+                        context,
+                        ::dismiss
+                    )
                 }
             )
         }
@@ -352,6 +406,7 @@ class GravitySDK private constructor(
     internal fun onClickHandler(
         onClickModel: OnClickModel,
         content: CampaignContent,
+        campaign: Campaign,
         context: Context,
         dismissCallback: (() -> Unit)? = null,
     ) {
@@ -360,21 +415,36 @@ class GravitySDK private constructor(
         trackEngagementEvent(action, content.events)
 
         when (action) {
-            Action.LOAD -> {}
-            Action.IMPRESSION -> {}
-            Action.VISIBLE_IMPRESSION -> {}
             Action.COPY -> {
                 val textToCopy = onClickModel.copyData ?: return
                 val clipboard =
                     context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 val clip = ClipData.newPlainText("", textToCopy)
                 clipboard.setPrimaryClip(clip)
+
+                callbackTrackingEvent(
+                    CopyEvent(textToCopy, content, campaign)
+                )
             }
 
             Action.CLOSE -> dismissCallback?.invoke()
             Action.CANCEL -> dismissCallback?.invoke()
-            Action.FOLLOW_URL -> {}
-            Action.FOLLOW_DEEPLINK -> {}
+            Action.FOLLOW_URL -> {
+                val url = onClickModel.url ?: return
+
+                callbackTrackingEvent(
+                    FollowUrlEvent(url, content, campaign)
+                )
+            }
+
+            Action.FOLLOW_DEEPLINK -> {
+                val deeplink = onClickModel.deeplink ?: return
+
+                callbackTrackingEvent(
+                    FollowUrlEvent(deeplink, content, campaign)
+                )
+            }
+
             Action.REQUEST_PUSH -> {
                 val intent = Intent().apply {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -387,11 +457,18 @@ class GravitySDK private constructor(
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 }
                 context.startActivity(intent)
+
+                callbackTrackingEvent(
+                    RequestPushEvent(content, campaign)
+                )
             }
 
-            Action.REQUEST_TRACKING -> {}
-            Action.UNKNOWN -> {}
+            else -> {}
         }
+    }
+
+    private fun callbackTrackingEvent(event: TrackingEvent) {
+        gravityEventCallback.invoke(event)
     }
 
 

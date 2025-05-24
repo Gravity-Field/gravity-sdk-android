@@ -4,6 +4,7 @@ import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.ElementType
 import ai.gravityfield.gravity_sdk.models.OnClickModel
 import ai.gravityfield.gravity_sdk.models.ProductContainerType
+import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.ui.ProductsGrid
 import ai.gravityfield.gravity_sdk.ui.ProductsRow
 import androidx.compose.foundation.layout.ColumnScope
@@ -14,6 +15,7 @@ import androidx.compose.ui.Modifier
 @Composable
 fun ColumnScope.GravityElements(
     content: CampaignContent,
+    campaign: Campaign,
     onClickCallback: (model: OnClickModel) -> Unit,
 ) {
     val elements = content.variables.elements
@@ -28,8 +30,8 @@ fun ColumnScope.GravityElements(
             ElementType.PRODUCTS_CONTAINER -> {
                 if (products != null) {
                     when (it.style.productContainerType) {
-                        ProductContainerType.ROW -> ProductsRow(it, products)
-                        ProductContainerType.GRID -> ProductsGrid(it, products)
+                        ProductContainerType.ROW -> ProductsRow(it, products, content, campaign)
+                        ProductContainerType.GRID -> ProductsGrid(it, products, content, campaign)
                         else -> {}
                     }
                 }

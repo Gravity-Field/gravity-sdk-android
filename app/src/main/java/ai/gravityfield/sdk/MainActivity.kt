@@ -4,9 +4,20 @@ import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.mockSnackbarData
 import ai.gravityfield.gravity_sdk.models.Slot
 import ai.gravityfield.gravity_sdk.models.external.AddToCartEvent
+import ai.gravityfield.gravity_sdk.models.external.CancelEvent
+import ai.gravityfield.gravity_sdk.models.external.ContentCloseEvent
+import ai.gravityfield.gravity_sdk.models.external.ContentImpressionEvent
+import ai.gravityfield.gravity_sdk.models.external.ContentLoadEvent
+import ai.gravityfield.gravity_sdk.models.external.ContentVisibleImpressionEvent
 import ai.gravityfield.gravity_sdk.models.external.ContextType
+import ai.gravityfield.gravity_sdk.models.external.CopyEvent
 import ai.gravityfield.gravity_sdk.models.external.CustomEvent
+import ai.gravityfield.gravity_sdk.models.external.FollowDeeplinkEvent
+import ai.gravityfield.gravity_sdk.models.external.FollowUrlEvent
 import ai.gravityfield.gravity_sdk.models.external.PageContext
+import ai.gravityfield.gravity_sdk.models.external.ProductImpressionEvent
+import ai.gravityfield.gravity_sdk.models.external.RequestPushEvent
+import ai.gravityfield.gravity_sdk.models.external.TrackingEvent
 import ai.gravityfield.sdk.ui.theme.GravitySDKTheme
 import android.content.Intent
 import android.os.Bundle
@@ -42,6 +53,7 @@ class MainActivity : ComponentActivity() {
             this,
             apiKey = "api_key",
             section = "section",
+            gravityEventCallback = ::handleTrackingEvent,
             productViewBuilder = { context, slot ->
                 ProductView(context, slot.item)
             },
@@ -184,6 +196,64 @@ class MainActivity : ComponentActivity() {
 
     private fun checkSlotValid(slot: Slot): Boolean {
         return slot.item.price != "82990"
+    }
+
+    private fun handleTrackingEvent(event: TrackingEvent) {
+        when (event) {
+            is CancelEvent -> {
+                event.content
+                event.campaign
+            }
+
+            is ContentCloseEvent -> {
+                event.content
+                event.campaign
+            }
+
+            is ContentImpressionEvent -> {
+                event.content
+                event.campaign
+            }
+
+            is ContentLoadEvent -> {
+                event.content
+                event.campaign
+            }
+
+            is ContentVisibleImpressionEvent -> {
+                event.content
+                event.campaign
+            }
+
+            is CopyEvent -> {
+                event.copiedValue
+                event.content
+                event.campaign
+            }
+
+            is FollowDeeplinkEvent -> {
+                event.deeplink
+                event.content
+                event.campaign
+            }
+
+            is FollowUrlEvent -> {
+                event.url
+                event.content
+                event.campaign
+            }
+
+            is ProductImpressionEvent -> {
+                event.slot
+                event.content
+                event.campaign
+            }
+
+            is RequestPushEvent -> {
+                event.content
+                event.campaign
+            }
+        }
     }
 }
 

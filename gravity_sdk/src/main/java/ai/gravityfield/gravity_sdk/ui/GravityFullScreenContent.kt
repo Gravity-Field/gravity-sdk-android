@@ -3,6 +3,7 @@ package ai.gravityfield.gravity_sdk.ui
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.OnClickModel
+import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import androidx.compose.foundation.layout.Box
@@ -20,6 +21,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun GravityFullScreenContent(
     content: CampaignContent,
+    campaign: Campaign,
     onClickCallback: (model: OnClickModel) -> Unit,
 ) {
     val frameUi = content.variables.frameUI
@@ -28,11 +30,11 @@ fun GravityFullScreenContent(
     val close = frameUi?.close
 
     LaunchedEffect(Unit) {
-        ContentEventService.instance.sendContentImpression(content)
+        ContentEventService.instance.sendContentImpression(content, campaign)
     }
 
     VisibilityDetector(
-        onVisible = { ContentEventService.instance.sendContentVisibleImpression(content) }
+        onVisible = { ContentEventService.instance.sendContentVisibleImpression(content, campaign) }
     ) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -58,7 +60,7 @@ fun GravityFullScreenContent(
                     horizontalAlignment = container?.style?.contentAlignment?.toHorizontalAlignment()
                         ?: Alignment.CenterHorizontally
                 ) {
-                    GravityElements(content, onClickCallback)
+                    GravityElements(content, campaign, onClickCallback)
                 }
 
                 close?.let {

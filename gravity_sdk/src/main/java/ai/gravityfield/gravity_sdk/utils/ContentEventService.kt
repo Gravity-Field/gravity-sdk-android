@@ -1,8 +1,14 @@
 package ai.gravityfield.gravity_sdk.utils
 
+import ai.gravityfield.gravity_sdk.GravitySDK
+import ai.gravityfield.gravity_sdk.models.Action
 import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.ContentActionModel
-import ai.gravityfield.gravity_sdk.models.Event
+import ai.gravityfield.gravity_sdk.models.external.ContentCloseEvent
+import ai.gravityfield.gravity_sdk.models.external.ContentImpressionEvent
+import ai.gravityfield.gravity_sdk.models.external.ContentLoadEvent
+import ai.gravityfield.gravity_sdk.models.external.ContentVisibleImpressionEvent
+import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.network.GravityRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -17,31 +23,61 @@ internal class ContentEventService private constructor() {
             get() = _instance
     }
 
-    fun sendContentLoaded(content: CampaignContent) {
+    fun sendContentLoaded(
+        content: CampaignContent, campaign: Campaign, callbackTrackingEvent: Boolean = true
+    ) {
         val onLoad = content.variables.onLoad ?: return
-        trackEvent(onLoad, content.events)
+        trackEvent(onLoad, content, campaign, callbackTrackingEvent)
     }
 
-    fun sendContentImpression(content: CampaignContent) {
+    fun sendContentImpression(
+        content: CampaignContent,
+        campaign: Campaign,
+        callbackTrackingEvent: Boolean = true
+    ) {
         val onImpression = content.variables.onImpression ?: return
-        trackEvent(onImpression, content.events)
+        trackEvent(onImpression, content, campaign, callbackTrackingEvent)
     }
 
-    fun sendContentVisibleImpression(content: CampaignContent) {
+    fun sendContentVisibleImpression(
+        content: CampaignContent,
+        campaign: Campaign,
+        callbackTrackingEvent: Boolean = true
+    ) {
         val onVisibleImpression = content.variables.onVisibleImpression ?: return
-        trackEvent(onVisibleImpression, content.events)
+        trackEvent(onVisibleImpression, content, campaign, callbackTrackingEvent)
     }
 
-    fun sendContentClosed(content: CampaignContent) {
+    fun sendContentClosed(
+        content: CampaignContent,
+        campaign: Campaign,
+        callbackTrackingEvent: Boolean = true
+    ) {
         val onClose = content.variables.onClose ?: return
-        trackEvent(onClose, content.events)
+        trackEvent(onClose, content, campaign, callbackTrackingEvent)
     }
 
-    private fun trackEvent(contentAction: ContentActionModel, events: List<Event>) {
-        events.find { it.name == contentAction.action }?.let { event ->
+    private fun trackEvent(
+        contentAction: ContentActionModel,
+        content: CampaignContent,
+        campaign: Campaign,
+        callbackTrackingEvent: Boolean
+    ) {
+        content.events.find { it.name == contentAction.action }?.let { event ->
             CoroutineScope(Dispatchers.IO).launch {
                 GravityRepository.instance.trackEngagementEvent(event.urls)
             }
+        }
+
+        if (callbackTrackingEvent) {
+            val event = when (contentAction.action) {
+                Action.LOAD -> ContentLoadEvent(content, campaign)
+                Action.IMPRESSION -> ContentImpressionEvent(content, campaign)
+                Action.VISIBLE_IMPRESSION -> ContentVisibleImpressionEvent(content, campaign)
+                Action.CLOSE -> ContentCloseEvent(content, campaign)
+                else -> null
+            } ?: return
+            GravitySDK.instance.gravityEventCallback.invoke(event)
         }
     }
 }

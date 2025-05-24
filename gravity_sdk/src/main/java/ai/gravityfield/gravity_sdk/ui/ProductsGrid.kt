@@ -1,8 +1,10 @@
 package ai.gravityfield.gravity_sdk.ui
 
 import ai.gravityfield.gravity_sdk.extensions.conditional
+import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.Element
 import ai.gravityfield.gravity_sdk.models.Products
+import ai.gravityfield.gravity_sdk.network.Campaign
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +20,8 @@ import androidx.compose.ui.unit.dp
 fun ProductsGrid(
     element: Element,
     products: Products,
+    content: CampaignContent,
+    campaign: Campaign
 ) {
     val style = element.style
     val height = style.size?.height
