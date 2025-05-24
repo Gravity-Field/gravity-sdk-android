@@ -8,6 +8,7 @@ import ai.gravityfield.gravity_sdk.models.Event
 import ai.gravityfield.gravity_sdk.models.OnClickModel
 import ai.gravityfield.gravity_sdk.models.Slot
 import ai.gravityfield.gravity_sdk.models.User
+import ai.gravityfield.gravity_sdk.models.external.CancelEvent
 import ai.gravityfield.gravity_sdk.models.external.ContentCloseEngagement
 import ai.gravityfield.gravity_sdk.models.external.ContentCloseEvent
 import ai.gravityfield.gravity_sdk.models.external.ContentEngagement
@@ -428,7 +429,15 @@ class GravitySDK private constructor(
             }
 
             Action.CLOSE -> dismissCallback?.invoke()
-            Action.CANCEL -> dismissCallback?.invoke()
+
+            Action.CANCEL -> {
+                dismissCallback?.invoke()
+
+                callbackTrackingEvent(
+                    CancelEvent(content, campaign)
+                )
+            }
+
             Action.FOLLOW_URL -> {
                 val url = onClickModel.url ?: return
 
