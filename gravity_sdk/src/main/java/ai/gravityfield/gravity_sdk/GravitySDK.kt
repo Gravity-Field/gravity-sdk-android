@@ -16,6 +16,7 @@ import ai.gravityfield.gravity_sdk.models.external.ContentImpressionEngagement
 import ai.gravityfield.gravity_sdk.models.external.ContentSettings
 import ai.gravityfield.gravity_sdk.models.external.ContentVisibleImpressionEngagement
 import ai.gravityfield.gravity_sdk.models.external.CopyEvent
+import ai.gravityfield.gravity_sdk.models.external.FollowDeeplinkEvent
 import ai.gravityfield.gravity_sdk.models.external.FollowUrlEvent
 import ai.gravityfield.gravity_sdk.models.external.Options
 import ai.gravityfield.gravity_sdk.models.external.PageContext
@@ -450,7 +451,7 @@ class GravitySDK private constructor(
                 val deeplink = onClickModel.deeplink ?: return
 
                 callbackTrackingEvent(
-                    FollowUrlEvent(deeplink, content, campaign)
+                    FollowDeeplinkEvent(deeplink, content, campaign)
                 )
             }
 
