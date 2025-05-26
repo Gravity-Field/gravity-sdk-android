@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 
 @Composable
-fun ProductsRow(
+internal fun ProductsRow(
     element: Element,
     products: Products,
     content: CampaignContent,

@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun GravityText(
+internal fun GravityText(
     element: Element,
     onClickCallback: (model: OnClickModel) -> Unit,
 ) {

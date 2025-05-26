@@ -6,7 +6,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 
-object ParseUtils {
+internal object ParseUtils {
 
     fun parseColor(color: Any?): Color? {
         if (color == null) return null

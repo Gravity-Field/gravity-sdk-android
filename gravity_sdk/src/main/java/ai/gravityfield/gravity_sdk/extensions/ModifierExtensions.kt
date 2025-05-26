@@ -4,7 +4,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Dp
 
-fun Modifier.conditional(condition: Boolean, modifier: Modifier.() -> Modifier): Modifier {
+internal fun Modifier.conditional(condition: Boolean, modifier: Modifier.() -> Modifier): Modifier {
     return if (condition) {
         then(modifier(Modifier))
     } else {
@@ -12,7 +12,7 @@ fun Modifier.conditional(condition: Boolean, modifier: Modifier.() -> Modifier):
     }
 }
 
-fun Modifier.absolutePosition(
+internal fun Modifier.absolutePosition(
     left: Dp? = null,
     top: Dp? = null,
     right: Dp? = null,

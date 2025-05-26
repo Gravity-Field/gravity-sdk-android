@@ -16,7 +16,7 @@ import androidx.compose.ui.platform.LocalView
 import kotlinx.coroutines.delay
 
 @Composable
-fun VisibilityDetector(
+internal fun VisibilityDetector(
     onVisible: () -> Unit,
     content: @Composable () -> Unit
 ) {

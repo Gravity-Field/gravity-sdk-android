@@ -17,7 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun GravityBottomSheetContent(
+internal fun GravityBottomSheetContent(
     content: CampaignContent,
     campaign: Campaign,
     onClickCallback: (model: OnClickModel) -> Unit,

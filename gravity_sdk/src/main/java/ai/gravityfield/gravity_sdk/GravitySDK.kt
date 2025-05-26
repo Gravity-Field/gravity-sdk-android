@@ -32,6 +32,8 @@ import ai.gravityfield.gravity_sdk.network.GravityRepository
 import ai.gravityfield.gravity_sdk.ui.GravityBottomSheetContent
 import ai.gravityfield.gravity_sdk.ui.GravityFullScreenContent
 import ai.gravityfield.gravity_sdk.ui.GravityModalContent
+import ai.gravityfield.gravity_sdk.ui.GravitySnackbarType1
+import ai.gravityfield.gravity_sdk.ui.mockSnackbarData
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import ai.gravityfield.gravity_sdk.utils.DeviceUtils
 import ai.gravityfield.gravity_sdk.utils.ProductEventService
@@ -143,13 +145,20 @@ class GravitySDK private constructor(
         user = User(custom = userId, ses = sessionId)
     }
 
-    suspend fun trackView(pageContext: PageContext) {
+    suspend fun trackView(
+        pageContext: PageContext,
+        context: Context
+    ) {
         CoroutineScope(Dispatchers.IO).launch {
             repository.visit(pageContext, options, user)
         }
     }
 
-    suspend fun triggerEvent(events: List<TriggerEvent>, pageContext: PageContext) {
+    suspend fun triggerEvent(
+        events: List<TriggerEvent>,
+        pageContext: PageContext,
+        context: Context
+    ) {
         CoroutineScope(Dispatchers.IO).launch {
             repository.event(events, pageContext, options, user)
         }
@@ -199,28 +208,8 @@ class GravitySDK private constructor(
         }
     }
 
-    fun showSnackbar(context: Context, data: SnackbarData) {
-        val dismissController = DismissController()
-        showOverlay(context, dismissController, dismissController::dismiss) {
-            val snackbarHostState = remember { SnackbarHostState() }
-            val scope = rememberCoroutineScope()
-            LaunchedEffect(data) {
-                scope.launch {
-                    snackbarHostState.showSnackbar("")
-                    dismissController.dismiss()
-                }
-            }
-            Column(
-                modifier = Modifier.fillMaxHeight(), verticalArrangement = Arrangement.Bottom,
-            ) {
-                SnackbarHost(
-                    hostState = snackbarHostState,
-                ) { _ ->
-                    GravitySnackbarType1(data, dismissController::dismiss)
-                }
-            }
-
-        }
+    fun showSnackbar1(context: Context) {
+        showBackendContent(context, "snackbar-1")
     }
 
     fun showModal1(context: Context) {
@@ -287,7 +276,7 @@ class GravitySDK private constructor(
                     DeliveryMethod.BOTTOM_SHEET -> showBottomSheet(context, content, campaign)
                     DeliveryMethod.FULL_SCREEN -> showFullScreen(context, content, campaign)
 
-                    DeliveryMethod.SNACK_BAR -> TODO()
+                    DeliveryMethod.SNACK_BAR -> showSnackbar(context, content, campaign)
                     DeliveryMethod.INLINE -> {}
                     DeliveryMethod.UNKNOWN -> {}
                 }
@@ -405,6 +394,31 @@ class GravitySDK private constructor(
         }
     }
 
+    private fun showSnackbar(context: Context, content: CampaignContent, campaign: Campaign) {
+        val dismissController = DismissController()
+        showOverlay(context, dismissController, dismissController::dismiss) {
+            val snackbarHostState = remember { SnackbarHostState() }
+            val scope = rememberCoroutineScope()
+            // todo: change to backend content
+            LaunchedEffect(mockSnackbarData) {
+                scope.launch {
+                    snackbarHostState.showSnackbar("")
+                    dismissController.dismiss()
+                }
+            }
+            Column(
+                modifier = Modifier.fillMaxHeight(), verticalArrangement = Arrangement.Bottom,
+            ) {
+                SnackbarHost(
+                    hostState = snackbarHostState,
+                ) { _ ->
+                    GravitySnackbarType1(mockSnackbarData, dismissController::dismiss)
+                }
+            }
+
+        }
+    }
+
     internal fun onClickHandler(
         onClickModel: OnClickModel,
         content: CampaignContent,
@@ -517,7 +531,7 @@ class GravitySDK private constructor(
     }
 }
 
-class DismissController {
+internal class DismissController {
     var listener: (() -> Unit)? = null
 
     fun dismiss() {

@@ -13,7 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 
 @Composable
-fun ColumnScope.GravityElements(
+internal fun ColumnScope.GravityElements(
     content: CampaignContent,
     campaign: Campaign,
     onClickCallback: (model: OnClickModel) -> Unit,

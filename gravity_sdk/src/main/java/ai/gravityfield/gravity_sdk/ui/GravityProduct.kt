@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 
 @Composable
-fun GravityProduct(
+internal fun GravityProduct(
     slot: Slot,
 ) {
     val item = slot.item

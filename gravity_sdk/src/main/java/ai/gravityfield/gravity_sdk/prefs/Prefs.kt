@@ -4,7 +4,7 @@ import com.russhwolf.settings.Settings
 
 private const val keyUserId = "gravity_user_id"
 
-class Prefs {
+internal class Prefs {
 
     private val prefs = Settings()
 

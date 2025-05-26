@@ -19,7 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun GravityFullScreenContent(
+internal fun GravityFullScreenContent(
     content: CampaignContent,
     campaign: Campaign,
     onClickCallback: (model: OnClickModel) -> Unit,

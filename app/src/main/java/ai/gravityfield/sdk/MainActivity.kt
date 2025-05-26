@@ -1,7 +1,6 @@
 package ai.gravityfield.sdk
 
 import ai.gravityfield.gravity_sdk.GravitySDK
-import ai.gravityfield.gravity_sdk.mockSnackbarData
 import ai.gravityfield.gravity_sdk.models.Slot
 import ai.gravityfield.gravity_sdk.models.external.AddToCartEvent
 import ai.gravityfield.gravity_sdk.models.external.CancelEvent
@@ -73,7 +72,7 @@ class MainActivity : ComponentActivity() {
                             val context = LocalContext.current
                             ShowContentButton(
                                 onClick = {
-                                    GravitySDK.instance.showSnackbar(context, mockSnackbarData)
+                                    GravitySDK.instance.showSnackbar1(context)
                                 },
                             ) {
                                 Text(text = "Show snackbar")
@@ -156,11 +155,14 @@ class MainActivity : ComponentActivity() {
                             ShowContentButton(
                                 onClick = {
                                     CoroutineScope(Dispatchers.IO).launch {
-                                        GravitySDK.instance.trackView(PageContext(type = ContextType.CART))
+                                        GravitySDK.instance.trackView(
+                                            PageContext(type = ContextType.CART),
+                                            context
+                                        )
                                     }
                                 },
                             ) {
-                                Text(text = "Trigger event")
+                                Text(text = "Track view")
                             }
 
                             ShowContentButton(
@@ -180,7 +182,8 @@ class MainActivity : ComponentActivity() {
                                                     name = "New name",
                                                 )
                                             ),
-                                            pageContext = PageContext(type = ContextType.CART)
+                                            pageContext = PageContext(type = ContextType.CART),
+                                            context = context
                                         )
                                     }
                                 },

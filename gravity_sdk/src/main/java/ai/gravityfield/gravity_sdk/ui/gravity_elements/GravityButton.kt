@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun GravityButton(
+internal fun GravityButton(
     element: Element,
     onClickCallback: (model: OnClickModel) -> Unit,
 ) {

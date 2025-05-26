@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.rememberAsyncImagePainter
 
 @Composable
-fun CloseButton(
+internal fun CloseButton(
     close: Close,
     onClickCallback: (model: OnClickModel) -> Unit,
 ) {

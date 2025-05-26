@@ -38,7 +38,7 @@ private const val GET_CONTENT = "/choose"
 private const val VISIT = "/visit"
 private const val EVENT = "/event"
 
-class GravityRepository private constructor() {
+internal class GravityRepository private constructor() {
 
     companion object {
         private var _instance = GravityRepository()

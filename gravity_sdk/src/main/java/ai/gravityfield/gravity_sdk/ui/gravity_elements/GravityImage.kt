@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.rememberAsyncImagePainter
 
 @Composable
-fun GravityImage(
+internal fun GravityImage(
     element: Element,
     onClickCallback: (model: OnClickModel) -> Unit,
 ) {

@@ -9,7 +9,7 @@ import android.content.res.Configuration
 import android.os.Build
 import android.provider.Settings
 
-object DeviceUtils {
+internal object DeviceUtils {
     fun getUserAgent(context: Context): Map<String, String?> {
         val info: PackageInfo? = try {
             context.packageManager.getPackageInfo(context.packageName, 0)

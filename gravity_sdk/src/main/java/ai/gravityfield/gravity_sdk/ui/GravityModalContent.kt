@@ -20,7 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun GravityModalContent(
+internal fun GravityModalContent(
     content: CampaignContent,
     campaign: Campaign,
     onClickCallback: (model: OnClickModel) -> Unit,

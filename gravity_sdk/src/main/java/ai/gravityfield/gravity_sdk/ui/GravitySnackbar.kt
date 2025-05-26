@@ -1,5 +1,6 @@
-package ai.gravityfield.gravity_sdk
+package ai.gravityfield.gravity_sdk.ui
 
+import ai.gravityfield.gravity_sdk.R
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -24,11 +25,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun GravitySnackbarType1(
+internal fun GravitySnackbarType1(
     data: SnackbarData,
     dismiss: () -> Unit,
 ) {
@@ -80,7 +82,7 @@ fun GravitySnackbarType1(
     }
 }
 
-data class SnackbarData(
+internal data class SnackbarData(
     val color: Color,
     val contentAlignment: Alignment.Horizontal,
     val borderRadius: Dp,
@@ -92,7 +94,7 @@ data class SnackbarData(
     val buttonImageSize: DpSize,
 )
 
-val mockSnackbarData = SnackbarData(
+internal val mockSnackbarData = SnackbarData(
     color = Color(0xFF868585),
     borderRadius = 16.dp,
     contentAlignment = Alignment.Start,
@@ -114,4 +116,25 @@ val mockSnackbarData = SnackbarData(
     imageSize = DpSize(width = 56.dp, height = 56.dp),
     buttonImage = R.drawable.ic_arrow_circle_right,
     buttonImageSize = DpSize(width = 32.dp, height = 32.dp),
+)
+
+internal class GravityText(
+    val text: String,
+    val color: Color,
+    val fontSize: TextUnit,
+    val fontWeight: FontWeight,
+    val lineHeight: TextUnit,
+)
+
+internal class GravityImage(
+    @DrawableRes val url: Int,
+    val size: DpSize,
+)
+
+internal class GravityButton(
+    val title: GravityText,
+    val color: Color,
+    val outlineColor: Color,
+    val pressColor: Color?,
+    val cornerRadius: Dp,
 )
