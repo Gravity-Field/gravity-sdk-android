@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.jetbrains.kotlin.android)
     alias(libs.plugins.jetbrains.kotlin.serialization)
     alias(libs.plugins.compose.compiler)
+    id("maven-publish")
 }
 
 android {
@@ -26,17 +27,31 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "11"
     }
     buildFeatures {
         compose = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.1"
+    }
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("release")
+        {
+            groupId = "ai.gravityfield"
+            artifactId = "gravity-sdk"
+            version = "1.0.0"
+            afterEvaluate {
+                from(components["release"])
+            }
+        }
     }
 }
 
