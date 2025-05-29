@@ -82,12 +82,12 @@ GravitySDK.instance.setOptions(
 ## Отслеживание и события
 
 ```kotlin
-fun trackView(
+GravitySDK.instance.trackView(
   pageContext = PageContext(...),
   context = context
 )
 
-fun triggerEvent(
+GravitySDK.instance.triggerEvent(
   events = listOf(TriggerEvent(...)),
   pageContext = PageContext(...),
   context = context
@@ -104,7 +104,7 @@ GravitySDK.instance.sendProductEngagement(ProductClickEngagement(...))
 ## Отображение контента
 
 ```kotlin
-fun showBackendContent(context, templateId)
+GravitySDK.instance.showBackendContent(context, templateId)
 ```
 
 ## Обработка ошибок
