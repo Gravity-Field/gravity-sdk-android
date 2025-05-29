@@ -264,7 +264,7 @@ class GravitySDK private constructor(
         }
     }
 
-    private fun showBackendContent(context: Context, templateId: String) {
+    fun showBackendContent(context: Context, templateId: String) {
         CoroutineScope(Dispatchers.IO).launch {
             val result = getContent(templateId)
             val campaign = result.data.first()
