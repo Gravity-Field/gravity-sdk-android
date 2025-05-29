@@ -4,10 +4,10 @@ import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.models.Action
 import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.ContentActionModel
-import ai.gravityfield.gravity_sdk.models.external.ContentCloseEvent
-import ai.gravityfield.gravity_sdk.models.external.ContentImpressionEvent
-import ai.gravityfield.gravity_sdk.models.external.ContentLoadEvent
-import ai.gravityfield.gravity_sdk.models.external.ContentVisibleImpressionEvent
+import ai.gravityfield.gravity_sdk.models.ContentCloseEvent
+import ai.gravityfield.gravity_sdk.models.ContentImpressionEvent
+import ai.gravityfield.gravity_sdk.models.ContentLoadEvent
+import ai.gravityfield.gravity_sdk.models.ContentVisibleImpressionEvent
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.network.GravityRepository
 import kotlinx.coroutines.CoroutineScope

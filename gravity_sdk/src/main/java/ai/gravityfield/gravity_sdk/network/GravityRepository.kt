@@ -1,11 +1,11 @@
 package ai.gravityfield.gravity_sdk.network
 
 import ai.gravityfield.gravity_sdk.GravitySDK
+import ai.gravityfield.gravity_sdk.models.ContentSettings
+import ai.gravityfield.gravity_sdk.models.Options
+import ai.gravityfield.gravity_sdk.models.PageContext
+import ai.gravityfield.gravity_sdk.models.TriggerEvent
 import ai.gravityfield.gravity_sdk.models.User
-import ai.gravityfield.gravity_sdk.models.external.ContentSettings
-import ai.gravityfield.gravity_sdk.models.external.Options
-import ai.gravityfield.gravity_sdk.models.external.PageContext
-import ai.gravityfield.gravity_sdk.models.external.TriggerEvent
 import ai.gravityfield.gravity_sdk.prefs.Prefs
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body

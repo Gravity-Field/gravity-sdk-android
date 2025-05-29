@@ -3,8 +3,8 @@ package ai.gravityfield.gravity_sdk.utils
 import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.ProductAction
+import ai.gravityfield.gravity_sdk.models.ProductImpressionEvent
 import ai.gravityfield.gravity_sdk.models.Slot
-import ai.gravityfield.gravity_sdk.models.external.ProductImpressionEvent
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.network.GravityRepository
 import kotlinx.coroutines.CoroutineScope

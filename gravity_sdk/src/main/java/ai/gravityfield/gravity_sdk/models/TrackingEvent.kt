@@ -1,7 +1,5 @@
-package ai.gravityfield.gravity_sdk.models.external
+package ai.gravityfield.gravity_sdk.models
 
-import ai.gravityfield.gravity_sdk.models.CampaignContent
-import ai.gravityfield.gravity_sdk.models.Slot
 import ai.gravityfield.gravity_sdk.network.Campaign
 
 sealed class TrackingEvent(val campaign: Campaign)
