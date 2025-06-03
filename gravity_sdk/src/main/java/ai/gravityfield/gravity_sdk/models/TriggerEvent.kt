@@ -72,9 +72,9 @@ class SingUpEvent(
 
 @Serializable
 class LoginEvent(
-    val hashedEmail: String,
-    val cuid: String,
-    val cuidType: String
+    val hashedEmail: String? = null,
+    val cuid: String? = null,
+    val cuidType: String? = null
 ) : TriggerEvent() {
     override val type: String = "login-v1"
     override val name: String = "Login"
