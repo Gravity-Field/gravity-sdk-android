@@ -34,7 +34,7 @@ import kotlinx.serialization.json.encodeToJsonElement
 import org.json.JSONArray
 import org.json.JSONObject
 
-private const val BASE_URL = "https://mock.apidog.com/m1/807903-786789-default"
+private const val BASE_URL = "https://ev.stellarlabs.ai/v2"
 private const val CHOOSE = "/choose"
 private const val VISIT = "/visit"
 private const val EVENT = "/event"
