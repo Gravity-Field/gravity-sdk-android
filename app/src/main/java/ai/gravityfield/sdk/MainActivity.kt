@@ -41,8 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -154,11 +153,17 @@ class MainActivity : ComponentActivity() {
 
                             ShowContentButton(
                                 onClick = {
-                                    CoroutineScope(Dispatchers.IO).launch {
-                                        GravitySDK.instance.trackView(
-                                            PageContext(type = ContextType.CART),
-                                            context
-                                        )
+                                    lifecycleScope.launch {
+                                        try {
+                                            GravitySDK.instance.trackView(
+                                                PageContext(
+                                                    type = ContextType.PRODUCT,
+                                                    data = listOf("212")
+                                                ),
+                                                context
+                                            )
+                                        } catch (_: Throwable) {
+                                        }
                                     }
                                 },
                             ) {
@@ -167,24 +172,27 @@ class MainActivity : ComponentActivity() {
 
                             ShowContentButton(
                                 onClick = {
-                                    CoroutineScope(Dispatchers.IO).launch {
-                                        GravitySDK.instance.triggerEvent(
-                                            events = listOf(
-                                                AddToCartEvent(
-                                                    value = 118.26,
-                                                    currency = "any supported currency code",
-                                                    productId = "item-34454",
-                                                    quantity = 2,
-                                                    cart = emptyList()
+                                    lifecycleScope.launch {
+                                        try {
+                                            GravitySDK.instance.triggerEvent(
+                                                events = listOf(
+                                                    AddToCartEvent(
+                                                        value = 118.26,
+                                                        currency = "any supported currency code",
+                                                        productId = "item-34454",
+                                                        quantity = 2,
+                                                        cart = emptyList()
+                                                    ),
+                                                    CustomEvent(
+                                                        type = "new_type",
+                                                        name = "New name",
+                                                    )
                                                 ),
-                                                CustomEvent(
-                                                    type = "new_type",
-                                                    name = "New name",
-                                                )
-                                            ),
-                                            pageContext = PageContext(type = ContextType.CART),
-                                            context = context
-                                        )
+                                                pageContext = PageContext(type = ContextType.CART),
+                                                context = context
+                                            )
+                                        } catch (_: Throwable) {
+                                        }
                                     }
                                 },
                             ) {

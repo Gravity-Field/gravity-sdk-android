@@ -18,8 +18,8 @@ import io.ktor.client.plugins.logging.ANDROID
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
+import io.ktor.client.request.get
 import io.ktor.client.request.header
-import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
@@ -28,13 +28,14 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 import org.json.JSONArray
 import org.json.JSONObject
 
 private const val BASE_URL = "https://mock.apidog.com/m1/807903-786789-default"
-private const val GET_CONTENT = "/choose"
+private const val CHOOSE = "/choose"
 private const val VISIT = "/visit"
 private const val EVENT = "/event"
 
@@ -95,7 +96,7 @@ internal class GravityRepository private constructor() {
         pageContext: PageContext,
         options: Options,
         customerUser: User?
-    ): ContentResponse {
+    ): CampaignIdsResponse {
         val jsonBody = buildJsonObject {
             put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
             put("device", json.encodeToJsonElement(GravitySDK.instance.device))
@@ -110,10 +111,8 @@ internal class GravityRepository private constructor() {
         }.body<String>()
 
         val json = JSONObject(data).toMap()
-        // todo: change ContentResponse to campaignIds response
-        val response = ContentResponse.fromJson(json)
+        val response = CampaignIdsResponse.fromJson(json)
         saveUserIfNeeded(customerUser, response.user)
-
         return response
     }
 
@@ -122,7 +121,7 @@ internal class GravityRepository private constructor() {
         pageContext: PageContext,
         options: Options,
         customerUser: User?
-    ): ContentResponse {
+    ): CampaignIdsResponse {
         val jsonBody = buildJsonObject {
             put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
             put("device", json.encodeToJsonElement(GravitySDK.instance.device))
@@ -137,15 +136,13 @@ internal class GravityRepository private constructor() {
         }.body<String>()
 
         val json = JSONObject(data).toMap()
-        // todo: change ContentResponse to campaignIds response
-        val response = ContentResponse.fromJson(json)
+        val response = CampaignIdsResponse.fromJson(json)
         saveUserIfNeeded(customerUser, response.user)
-
         return response
     }
 
-    suspend fun getContent(
-        templateId: String,
+    suspend fun chooseByCampaignId(
+        campaignId: String,
         options: Options,
         contentSettings: ContentSettings,
         customerUser: User? = null,
@@ -153,6 +150,10 @@ internal class GravityRepository private constructor() {
     ): ContentResponse {
         val jsonBody = buildJsonObject {
             put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
+            put(
+                "data",
+                JsonArray(listOf(json.encodeToJsonElement(mapOf("campaignId" to campaignId))))
+            )
             put("device", json.encodeToJsonElement(GravitySDK.instance.device))
             put("user", json.encodeToJsonElement(userForRequest(customerUser)))
             put("ctx", json.encodeToJsonElement(pageContext))
@@ -160,8 +161,34 @@ internal class GravityRepository private constructor() {
             put("contentSettings", json.encodeToJsonElement(contentSettings))
         }
 
-        val data = client.post("$baseUrl$GET_CONTENT") {
-            parameter("templateId", templateId)
+        val data = client.post("$baseUrl$CHOOSE") {
+            setBody(jsonBody)
+        }.body<String>()
+
+        val json = JSONObject(data).toMap()
+        val response = ContentResponse.fromJson(json)
+        saveUserIfNeeded(customerUser, response.user)
+        return response
+    }
+
+    suspend fun chooseBySelector(
+        selector: String,
+        options: Options,
+        contentSettings: ContentSettings,
+        customerUser: User? = null,
+        pageContext: PageContext? = null
+    ): ContentResponse {
+        val jsonBody = buildJsonObject {
+            put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
+            put("data", JsonArray(listOf(json.encodeToJsonElement(mapOf("selector" to selector)))))
+            put("device", json.encodeToJsonElement(GravitySDK.instance.device))
+            put("user", json.encodeToJsonElement(userForRequest(customerUser)))
+            put("ctx", json.encodeToJsonElement(pageContext))
+            put("options", json.encodeToJsonElement(options))
+            put("contentSettings", json.encodeToJsonElement(contentSettings))
+        }
+
+        val data = client.post("$baseUrl$CHOOSE") {
             setBody(jsonBody)
         }.body<String>()
 
@@ -172,8 +199,7 @@ internal class GravityRepository private constructor() {
     }
 
     internal suspend fun trackEngagementEvent(urls: List<String>) {
-        // todo: uncomment when back will send urls values
-        // urls.forEach { client.get(it) }
+        urls.forEach { client.get(it) }
     }
 
     private fun userForRequest(customerUser: User?): User {
@@ -190,8 +216,8 @@ internal class GravityRepository private constructor() {
     private fun saveUserIfNeeded(customerUser: User?, contentResponseUser: User?) {
         if (customerUser != null) return
 
-        if (contentResponseUser != null) {
-            prefs.setUserId(contentResponseUser.uid!!)
+        if (contentResponseUser?.uid != null) {
+            prefs.setUserId(contentResponseUser.uid)
             userIdCache = contentResponseUser.uid
             sessionIdCache = contentResponseUser.ses
         }

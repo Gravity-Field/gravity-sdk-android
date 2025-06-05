@@ -149,8 +149,19 @@ class GravitySDK private constructor(
         pageContext: PageContext,
         context: Context
     ) {
-        CoroutineScope(Dispatchers.IO).launch {
-            repository.visit(pageContext, options, user)
+        withContext(Dispatchers.IO) {
+            val campaignIdsResponse = repository.visit(pageContext, options, user)
+            val campaignId = campaignIdsResponse.campaigns.firstOrNull()
+            if (campaignId != null) {
+                val result = getContentByCampaignId(campaignId.campaignId, pageContext)
+
+                val campaign = result.data.first()
+                val content = campaign.payload.first().contents.first()
+
+                withContext(Dispatchers.Main) {
+                    showBackendContent(context, content, campaign)
+                }
+            }
         }
     }
 
@@ -159,12 +170,23 @@ class GravitySDK private constructor(
         pageContext: PageContext,
         context: Context
     ) {
-        CoroutineScope(Dispatchers.IO).launch {
-            repository.event(events, pageContext, options, user)
+        withContext(Dispatchers.IO) {
+            val campaignIdsResponse = repository.event(events, pageContext, options, user)
+            val campaignId = campaignIdsResponse.campaigns.firstOrNull()
+            if (campaignId != null) {
+                val result = getContentByCampaignId(campaignId.campaignId, pageContext)
+
+                val campaign = result.data.first()
+                val content = campaign.payload.first().contents.first()
+
+                withContext(Dispatchers.Main) {
+                    showBackendContent(context, content, campaign)
+                }
+            }
         }
     }
 
-    suspend fun sendContentEngagement(engagement: ContentEngagement) {
+    fun sendContentEngagement(engagement: ContentEngagement) {
         when (engagement) {
             is ContentImpressionEngagement ->
                 contentEventService.sendContentImpression(
@@ -189,7 +211,7 @@ class GravitySDK private constructor(
         }
     }
 
-    suspend fun sendProductEngagement(engagement: ProductEngagement) {
+    fun sendProductEngagement(engagement: ProductEngagement) {
         when (engagement) {
             is ProductClickEngagement -> productEventService.sendProductClick(
                 engagement.slot,
@@ -240,12 +262,18 @@ class GravitySDK private constructor(
         showBackendContent(context, "fullscreen-banner")
     }
 
-    internal suspend fun getContent(templateId: String): ContentResponse {
-        val response = repository.getContent(
-            templateId = templateId,
-            options = options,
-            contentSettings = contentSettings
-        )
+    suspend fun getContentByCampaignId(
+        campaignId: String,
+        pageContext: PageContext? = null
+    ): ContentResponse {
+        val response = withContext(Dispatchers.IO) {
+            repository.chooseByCampaignId(
+                campaignId = campaignId,
+                options = options,
+                contentSettings = contentSettings,
+                pageContext = pageContext
+            )
+        }
         for (campaign in response.data) {
             for (payload in campaign.payload) {
                 for (content in payload.contents) {
@@ -256,17 +284,42 @@ class GravitySDK private constructor(
         return response
     }
 
-    private fun trackEngagementEvent(action: Action, events: List<Event>) {
-        events.find { it.name == action }?.let { event ->
+    suspend fun getContentBySelector(
+        selector: String,
+        pageContext: PageContext? = null
+    ): ContentResponse {
+        val response = withContext(Dispatchers.IO) {
+            repository.chooseBySelector(
+                selector = selector,
+                options = options,
+                contentSettings = contentSettings,
+                pageContext = pageContext
+            )
+        }
+        for (campaign in response.data) {
+            for (payload in campaign.payload) {
+                for (content in payload.contents) {
+                    contentEventService.sendContentLoaded(content, campaign)
+                }
+            }
+        }
+        return response
+    }
+
+    private fun trackEngagementEvent(action: Action, events: List<Event>?) {
+        events?.find { it.name == action }?.let { event ->
             CoroutineScope(Dispatchers.IO).launch {
-                repository.trackEngagementEvent(event.urls)
+                try {
+                    repository.trackEngagementEvent(event.urls)
+                } catch (_: Throwable) {
+                }
             }
         }
     }
 
-    fun showBackendContent(context: Context, templateId: String) {
+    private fun showBackendContent(context: Context, templateId: String) {
         CoroutineScope(Dispatchers.IO).launch {
-            val result = getContent(templateId)
+            val result = getContentByCampaignId(templateId)
             val campaign = result.data.first()
             val content = campaign.payload.first().contents.first()
 
@@ -275,7 +328,6 @@ class GravitySDK private constructor(
                     DeliveryMethod.MODAL -> showModal(context, content, campaign)
                     DeliveryMethod.BOTTOM_SHEET -> showBottomSheet(context, content, campaign)
                     DeliveryMethod.FULL_SCREEN -> showFullScreen(context, content, campaign)
-
                     DeliveryMethod.SNACK_BAR -> showSnackbar(context, content, campaign)
                     DeliveryMethod.INLINE -> {}
                     DeliveryMethod.UNKNOWN -> {}
@@ -283,6 +335,18 @@ class GravitySDK private constructor(
             }
         }
     }
+
+    private fun showBackendContent(context: Context, content: CampaignContent, campaign: Campaign) {
+        when (content.deliveryMethod) {
+            DeliveryMethod.MODAL -> showModal(context, content, campaign)
+            DeliveryMethod.BOTTOM_SHEET -> showBottomSheet(context, content, campaign)
+            DeliveryMethod.FULL_SCREEN -> showFullScreen(context, content, campaign)
+            DeliveryMethod.SNACK_BAR -> showSnackbar(context, content, campaign)
+            DeliveryMethod.INLINE -> {}
+            DeliveryMethod.UNKNOWN -> {}
+        }
+    }
+
 
     private fun showModal(context: Context, content: CampaignContent, campaign: Campaign) {
         val dismissController = DismissController()

@@ -47,16 +47,19 @@ internal class ProductEventService private constructor() {
     ) {
         slot.events.find { it.name == action }?.let { event ->
             CoroutineScope(Dispatchers.IO).launch {
-                GravityRepository.instance.trackEngagementEvent(event.urls)
-            }
-        }
+                try {
+                    GravityRepository.instance.trackEngagementEvent(event.urls)
 
-        if (callbackTrackingEvent) {
-            val event = when (action) {
-                ProductAction.PIMP -> ProductImpressionEvent(slot, content, campaign)
-                else -> null
-            } ?: return
-            GravitySDK.instance.gravityEventCallback.invoke(event)
+                    if (callbackTrackingEvent) {
+                        val trackingEvent = when (action) {
+                            ProductAction.PIMP -> ProductImpressionEvent(slot, content, campaign)
+                            else -> null
+                        } ?: return@launch
+                        GravitySDK.instance.gravityEventCallback.invoke(trackingEvent)
+                    }
+                } catch (_: Throwable) {
+                }
+            }
         }
     }
 }

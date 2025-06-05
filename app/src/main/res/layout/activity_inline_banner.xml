@@ -10,7 +10,7 @@
     <ai.gravityfield.gravity_sdk.ui.GravityInlineView
         android:layout_width="match_parent"
         android:layout_height="250dp"
-        app:companyId="bottom-sheet-banner"
+        app:selector="bottom-sheet-banner"
         app:color="#FFF1F1F1"
         app:cornerRadius="20dp"
         app:layout_constraintTop_toTopOf="parent"

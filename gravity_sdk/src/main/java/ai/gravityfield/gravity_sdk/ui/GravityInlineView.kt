@@ -23,6 +23,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,8 +33,6 @@ import androidx.compose.ui.platform.AbstractComposeView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class GravityInlineView @JvmOverloads constructor(
@@ -42,7 +41,7 @@ class GravityInlineView @JvmOverloads constructor(
     defStyleAttr: Int = 0
 ) : AbstractComposeView(context, attrs, defStyleAttr) {
 
-    private val companyId: String
+    private val selector: String
     private val colorInt: Int
     private val cornerRadius: Float
     private val cornerRadiusTopStart: Float
@@ -57,7 +56,7 @@ class GravityInlineView @JvmOverloads constructor(
             defStyleAttr,
             0
         )
-        companyId = typedArray.getString(R.styleable.GravityInlineView_companyId)
+        selector = typedArray.getString(R.styleable.GravityInlineView_selector)
             ?: throw Exception("GravitySDK: companyId must be provided to GravityInlineView")
         colorInt = typedArray.getColor(
             R.styleable.GravityInlineView_color,
@@ -79,7 +78,7 @@ class GravityInlineView @JvmOverloads constructor(
     @Composable
     override fun Content() {
         GravityView(
-            companyId,
+            selector,
             colorInt,
             cornerRadius,
             cornerRadiusTopStart,
@@ -92,7 +91,7 @@ class GravityInlineView @JvmOverloads constructor(
 
 @Composable
 private fun GravityView(
-    companyId: String,
+    selector: String,
     colorInt: Int,
     cornerRadius: Float,
     cornerRadiusTopStart: Float,
@@ -102,20 +101,21 @@ private fun GravityView(
 ) {
     var campaign by remember { mutableStateOf<Campaign?>(null) }
     var isLoading by remember { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
 
-    LaunchedEffect(companyId) {
+    LaunchedEffect(selector) {
         isLoading = true
         campaign = null
 
-        try {
-            CoroutineScope(Dispatchers.IO).launch {
-                val result = GravitySDK.instance.getContent(companyId)
-                campaign = result.data.first()
+        scope.launch {
+            try {
+                val result = GravitySDK.instance.getContentBySelector(selector)
+                campaign = result.data.firstOrNull()
+            } catch (e: Exception) {
+                // skip
+            } finally {
+                isLoading = false
             }
-        } catch (e: Exception) {
-            // skip
-        } finally {
-            isLoading = false
         }
     }
 

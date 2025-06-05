@@ -63,21 +63,28 @@ internal class ContentEventService private constructor() {
         campaign: Campaign,
         callbackTrackingEvent: Boolean
     ) {
-        content.events.find { it.name == contentAction.action }?.let { event ->
+        content.events?.find { it.name == contentAction.action }?.let { event ->
             CoroutineScope(Dispatchers.IO).launch {
-                GravityRepository.instance.trackEngagementEvent(event.urls)
-            }
-        }
+                try {
+                    GravityRepository.instance.trackEngagementEvent(event.urls)
 
-        if (callbackTrackingEvent) {
-            val event = when (contentAction.action) {
-                Action.LOAD -> ContentLoadEvent(content, campaign)
-                Action.IMPRESSION -> ContentImpressionEvent(content, campaign)
-                Action.VISIBLE_IMPRESSION -> ContentVisibleImpressionEvent(content, campaign)
-                Action.CLOSE -> ContentCloseEvent(content, campaign)
-                else -> null
-            } ?: return
-            GravitySDK.instance.gravityEventCallback.invoke(event)
+                    if (callbackTrackingEvent) {
+                        val trackingEvent = when (contentAction.action) {
+                            Action.LOAD -> ContentLoadEvent(content, campaign)
+                            Action.IMPRESSION -> ContentImpressionEvent(content, campaign)
+                            Action.VISIBLE_IMPRESSION -> ContentVisibleImpressionEvent(
+                                content,
+                                campaign
+                            )
+
+                            Action.CLOSE -> ContentCloseEvent(content, campaign)
+                            else -> null
+                        } ?: return@launch
+                        GravitySDK.instance.gravityEventCallback.invoke(trackingEvent)
+                    }
+                } catch (_: Throwable) {
+                }
+            }
         }
     }
 }
