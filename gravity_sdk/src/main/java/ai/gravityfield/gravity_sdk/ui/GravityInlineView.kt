@@ -57,7 +57,7 @@ class GravityInlineView @JvmOverloads constructor(
             0
         )
         selector = typedArray.getString(R.styleable.GravityInlineView_selector)
-            ?: throw Exception("GravitySDK: companyId must be provided to GravityInlineView")
+            ?: throw Exception("GravitySDK: selector must be provided to GravityInlineView")
         colorInt = typedArray.getColor(
             R.styleable.GravityInlineView_color,
             ContextCompat.getColor(context, android.R.color.transparent)
