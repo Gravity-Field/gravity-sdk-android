@@ -138,8 +138,7 @@ private fun GravityView(
     ) {
         when {
             isLoading -> CircularProgressIndicator()
-            campaign != null -> {
-                // todo: use selector
+            campaign?.payload?.firstOrNull()?.contents?.firstOrNull() != null -> {
                 val content = campaign!!.payload.first().contents.first()
                 val frameUi = content.variables.frameUI
                 val container = frameUi?.container

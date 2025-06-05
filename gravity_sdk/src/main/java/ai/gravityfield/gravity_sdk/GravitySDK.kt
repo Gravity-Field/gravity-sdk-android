@@ -155,8 +155,9 @@ class GravitySDK private constructor(
             if (campaignId != null) {
                 val result = getContentByCampaignId(campaignId.campaignId, pageContext)
 
-                val campaign = result.data.first()
-                val content = campaign.payload.first().contents.first()
+                val campaign = result.data.firstOrNull() ?: return@withContext
+                val content =
+                    campaign.payload.firstOrNull()?.contents?.firstOrNull() ?: return@withContext
 
                 withContext(Dispatchers.Main) {
                     showBackendContent(context, content, campaign)
@@ -176,8 +177,9 @@ class GravitySDK private constructor(
             if (campaignId != null) {
                 val result = getContentByCampaignId(campaignId.campaignId, pageContext)
 
-                val campaign = result.data.first()
-                val content = campaign.payload.first().contents.first()
+                val campaign = result.data.firstOrNull() ?: return@withContext
+                val content =
+                    campaign.payload.firstOrNull()?.contents?.firstOrNull() ?: return@withContext
 
                 withContext(Dispatchers.Main) {
                     showBackendContent(context, content, campaign)
