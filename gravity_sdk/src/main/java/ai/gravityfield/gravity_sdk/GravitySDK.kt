@@ -108,7 +108,7 @@ class GravitySDK private constructor(
             productFilter: ProductFilter? = null,
         ) {
             val device = Device(
-                id = DeviceUtils.getDeviceId(context),
+                id = DeviceUtils.getDeviceId(),
                 userAgent = DeviceUtils.getUserAgent(context)
             )
             _instance = GravitySDK(

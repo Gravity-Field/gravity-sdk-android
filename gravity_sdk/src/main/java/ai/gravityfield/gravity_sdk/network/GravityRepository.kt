@@ -84,8 +84,6 @@ internal class GravityRepository private constructor() {
         }
     }
 
-    private val prefs = Prefs()
-
     private var userIdCache: String? = null
     private var sessionIdCache: String? = null
 
@@ -208,7 +206,7 @@ internal class GravityRepository private constructor() {
         } else if (userIdCache != null && sessionIdCache != null) {
             return User(uid = userIdCache, ses = sessionIdCache)
         } else {
-            val userId = prefs.getUserId()
+            val userId = Prefs.getUserId()
             return User(uid = userId, ses = null)
         }
     }
@@ -217,7 +215,7 @@ internal class GravityRepository private constructor() {
         if (customerUser != null) return
 
         if (contentResponseUser?.uid != null) {
-            prefs.setUserId(contentResponseUser.uid)
+            Prefs.setUserId(contentResponseUser.uid)
             userIdCache = contentResponseUser.uid
             sessionIdCache = contentResponseUser.ses
         }

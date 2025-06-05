@@ -1,13 +1,13 @@
 package ai.gravityfield.gravity_sdk.utils
 
-import android.annotation.SuppressLint
+import ai.gravityfield.gravity_sdk.prefs.Prefs
 import android.app.UiModeManager
 import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Build
-import android.provider.Settings
+import java.util.UUID
 
 internal object DeviceUtils {
     fun getUserAgent(context: Context): Map<String, String?> {
@@ -33,10 +33,13 @@ internal object DeviceUtils {
         )
     }
 
-    @SuppressLint("HardwareIds")
-    fun getDeviceId(context: Context): String? {
-        val contentResolver = context.contentResolver
-        return Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+    fun getDeviceId(): String {
+        var deviceId = Prefs.getDeviceId()
+        if (deviceId == null) {
+            deviceId = UUID.randomUUID().toString()
+            Prefs.setDeviceId(deviceId)
+        }
+        return deviceId
     }
 
     @Suppress("DEPRECATION")
