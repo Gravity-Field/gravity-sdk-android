@@ -232,38 +232,6 @@ class GravitySDK private constructor(
         }
     }
 
-    fun showSnackbar1(context: Context) {
-        showBackendContent(context, "snackbar-1")
-    }
-
-    fun showModal1(context: Context) {
-        showBackendContent(context, "modal-template-1")
-    }
-
-    fun showModal2(context: Context) {
-        showBackendContent(context, "modal-template-2")
-    }
-
-    fun showBottomSheet(context: Context) {
-        showBackendContent(context, "bottom-sheet-template-1")
-    }
-
-    fun showBottomSheetBanner(context: Context) {
-        showBackendContent(context, "bottom-sheet-banner")
-    }
-
-    fun showBottomSheetProductsGrid(context: Context) {
-        showBackendContent(context, "bottom-sheet-products-grid-2")
-    }
-
-    fun showBottomSheetProductsRow(context: Context) {
-        showBackendContent(context, "bottom-sheet-products-row")
-    }
-
-    fun showFullScreen(context: Context) {
-        showBackendContent(context, "fullscreen-banner")
-    }
-
     suspend fun getContentByCampaignId(
         campaignId: String,
         pageContext: PageContext? = null
@@ -314,25 +282,6 @@ class GravitySDK private constructor(
                 try {
                     repository.trackEngagementEvent(event.urls)
                 } catch (_: Throwable) {
-                }
-            }
-        }
-    }
-
-    private fun showBackendContent(context: Context, templateId: String) {
-        CoroutineScope(Dispatchers.IO).launch {
-            val result = getContentByCampaignId(templateId)
-            val campaign = result.data.first()
-            val content = campaign.payload.first().contents.first()
-
-            withContext(Dispatchers.Main) {
-                when (content.deliveryMethod) {
-                    DeliveryMethod.MODAL -> showModal(context, content, campaign)
-                    DeliveryMethod.BOTTOM_SHEET -> showBottomSheet(context, content, campaign)
-                    DeliveryMethod.FULL_SCREEN -> showFullScreen(context, content, campaign)
-                    DeliveryMethod.SNACK_BAR -> showSnackbar(context, content, campaign)
-                    DeliveryMethod.INLINE -> {}
-                    DeliveryMethod.UNKNOWN -> {}
                 }
             }
         }

@@ -103,9 +103,8 @@ GravitySDK.instance.sendProductEngagement(ProductClickEngagement(...))
 
 ## Отображение контента
 
-```kotlin
-GravitySDK.instance.showBackendContent(context, templateId)
-```
+Отображение контента происходит автоматически после вызова одного из методов: `trackView`
+или `triggerEvent`
 
 ## Обработка ошибок
 

@@ -18,7 +18,6 @@ import ai.gravityfield.gravity_sdk.models.RequestPushEvent
 import ai.gravityfield.gravity_sdk.models.Slot
 import ai.gravityfield.gravity_sdk.models.TrackingEvent
 import ai.gravityfield.sdk.ui.theme.GravitySDKTheme
-import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -69,88 +68,6 @@ class MainActivity : ComponentActivity() {
                                 .align(Alignment.Center)
                         ) {
                             val context = LocalContext.current
-                            ShowContentButton(
-                                onClick = {
-                                    GravitySDK.instance.showSnackbar1(context)
-                                },
-                            ) {
-                                Text(text = "Show snackbar")
-                            }
-
-                            ShowContentButton(
-                                onClick = {
-                                    GravitySDK.instance.showModal1(context)
-                                },
-                            ) {
-                                Text(text = "Show modal 1")
-                            }
-
-                            ShowContentButton(
-                                onClick = {
-                                    GravitySDK.instance.showModal2(context)
-                                },
-                            ) {
-                                Text(text = "Show modal 2")
-                            }
-
-                            ShowContentButton(
-                                onClick = {
-                                    GravitySDK.instance.showBottomSheet(context)
-                                },
-                            ) {
-                                Text(text = "Show BottomSheet")
-                            }
-
-                            ShowContentButton(
-                                onClick = {
-                                    GravitySDK.instance.showBottomSheetBanner(context)
-                                },
-                            ) {
-                                Text(text = "Show BottomSheet banner")
-                            }
-
-                            ShowContentButton(
-                                onClick = {
-                                    GravitySDK.instance.showBottomSheetProductsGrid(context)
-                                },
-                            ) {
-                                Text(text = "Show BottomSheet products grid")
-                            }
-
-                            ShowContentButton(
-                                onClick = {
-                                    GravitySDK.instance.showBottomSheetProductsRow(context)
-                                },
-                            ) {
-                                Text(text = "Show BottomSheet products row")
-                            }
-
-                            ShowContentButton(
-                                onClick = {
-                                    GravitySDK.instance.showFullScreen(context)
-                                },
-                            ) {
-                                Text(text = "Show FullScreen")
-                            }
-
-                            ShowContentButton(
-                                onClick = {
-                                    val intent = Intent(context, InlineBannerActivity::class.java)
-                                    context.startActivity(intent)
-                                },
-                            ) {
-                                Text(text = "Show inline banner")
-                            }
-
-                            ShowContentButton(
-                                onClick = {
-                                    val intent = Intent(context, InlineProductsActivity::class.java)
-                                    context.startActivity(intent)
-                                },
-                            ) {
-                                Text(text = "Show inline products")
-                            }
-
                             ShowContentButton(
                                 onClick = {
                                     lifecycleScope.launch {
