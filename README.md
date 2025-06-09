@@ -84,13 +84,13 @@ GravitySDK.instance.setOptions(
 ```kotlin
 GravitySDK.instance.trackView(
   pageContext = PageContext(...),
-  context = context
+  activityContext = context
 )
 
 GravitySDK.instance.triggerEvent(
   events = listOf(TriggerEvent(...)),
   pageContext = PageContext(...),
-  context = context
+  activityContext = context
 )
 ```
 

@@ -147,7 +147,7 @@ class GravitySDK private constructor(
 
     suspend fun trackView(
         pageContext: PageContext,
-        context: Context
+        activityContext: Context
     ) {
         withContext(Dispatchers.IO) {
             val campaignIdsResponse = repository.visit(pageContext, options, user)
@@ -160,7 +160,7 @@ class GravitySDK private constructor(
                     campaign.payload.firstOrNull()?.contents?.firstOrNull() ?: return@withContext
 
                 withContext(Dispatchers.Main) {
-                    showBackendContent(context, content, campaign)
+                    showBackendContent(activityContext, content, campaign)
                 }
             }
         }
@@ -169,7 +169,7 @@ class GravitySDK private constructor(
     suspend fun triggerEvent(
         events: List<TriggerEvent>,
         pageContext: PageContext,
-        context: Context
+        activityContext: Context
     ) {
         withContext(Dispatchers.IO) {
             val campaignIdsResponse = repository.event(events, pageContext, options, user)
@@ -182,7 +182,7 @@ class GravitySDK private constructor(
                     campaign.payload.firstOrNull()?.contents?.firstOrNull() ?: return@withContext
 
                 withContext(Dispatchers.Main) {
-                    showBackendContent(context, content, campaign)
+                    showBackendContent(activityContext, content, campaign)
                 }
             }
         }
