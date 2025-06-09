@@ -23,6 +23,7 @@ import ai.gravityfield.gravity_sdk.models.ProductEngagement
 import ai.gravityfield.gravity_sdk.models.ProductVisibleImpressionEngagement
 import ai.gravityfield.gravity_sdk.models.RequestPushEvent
 import ai.gravityfield.gravity_sdk.models.Slot
+import ai.gravityfield.gravity_sdk.models.TemplateSystemName
 import ai.gravityfield.gravity_sdk.models.TrackingEvent
 import ai.gravityfield.gravity_sdk.models.TriggerEvent
 import ai.gravityfield.gravity_sdk.models.User
@@ -32,8 +33,8 @@ import ai.gravityfield.gravity_sdk.network.GravityRepository
 import ai.gravityfield.gravity_sdk.ui.GravityBottomSheetContent
 import ai.gravityfield.gravity_sdk.ui.GravityFullScreenContent
 import ai.gravityfield.gravity_sdk.ui.GravityModalContent
-import ai.gravityfield.gravity_sdk.ui.GravitySnackbarType1
-import ai.gravityfield.gravity_sdk.ui.mockSnackbarData
+import ai.gravityfield.gravity_sdk.ui.GravitySnackbarContent1
+import ai.gravityfield.gravity_sdk.ui.GravitySnackbarContent2
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import ai.gravityfield.gravity_sdk.utils.DeviceUtils
 import ai.gravityfield.gravity_sdk.utils.ProductEventService
@@ -410,15 +411,37 @@ class GravitySDK private constructor(
     }
 
     private fun showSnackbar(context: Context, content: CampaignContent, campaign: Campaign) {
+        val template = content.templateSystemName
+        if (template == null || template == TemplateSystemName.UNKNOWN) return
+
         val dismissController = DismissController()
-        showOverlay(context, dismissController, dismissController::dismiss) {
+        fun dismiss() {
+            contentEventService.sendContentClosed(content, campaign)
+            gravityEventCallback.invoke(ContentCloseEvent(content, campaign))
+            dismissController.dismiss()
+        }
+
+        val onClickCallback = { onClickModel: OnClickModel ->
+            onClickHandler(
+                onClickModel,
+                content,
+                campaign,
+                context,
+                ::dismiss
+            )
+        }
+
+        showOverlay(
+            context = context,
+            dismissController = dismissController,
+            onBack = ::dismiss
+        ) {
             val snackbarHostState = remember { SnackbarHostState() }
             val scope = rememberCoroutineScope()
-            // todo: change to backend content
-            LaunchedEffect(mockSnackbarData) {
+            LaunchedEffect(content) {
                 scope.launch {
                     snackbarHostState.showSnackbar("")
-                    dismissController.dismiss()
+                    dismiss()
                 }
             }
             Column(
@@ -427,7 +450,21 @@ class GravitySDK private constructor(
                 SnackbarHost(
                     hostState = snackbarHostState,
                 ) { _ ->
-                    GravitySnackbarType1(mockSnackbarData, dismissController::dismiss)
+                    when (template) {
+                        TemplateSystemName.SNACKBAR_1 -> GravitySnackbarContent1(
+                            content,
+                            campaign,
+                            onClickCallback
+                        )
+
+                        TemplateSystemName.SNACKBAR_2 -> GravitySnackbarContent2(
+                            content,
+                            campaign,
+                            onClickCallback
+                        )
+
+                        else -> {}
+                    }
                 }
             }
 

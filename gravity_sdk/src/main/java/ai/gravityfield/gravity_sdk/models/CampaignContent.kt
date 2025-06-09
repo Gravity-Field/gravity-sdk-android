@@ -2,6 +2,7 @@ package ai.gravityfield.gravity_sdk.models
 
 data class CampaignContent(
     val contentId: String,
+    val templateSystemName: TemplateSystemName?,
     val deliveryMethod: DeliveryMethod,
     val contentType: String,
     val variables: Variables,
@@ -13,6 +14,9 @@ data class CampaignContent(
         fun fromJson(json: Map<String, Any?>): CampaignContent {
             return CampaignContent(
                 contentId = json["contentId"] as String,
+                templateSystemName = if (json["templateSystemName"] != null) TemplateSystemName.fromString(
+                    json["templateSystemName"] as String
+                ) else null,
                 deliveryMethod = DeliveryMethod.fromString(json["deliveryMethod"] as String?),
                 contentType = json["contentType"] as String,
                 variables = Variables.fromJson(json["variables"] as Map<String, Any?>),
