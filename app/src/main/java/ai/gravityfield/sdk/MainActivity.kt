@@ -73,11 +73,11 @@ class MainActivity : ComponentActivity() {
                                     lifecycleScope.launch {
                                         try {
                                             GravitySDK.instance.trackView(
-                                                PageContext(
+                                                pageContext = PageContext(
                                                     type = ContextType.PRODUCT,
                                                     data = listOf("212")
                                                 ),
-                                                context
+                                                activityContext = context
                                             )
                                         } catch (_: Throwable) {
                                         }
@@ -106,7 +106,7 @@ class MainActivity : ComponentActivity() {
                                                     )
                                                 ),
                                                 pageContext = PageContext(type = ContextType.CART),
-                                                context = context
+                                                activityContext = context
                                             )
                                         } catch (_: Throwable) {
                                         }
