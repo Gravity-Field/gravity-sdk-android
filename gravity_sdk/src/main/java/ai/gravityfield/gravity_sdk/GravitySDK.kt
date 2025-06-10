@@ -18,6 +18,7 @@ import ai.gravityfield.gravity_sdk.models.FollowUrlEvent
 import ai.gravityfield.gravity_sdk.models.OnClickModel
 import ai.gravityfield.gravity_sdk.models.Options
 import ai.gravityfield.gravity_sdk.models.PageContext
+import ai.gravityfield.gravity_sdk.models.PermissionStatus
 import ai.gravityfield.gravity_sdk.models.ProductClickEngagement
 import ai.gravityfield.gravity_sdk.models.ProductEngagement
 import ai.gravityfield.gravity_sdk.models.ProductVisibleImpressionEngagement
@@ -83,7 +84,7 @@ typealias GravityEventCallback = (TrackingEvent) -> Unit
 class GravitySDK private constructor(
     internal val apiKey: String,
     internal val section: String,
-    internal val device: Device,
+    internal var device: Device,
     internal val gravityEventCallback: GravityEventCallback,
     internal val productViewBuilder: ProductViewBuilder?,
     internal val productFilter: ProductFilter?,
@@ -110,7 +111,8 @@ class GravitySDK private constructor(
         ) {
             val device = Device(
                 id = DeviceUtils.getDeviceId(),
-                userAgent = DeviceUtils.getUserAgent(context)
+                userAgent = DeviceUtils.getUserAgent(context),
+                pushStatus = null
             )
             _instance = GravitySDK(
                 apiKey,
@@ -144,6 +146,10 @@ class GravitySDK private constructor(
 
     fun setUser(userId: String, sessionId: String) {
         user = User(custom = userId, ses = sessionId)
+    }
+
+    fun setPushStatus(pushStatus: PermissionStatus) {
+        device = device.copy(pushStatus = pushStatus)
     }
 
     suspend fun trackView(
