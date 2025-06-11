@@ -123,7 +123,7 @@ internal class GravityRepository private constructor() {
         val jsonBody = buildJsonObject {
             put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
             put("device", json.encodeToJsonElement(GravitySDK.instance.device))
-            put("events", json.encodeToJsonElement(events))
+            put("data", json.encodeToJsonElement(events))
             put("user", json.encodeToJsonElement(userForRequest(customerUser)))
             put("ctx", json.encodeToJsonElement(pageContext))
             put("options", json.encodeToJsonElement(options))
