@@ -8,16 +8,13 @@ import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import android.content.Context
 import android.util.AttributeSet
+import android.util.TypedValue
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -33,12 +30,14 @@ import androidx.compose.ui.platform.AbstractComposeView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class GravityInlineView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
-    defStyleAttr: Int = 0
+    defStyleAttr: Int = 0,
 ) : AbstractComposeView(context, attrs, defStyleAttr) {
 
     private val selector: String
@@ -84,8 +83,18 @@ class GravityInlineView @JvmOverloads constructor(
             cornerRadiusTopStart,
             cornerRadiusTopEnd,
             cornerRadiusBottomStart,
-            cornerRadiusBottomEnd
-        )
+            cornerRadiusBottomEnd,
+        ) {
+            post {
+                layoutParams = layoutParams.apply {
+                    height = TypedValue.applyDimension(
+                        TypedValue.COMPLEX_UNIT_DIP,
+                        it.toFloat(),
+                        resources.displayMetrics
+                    ).toInt()
+                }
+            }
+        }
     }
 }
 
@@ -98,23 +107,27 @@ private fun GravityView(
     cornerRadiusTopEnd: Float,
     cornerRadiusBottomStart: Float,
     cornerRadiusBottomEnd: Float,
+    changeHeight: (Double) -> Unit,
 ) {
     var campaign by remember { mutableStateOf<Campaign?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(selector) {
-        isLoading = true
         campaign = null
 
         scope.launch {
             try {
                 val result = GravitySDK.instance.getContentBySelector(selector)
                 campaign = result.data.firstOrNull()
+                withContext(Dispatchers.Main) {
+                    val height =
+                        campaign?.payload?.first()?.contents?.first()?.variables?.frameUI?.container?.style?.size?.height
+                    if (height != null) {
+                        changeHeight(height)
+                    }
+                }
             } catch (e: Exception) {
-                // skip
-            } finally {
-                isLoading = false
+                changeHeight(0.0)
             }
         }
     }
@@ -136,58 +149,44 @@ private fun GravityView(
             .clip(shape),
         contentAlignment = Alignment.Center
     ) {
-        when {
-            isLoading -> CircularProgressIndicator()
-            campaign?.payload?.firstOrNull()?.contents?.firstOrNull() != null -> {
-                val content = campaign!!.payload.first().contents.first()
-                val frameUi = content.variables.frameUI
-                val container = frameUi?.container
-                val padding = container?.style?.padding
-                val context = LocalContext.current
+        val content = campaign?.payload?.firstOrNull()?.contents?.firstOrNull()
+        if (campaign != null && content != null) {
+            val frameUi = content.variables.frameUI
+            val container = frameUi?.container
+            val padding = container?.style?.padding
+            val context = LocalContext.current
 
-                LaunchedEffect(Unit) {
-                    ContentEventService.instance.sendContentImpression(content, campaign!!)
-                }
-
-                Column(
-                    modifier = Modifier
-                        .conditional(padding != null)
-                        {
-                            padding(
-                                start = padding!!.left.dp,
-                                top = padding.top.dp,
-                                end = padding.right.dp,
-                                bottom = padding.bottom.dp
-                            )
-                        },
-                    horizontalAlignment = container?.style?.contentAlignment?.toHorizontalAlignment()
-                        ?: Alignment.CenterHorizontally
-                ) {
-                    GravityElements(
-                        content,
-                        campaign!!,
-                        onClickCallback = { onClickModel ->
-                            GravitySDK.instance.onClickHandler(
-                                onClickModel,
-                                content,
-                                campaign!!,
-                                context,
-                            )
-                        }
-                    )
-                }
+            LaunchedEffect(Unit) {
+                ContentEventService.instance.sendContentImpression(content, campaign!!)
             }
 
-            else -> DefaultPlaceholder()
+            Column(
+                modifier = Modifier
+                    .conditional(padding != null)
+                    {
+                        padding(
+                            start = padding!!.left.dp,
+                            top = padding.top.dp,
+                            end = padding.right.dp,
+                            bottom = padding.bottom.dp
+                        )
+                    },
+                horizontalAlignment = container?.style?.contentAlignment?.toHorizontalAlignment()
+                    ?: Alignment.CenterHorizontally
+            ) {
+                GravityElements(
+                    content,
+                    campaign!!,
+                    onClickCallback = { onClickModel ->
+                        GravitySDK.instance.onClickHandler(
+                            onClickModel,
+                            content,
+                            campaign!!,
+                            context,
+                        )
+                    }
+                )
+            }
         }
     }
-}
-
-@Composable
-private fun DefaultPlaceholder() {
-    Icon(
-        imageVector = Icons.Default.Refresh,
-        tint = Color.LightGray,
-        contentDescription = null,
-    )
 }
