@@ -17,8 +17,11 @@ import ai.gravityfield.gravity_sdk.models.ProductImpressionEvent
 import ai.gravityfield.gravity_sdk.models.RequestPushEvent
 import ai.gravityfield.gravity_sdk.models.Slot
 import ai.gravityfield.gravity_sdk.models.TrackingEvent
+import ai.gravityfield.gravity_sdk.ui.product_view_builder.LegacyProductViewBuilder
 import ai.gravityfield.sdk.ui.theme.GravitySDKTheme
+import android.content.Context
 import android.os.Bundle
+import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -51,8 +54,10 @@ class MainActivity : ComponentActivity() {
             apiKey = "api_key",
             section = "section",
             gravityEventCallback = ::handleTrackingEvent,
-            productViewBuilder = { context, slot ->
-                ProductView(context, slot.item)
+            productViewBuilder = object : LegacyProductViewBuilder {
+                override fun createView(context: Context, slot: Slot): View {
+                    return ProductView(context, slot.item)
+                }
             },
             productFilter = ::checkSlotValid,
         )

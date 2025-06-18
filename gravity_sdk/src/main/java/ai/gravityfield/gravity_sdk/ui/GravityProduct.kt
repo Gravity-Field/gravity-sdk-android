@@ -32,7 +32,6 @@ internal fun GravityProduct(
 
     Box(
         modifier = Modifier
-            // todo: add to style
             .size(width = 160.dp, height = 210.dp)
             .background(
                 color = Color.White,

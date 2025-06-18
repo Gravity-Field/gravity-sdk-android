@@ -17,14 +17,13 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 
 @Composable
 internal fun ProductsRow(
     element: Element,
     products: Products,
     content: CampaignContent,
-    campaign: Campaign
+    campaign: Campaign,
 ) {
     val style = element.style
     val height = style.size?.height
@@ -66,11 +65,7 @@ internal fun ProductsRow(
                     }
                 ) {
                     if (GravitySDK.instance.productViewBuilder != null) {
-                        AndroidView(
-                            factory = {
-                                GravitySDK.instance.productViewBuilder!!(it, slot)
-                            }
-                        )
+                        GravitySDK.instance.productViewBuilder!!.Build(slot)
                     } else {
                         GravityProduct(slot)
                     }
