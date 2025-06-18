@@ -119,10 +119,12 @@ private fun GravityView(
             try {
                 val result = GravitySDK.instance.getContentBySelector(selector)
                 campaign = result.data.firstOrNull()
+                val content = campaign?.payload?.firstOrNull()?.contents?.firstOrNull()
+                val height = content?.variables?.frameUI?.container?.style?.size?.height
                 withContext(Dispatchers.Main) {
-                    val height =
-                        campaign?.payload?.first()?.contents?.first()?.variables?.frameUI?.container?.style?.size?.height
-                    if (height != null) {
+                    if (content == null) {
+                        changeHeight(0.0)
+                    } else if (height != null) {
                         changeHeight(height)
                     }
                 }
