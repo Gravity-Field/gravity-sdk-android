@@ -80,7 +80,8 @@ class MainActivity : ComponentActivity() {
                                             GravitySDK.instance.trackView(
                                                 pageContext = PageContext(
                                                     type = ContextType.PRODUCT,
-                                                    data = listOf("212")
+                                                    data = emptyList(),
+                                                    location = ""
                                                 ),
                                                 activityContext = context
                                             )
@@ -110,7 +111,11 @@ class MainActivity : ComponentActivity() {
                                                         name = "New name",
                                                     )
                                                 ),
-                                                pageContext = PageContext(type = ContextType.CART),
+                                                pageContext = PageContext(
+                                                    type = ContextType.CART,
+                                                    data = emptyList(),
+                                                    location = ""
+                                                ),
                                                 activityContext = context
                                             )
                                         } catch (_: Throwable) {
