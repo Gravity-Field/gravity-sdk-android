@@ -65,7 +65,7 @@ internal fun ProductsRow(
                     }
                 ) {
                     if (GravitySDK.instance.productViewBuilder != null) {
-                        GravitySDK.instance.productViewBuilder!!.Build(slot)
+                        GravitySDK.instance.productViewBuilder!!.Build(slot, content, campaign)
                     } else {
                         GravityProduct(slot)
                     }
