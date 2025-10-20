@@ -45,7 +45,7 @@ internal class ProductEventService private constructor() {
         campaign: Campaign,
         callbackTrackingEvent: Boolean
     ) {
-        slot.events.find { it.name == action }?.let { event ->
+        slot.events?.find { it.name == action }?.let { event ->
             CoroutineScope(Dispatchers.IO).launch {
                 try {
                     GravityRepository.instance.trackEngagementEvent(event.urls)
