@@ -63,7 +63,7 @@ class MainActivity : ComponentActivity() {
                     conntent: CampaignContent,
                     campaign: Campaign,
                 ): View {
-                    return ProductView(context, slot.item)
+                    return ProductView(context, slot)
                 }
             },
             productFilter = ::checkSlotValid,
@@ -140,7 +140,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun checkSlotValid(slot: Slot): Boolean {
-        return slot.item.price != "82990"
+        return /*slot.item.price != "82990"*/ true
     }
 
     private fun handleTrackingEvent(event: TrackingEvent) {

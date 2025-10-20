@@ -30,7 +30,7 @@ data class Products(
 }
 
 data class Slot(
-    val item: Item,
+    val item: Map<String, Any?>,
     val fallback: Boolean,
     val strId: Int,
     val slotId: String,
@@ -40,7 +40,7 @@ data class Slot(
         @Suppress("UNCHECKED_CAST")
         fun fromJson(json: Map<String, Any?>): Slot {
             return Slot(
-                item = Item.fromJson(json["item"] as Map<String, Any?>),
+                item = json["item"] as Map<String, Any?>,
                 fallback = json["fallback"] as Boolean,
                 strId = (json["strId"] as Number).toInt(),
                 slotId = json["slotId"] as String,
@@ -49,43 +49,6 @@ data class Slot(
                         it
                     )
                 }
-            )
-        }
-    }
-}
-
-data class Item(
-    val sku: String,
-    val groupId: String,
-    val name: String,
-    val price: String,
-    val url: String,
-    val imageUrl: String,
-    val isNew: String,
-    val oldPrice: String,
-    val bitrixId: String,
-    val brand: String,
-    val inStock: Boolean,
-    val categories: List<String>?,
-    val keywords: List<String>?,
-) {
-    companion object {
-        @Suppress("UNCHECKED_CAST")
-        fun fromJson(json: Map<String, Any?>): Item {
-            return Item(
-                sku = json["sku"] as String,
-                groupId = json["group_id"] as String,
-                name = json["name"] as String,
-                price = json["price"] as String,
-                url = json["url"] as String,
-                imageUrl = json["image_url"] as String,
-                isNew = json["is_new"] as String,
-                oldPrice = json["old_price"] as String,
-                bitrixId = json["bitrix_id"] as String,
-                brand = json["brand"] as String,
-                inStock = json["in_stock"] as Boolean,
-                categories = json["categories"] as List<String>?,
-                keywords = json["keywords"] as List<String>?,
             )
         }
     }

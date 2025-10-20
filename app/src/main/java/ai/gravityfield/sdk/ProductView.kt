@@ -1,10 +1,9 @@
 package ai.gravityfield.sdk
 
-import ai.gravityfield.gravity_sdk.models.Item
+import ai.gravityfield.gravity_sdk.models.Slot
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Color
-import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
@@ -15,14 +14,12 @@ import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import coil3.load
 
 @SuppressLint("ViewConstructor")
-class ProductView(context: Context, item: Item) : FrameLayout(context) {
-    private val imageView: ImageView
+class ProductView(context: Context, slot: Slot) : FrameLayout(context) {
+    //    private val imageView: ImageView
     private val nameTextView: TextView
     private val priceTextView: TextView
     private var oldPriceTextView: TextView? = null
@@ -40,12 +37,12 @@ class ProductView(context: Context, item: Item) : FrameLayout(context) {
         }
         addView(columnLayout)
 
-        imageView = ImageView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, dpToPx(112f))
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            load(item.imageUrl)
-        }
-        columnLayout.addView(imageView)
+//        imageView = ImageView(context).apply {
+//            layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, dpToPx(112f))
+//            scaleType = ImageView.ScaleType.FIT_CENTER
+//            load(item.imageUrl)
+//        }
+//        columnLayout.addView(imageView)
 
         addSpacer(columnLayout, 6f)
 
@@ -53,7 +50,7 @@ class ProductView(context: Context, item: Item) : FrameLayout(context) {
             layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply {
                 setHorizontalPadding(12f)
             }
-            text = item.name
+            text = "item.name"
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             setTextColor(Color.BLACK)
             maxLines = 2
@@ -77,20 +74,20 @@ class ProductView(context: Context, item: Item) : FrameLayout(context) {
         }
         priceContainer.addView(priceColumn)
 
-        if (item.oldPrice.isNotEmpty()) {
-            oldPriceTextView = TextView(context).apply {
-                layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT)
-                text = item.oldPrice
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
-                setTextColor(Color.parseColor("#535862"))
-                paintFlags = paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
-            }
-            priceColumn.addView(oldPriceTextView)
-        }
+//        if (item.oldPrice.isNotEmpty()) {
+//            oldPriceTextView = TextView(context).apply {
+//                layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT)
+//                text = item.oldPrice
+//                setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+//                setTextColor(Color.parseColor("#535862"))
+//                paintFlags = paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
+//            }
+//            priceColumn.addView(oldPriceTextView)
+//        }
 
         priceTextView = TextView(context).apply {
             layoutParams = LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT)
-            text = item.price
+            text = "item.price"
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             setTextColor(Color.BLACK)
             setTypeface(typeface, Typeface.BOLD)
