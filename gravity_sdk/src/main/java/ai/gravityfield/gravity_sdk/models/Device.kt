@@ -5,6 +5,6 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Device(
     val id: String?,
-    val userAgent: Map<String, String?>,
-    val pushStatus: PermissionStatus?
+    val userAgent: String,
+    val pushStatus: PermissionStatus?,
 )
