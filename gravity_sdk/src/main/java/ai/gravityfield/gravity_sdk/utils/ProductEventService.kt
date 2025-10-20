@@ -26,7 +26,7 @@ internal class ProductEventService private constructor() {
         campaign: Campaign,
         callbackTrackingEvent: Boolean = true
     ) {
-        trackEvent(ProductAction.PCLICK, slot, content, campaign, callbackTrackingEvent)
+        trackEvent(ProductAction.CLICK, slot, content, campaign, callbackTrackingEvent)
     }
 
     fun sendProductVisibleImpression(
@@ -35,7 +35,7 @@ internal class ProductEventService private constructor() {
         campaign: Campaign,
         callbackTrackingEvent: Boolean = true
     ) {
-        trackEvent(ProductAction.PIMP, slot, content, campaign, callbackTrackingEvent)
+        trackEvent(ProductAction.VISIBLE_IMPRESSION, slot, content, campaign, callbackTrackingEvent)
     }
 
     private fun trackEvent(
@@ -52,7 +52,11 @@ internal class ProductEventService private constructor() {
 
                     if (callbackTrackingEvent) {
                         val trackingEvent = when (action) {
-                            ProductAction.PIMP -> ProductImpressionEvent(slot, content, campaign)
+                            ProductAction.VISIBLE_IMPRESSION -> ProductImpressionEvent(
+                                slot,
+                                content,
+                                campaign
+                            )
                             else -> null
                         } ?: return@launch
                         GravitySDK.instance.gravityEventCallback.invoke(trackingEvent)

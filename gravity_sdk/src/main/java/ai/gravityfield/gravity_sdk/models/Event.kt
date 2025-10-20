@@ -48,15 +48,15 @@ data class Event(
 }
 
 enum class ProductAction {
-    PIMP,
-    PCLICK,
+    VISIBLE_IMPRESSION,
+    CLICK,
     UNKNOWN;
 
     companion object {
         fun fromString(type: String): ProductAction {
             return when (type) {
-                "PIMP" -> PIMP
-                "PCLICK" -> PCLICK
+                "visible_impression" -> VISIBLE_IMPRESSION
+                "click" -> CLICK
                 else -> UNKNOWN
             }
         }
