@@ -11,14 +11,13 @@ import ai.gravityfield.gravity_sdk.models.ContentSettings
 import ai.gravityfield.gravity_sdk.models.ContentVisibleImpressionEngagement
 import ai.gravityfield.gravity_sdk.models.CopyEvent
 import ai.gravityfield.gravity_sdk.models.DeliveryMethod
-import ai.gravityfield.gravity_sdk.models.Device
 import ai.gravityfield.gravity_sdk.models.Event
 import ai.gravityfield.gravity_sdk.models.FollowDeeplinkEvent
 import ai.gravityfield.gravity_sdk.models.FollowUrlEvent
+import ai.gravityfield.gravity_sdk.models.NotificationPermissionStatus
 import ai.gravityfield.gravity_sdk.models.OnClickModel
 import ai.gravityfield.gravity_sdk.models.Options
 import ai.gravityfield.gravity_sdk.models.PageContext
-import ai.gravityfield.gravity_sdk.models.PermissionStatus
 import ai.gravityfield.gravity_sdk.models.ProductClickEngagement
 import ai.gravityfield.gravity_sdk.models.ProductEngagement
 import ai.gravityfield.gravity_sdk.models.ProductVisibleImpressionEngagement
@@ -83,7 +82,6 @@ typealias GravityEventCallback = (TrackingEvent) -> Unit
 class GravitySDK private constructor(
     internal val apiKey: String,
     internal val section: String,
-    internal var device: Device,
     internal val gravityEventCallback: GravityEventCallback,
     internal val productViewBuilder: ProductViewBuilder?,
     internal val productFilter: ProductFilter?,
@@ -108,15 +106,10 @@ class GravitySDK private constructor(
             productViewBuilder: ProductViewBuilder? = null,
             productFilter: ProductFilter? = null,
         ) {
-            val device = Device(
-                id = DeviceUtils.getDeviceId(),
-                userAgent = DeviceUtils.getUserAgent(context),
-                pushStatus = null
-            )
+            DeviceUtils.initialize(context)
             _instance = GravitySDK(
                 apiKey,
                 section,
-                device,
                 gravityEventCallback,
                 productViewBuilder,
                 productFilter,
@@ -128,6 +121,7 @@ class GravitySDK private constructor(
     private var options = Options()
     private var contentSettings = ContentSettings()
     internal var proxyUrl: String? = null
+    internal var notificationPermissionStatus = NotificationPermissionStatus.UNKNOWN
 
     private val repository = GravityRepository.instance
     private val contentEventService = ContentEventService.instance
@@ -147,8 +141,8 @@ class GravitySDK private constructor(
         user = User(custom = userId, ses = sessionId)
     }
 
-    fun setPushStatus(pushStatus: PermissionStatus) {
-        device = device.copy(pushStatus = pushStatus)
+    fun setNotificationPermissionStatus(status: NotificationPermissionStatus) {
+        notificationPermissionStatus = status
     }
 
     suspend fun trackView(

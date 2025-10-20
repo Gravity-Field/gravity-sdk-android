@@ -7,6 +7,7 @@ import ai.gravityfield.gravity_sdk.models.PageContext
 import ai.gravityfield.gravity_sdk.models.TriggerEvent
 import ai.gravityfield.gravity_sdk.models.User
 import ai.gravityfield.gravity_sdk.prefs.Prefs
+import ai.gravityfield.gravity_sdk.utils.DeviceUtils
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.CIO
@@ -97,7 +98,7 @@ internal class GravityRepository private constructor() {
     ): CampaignIdsResponse {
         val jsonBody = buildJsonObject {
             put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
-            put("device", json.encodeToJsonElement(GravitySDK.instance.device))
+            put("device", json.encodeToJsonElement(DeviceUtils.getDevice()))
             put("type", json.encodeToJsonElement("screenview"))
             put("user", json.encodeToJsonElement(userForRequest(customerUser)))
             put("ctx", json.encodeToJsonElement(pageContext))
@@ -122,7 +123,7 @@ internal class GravityRepository private constructor() {
     ): CampaignIdsResponse {
         val jsonBody = buildJsonObject {
             put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
-            put("device", json.encodeToJsonElement(GravitySDK.instance.device))
+            put("device", json.encodeToJsonElement(DeviceUtils.getDevice()))
             put("data", json.encodeToJsonElement(events))
             put("user", json.encodeToJsonElement(userForRequest(customerUser)))
             put("ctx", json.encodeToJsonElement(pageContext))
@@ -152,7 +153,7 @@ internal class GravityRepository private constructor() {
                 "data",
                 JsonArray(listOf(json.encodeToJsonElement(mapOf("campaignId" to campaignId))))
             )
-            put("device", json.encodeToJsonElement(GravitySDK.instance.device))
+            put("device", json.encodeToJsonElement(DeviceUtils.getDevice()))
             put("user", json.encodeToJsonElement(userForRequest(customerUser)))
             put("ctx", json.encodeToJsonElement(pageContext))
             put("options", json.encodeToJsonElement(options))
@@ -179,7 +180,7 @@ internal class GravityRepository private constructor() {
         val jsonBody = buildJsonObject {
             put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
             put("data", JsonArray(listOf(json.encodeToJsonElement(mapOf("selector" to selector)))))
-            put("device", json.encodeToJsonElement(GravitySDK.instance.device))
+            put("device", json.encodeToJsonElement(DeviceUtils.getDevice()))
             put("user", json.encodeToJsonElement(userForRequest(customerUser)))
             put("ctx", json.encodeToJsonElement(pageContext))
             put("options", json.encodeToJsonElement(options))

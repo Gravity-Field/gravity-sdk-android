@@ -4,7 +4,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class Device(
-    val id: String?,
     val userAgent: String,
-    val pushStatus: PermissionStatus?,
+    val id: String?,
+    val tracking: String?,
+    val permission: NotificationPermissionStatus?,
 )
