@@ -5,10 +5,10 @@ import ai.gravityfield.gravity_sdk.GravitySDK
 data class Products(
     val strategyId: String,
     val name: String,
-    val pageNumber: Int,
-    val countPages: Int,
     val fallback: Boolean,
-    val slots: List<Slot>
+    val slots: List<Slot>,
+    val pageNumber: Int?,
+    val countPages: Int?,
 ) {
     companion object {
         @Suppress("UNCHECKED_CAST")
@@ -20,8 +20,8 @@ data class Products(
             return Products(
                 strategyId = json["strategyId"] as String,
                 name = json["name"] as String,
-                pageNumber = (json["pageNumber"] as Number).toInt(),
-                countPages = (json["countPages"] as Number).toInt(),
+                pageNumber = (json["pageNumber"] as Number?)?.toInt(),
+                countPages = (json["countPages"] as Number?)?.toInt(),
                 fallback = json["fallback"] as Boolean,
                 slots = slots
             )
