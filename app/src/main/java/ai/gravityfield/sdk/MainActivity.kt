@@ -2,6 +2,7 @@ package ai.gravityfield.sdk
 
 import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.models.AddToCartEvent
+import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.CancelEvent
 import ai.gravityfield.gravity_sdk.models.ContentCloseEvent
 import ai.gravityfield.gravity_sdk.models.ContentImpressionEvent
@@ -17,6 +18,7 @@ import ai.gravityfield.gravity_sdk.models.ProductImpressionEvent
 import ai.gravityfield.gravity_sdk.models.RequestPushEvent
 import ai.gravityfield.gravity_sdk.models.Slot
 import ai.gravityfield.gravity_sdk.models.TrackingEvent
+import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.ui.product_view_builder.LegacyProductViewBuilder
 import ai.gravityfield.sdk.ui.theme.GravitySDKTheme
 import android.content.Context
@@ -55,7 +57,12 @@ class MainActivity : ComponentActivity() {
             section = "section",
             gravityEventCallback = ::handleTrackingEvent,
             productViewBuilder = object : LegacyProductViewBuilder {
-                override fun createView(context: Context, slot: Slot): View {
+                override fun createView(
+                    context: Context,
+                    slot: Slot,
+                    conntent: CampaignContent,
+                    campaign: Campaign,
+                ): View {
                     return ProductView(context, slot.item)
                 }
             },
