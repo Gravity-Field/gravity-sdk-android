@@ -9,4 +9,6 @@ data class Options(
     val isReturnAnalyticsMetadata: Boolean = false,
     val isImplicitPageview: Boolean = false,
     val isImplicitImpression: Boolean = true,
-)
+) {
+    val isBuildEngagementUrl: Boolean = true
+}
