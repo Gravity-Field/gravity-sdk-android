@@ -214,10 +214,13 @@ internal class GravityRepository private constructor() {
     private fun saveUserIfNeeded(customerUser: User?, contentResponseUser: User?) {
         if (customerUser != null) return
 
-        if (contentResponseUser?.uid != null) {
-            Prefs.setUserId(contentResponseUser.uid)
-            userIdCache = contentResponseUser.uid
-            sessionIdCache = contentResponseUser.ses
+        val uid = contentResponseUser?.uid
+        val ses = contentResponseUser?.ses
+
+        if (uid != null && ses != null) {
+            Prefs.setUserId(uid)
+            userIdCache = uid
+            sessionIdCache = ses
         }
     }
 }
