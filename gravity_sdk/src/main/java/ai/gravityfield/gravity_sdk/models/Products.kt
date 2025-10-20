@@ -64,10 +64,10 @@ data class Item(
     val isNew: String,
     val oldPrice: String,
     val bitrixId: String,
-    val categories: List<String>,
-    val keywords: List<String>,
     val brand: String,
-    val inStock: Boolean
+    val inStock: Boolean,
+    val categories: List<String>?,
+    val keywords: List<String>?,
 ) {
     companion object {
         @Suppress("UNCHECKED_CAST")
@@ -82,10 +82,10 @@ data class Item(
                 isNew = json["is_new"] as String,
                 oldPrice = json["old_price"] as String,
                 bitrixId = json["bitrix_id"] as String,
-                categories = json["categories"] as List<String>,
-                keywords = json["keywords"] as List<String>,
                 brand = json["brand"] as String,
-                inStock = json["in_stock"] as Boolean
+                inStock = json["in_stock"] as Boolean,
+                categories = json["categories"] as List<String>?,
+                keywords = json["keywords"] as List<String>?,
             )
         }
     }
