@@ -283,7 +283,7 @@ class GravitySDK private constructor(
     }
 
     private fun trackEngagementEvent(action: Action, events: List<Event>?) {
-        events?.find { it.name == action }?.let { event ->
+        events?.find { it.type == action }?.let { event ->
             CoroutineScope(Dispatchers.IO).launch {
                 try {
                     repository.trackEngagementEvent(event.urls)

@@ -63,7 +63,7 @@ internal class ContentEventService private constructor() {
         campaign: Campaign,
         callbackTrackingEvent: Boolean
     ) {
-        content.events?.find { it.name == contentAction.action }?.let { event ->
+        content.events?.find { it.type == contentAction.action }?.let { event ->
             CoroutineScope(Dispatchers.IO).launch {
                 try {
                     GravityRepository.instance.trackEngagementEvent(event.urls)

@@ -33,14 +33,14 @@ enum class Action {
 }
 
 data class Event(
-    val name: Action,
-    val urls: List<String>
+    val type: Action,
+    val urls: List<String>,
 ) {
     companion object {
         @Suppress("UNCHECKED_CAST")
         fun fromJson(json: Map<String, Any?>): Event {
             return Event(
-                name = Action.fromString(json["name"] as String),
+                type = Action.fromString(json["type"] as String),
                 urls = json["urls"] as List<String>
             )
         }
@@ -64,14 +64,14 @@ enum class ProductAction {
 }
 
 data class ProductEvent(
-    val name: ProductAction,
-    val urls: List<String>
+    val type: ProductAction,
+    val urls: List<String>,
 ) {
     companion object {
         @Suppress("UNCHECKED_CAST")
         fun fromJson(json: Map<String, Any?>): ProductEvent {
             return ProductEvent(
-                name = ProductAction.fromString(json["name"] as String),
+                type = ProductAction.fromString(json["type"] as String),
                 urls = json["urls"] as List<String>
             )
         }
