@@ -28,10 +28,11 @@ internal fun ColumnScope.GravityElements(
             ElementType.BUTTON -> GravityButton(it, onClickCallback)
             ElementType.SPACER -> Spacer(modifier = Modifier.weight(it.style.weight ?: 1f))
             ElementType.PRODUCTS_CONTAINER -> {
-                if (products != null) {
+                val slots = products?.slots
+                if (slots != null) {
                     when (it.style.productContainerType) {
-                        ProductContainerType.ROW -> ProductsRow(it, products, content, campaign)
-                        ProductContainerType.GRID -> ProductsGrid(it, products, content, campaign)
+                        ProductContainerType.ROW -> ProductsRow(it, slots, content, campaign)
+                        ProductContainerType.GRID -> ProductsGrid(it, slots, content, campaign)
                         else -> {}
                     }
                 }

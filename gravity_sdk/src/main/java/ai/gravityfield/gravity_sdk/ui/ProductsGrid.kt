@@ -3,7 +3,7 @@ package ai.gravityfield.gravity_sdk.ui
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.Element
-import ai.gravityfield.gravity_sdk.models.Products
+import ai.gravityfield.gravity_sdk.models.Slot
 import ai.gravityfield.gravity_sdk.network.Campaign
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -19,9 +19,9 @@ import androidx.compose.ui.unit.dp
 @Composable
 internal fun ProductsGrid(
     element: Element,
-    products: Products,
+    slots: List<Slot>,
     content: CampaignContent,
-    campaign: Campaign
+    campaign: Campaign,
 ) {
     val style = element.style
     val height = style.size?.height
@@ -54,8 +54,8 @@ internal fun ProductsGrid(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(products.slots.size) { index ->
-            val slot = products.slots[index]
+        items(slots.size) { index ->
+            val slot = slots[index]
             GravityProduct(slot)
         }
     }

@@ -4,7 +4,7 @@ import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.Element
-import ai.gravityfield.gravity_sdk.models.Products
+import ai.gravityfield.gravity_sdk.models.Slot
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.utils.ProductEventService
 import androidx.compose.foundation.background
@@ -21,7 +21,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 internal fun ProductsRow(
     element: Element,
-    products: Products,
+    slots: List<Slot>,
     content: CampaignContent,
     campaign: Campaign,
 ) {
@@ -53,8 +53,8 @@ internal fun ProductsRow(
             // todo: add to style
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(products.slots.size) { index ->
-                val slot = products.slots[index]
+            items(slots.size) { index ->
+                val slot = slots[index]
                 VisibilityDetector(
                     onVisible = {
                         ProductEventService.instance.sendProductVisibleImpression(

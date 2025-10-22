@@ -6,16 +6,16 @@ data class Products(
     val strategyId: String,
     val name: String,
     val fallback: Boolean,
-    val slots: List<Slot>,
+    val slots: List<Slot>?,
     val pageNumber: Int?,
     val countPages: Int?,
 ) {
     companion object {
         @Suppress("UNCHECKED_CAST")
         fun fromJson(json: Map<String, Any?>): Products {
-            var slots = (json["slots"] as List<Map<String, Any?>>).map { Slot.fromJson(it) }
+            var slots = (json["slots"] as List<Map<String, Any?>>?)?.map { Slot.fromJson(it) }
             if (GravitySDK.instance.productFilter != null) {
-                slots = slots.filter(GravitySDK.instance.productFilter!!)
+                slots = slots?.filter(GravitySDK.instance.productFilter!!)
             }
             return Products(
                 strategyId = json["strategyId"] as String,
