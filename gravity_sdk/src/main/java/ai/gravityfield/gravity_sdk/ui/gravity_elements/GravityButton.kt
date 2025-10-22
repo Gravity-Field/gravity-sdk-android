@@ -7,6 +7,7 @@ import ai.gravityfield.gravity_sdk.models.OnClickModel
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ripple.LocalRippleTheme
 import androidx.compose.material.ripple.RippleAlpha
 import androidx.compose.material.ripple.RippleTheme
@@ -35,6 +36,7 @@ internal fun GravityButton(
         containerColor = style.backgroundColor ?: Color.Unspecified,
         contentColor = textStyle?.color ?: Color.Unspecified,
     )
+    val cornerRadius = style.cornerRadius?.dp ?: 0.0.dp
     val rippleColor = style.pressColor
     val ripple = rippleColor?.let {
         object : RippleTheme {
@@ -64,6 +66,12 @@ internal fun GravityButton(
                 }
             },
             colors = buttonColors,
+            shape = RoundedCornerShape(
+                topStart = cornerRadius,
+                topEnd = cornerRadius,
+                bottomStart = cornerRadius,
+                bottomEnd = cornerRadius
+            ),
             modifier = Modifier
                 .conditional(style.margin != null) {
                     padding(
