@@ -18,6 +18,8 @@ data class PageContext(
     val data: List<String>,
     val location: String,
     val lng: String? = null,
+    val pageNumber: Int? = null,
+    val referrer: String? = null,
     val utm: Map<String, String>? = null,
     val attributes: Map<String, String> = emptyMap(),
 )

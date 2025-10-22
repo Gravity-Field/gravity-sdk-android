@@ -13,8 +13,8 @@ class AddToCartEvent(
     val value: Double,
     val productId: String,
     val quantity: Int,
-    val currency: String?,
-    val cart: List<CartItem>?,
+    val currency: String? = null,
+    val cart: List<CartItem>? = null,
 ) : TriggerEvent() {
     override val type: String = "add-to-cart-v1"
     override val name: String = "Add to Cart"
@@ -24,8 +24,9 @@ class AddToCartEvent(
 class PurchaseEvent(
     val uniqueTransactionId: String,
     val value: Double,
-    val currency: String?,
-    val cart: List<CartItem>?,
+    val productId: String,
+    val cart: List<CartItem>,
+    val currency: String? = null,
 ) : TriggerEvent() {
     override val type: String = "purchase-v1"
     override val name: String = "Purchase"
@@ -36,8 +37,8 @@ class RemoveFromCartEvent(
     val value: Double,
     val productId: String,
     val quantity: Int,
-    val currency: String?,
-    val cart: List<CartItem>?,
+    val currency: String? = null,
+    val cart: List<CartItem>? = null,
 ) : TriggerEvent() {
     override val type: String = "remove-from-cart-v1"
     override val name: String = "Remove from Cart"
@@ -45,8 +46,9 @@ class RemoveFromCartEvent(
 
 @Serializable
 class SyncCartEvent(
-    val currency: String?,
-    val cart: List<CartItem>?,
+    val value: Double,
+    val currency: String? = null,
+    val cart: List<CartItem>? = null,
 ) : TriggerEvent() {
     override val type: String = "sync-cart-v1"
     override val name: String = "Sync cart"
@@ -54,6 +56,7 @@ class SyncCartEvent(
 
 @Serializable
 class AddToWishlistEvent(
+    val value: Double,
     val productId: String,
 ) : TriggerEvent() {
     override val type: String = "add-to-wishlist-v1"
@@ -61,10 +64,10 @@ class AddToWishlistEvent(
 }
 
 @Serializable
-class SingUpEvent(
-    val hashedEmail: String,
-    val cuid: String,
-    val cuidType: String
+class SignUpEvent(
+    val hashedEmail: String? = null,
+    val cuid: String? = null,
+    val cuidType: String? = null,
 ) : TriggerEvent() {
     override val type: String = "signup-v1"
     override val name: String = "Signup"
@@ -84,7 +87,7 @@ class LoginEvent(
 class CustomEvent(
     override val type: String,
     override val name: String,
-    val properties: Map<String, String>? = null
+    val customProps: Map<String, String>? = null,
 ) : TriggerEvent()
 
 @Serializable

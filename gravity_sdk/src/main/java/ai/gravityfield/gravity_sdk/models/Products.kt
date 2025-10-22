@@ -4,8 +4,8 @@ import ai.gravityfield.gravity_sdk.GravitySDK
 
 data class Products(
     val strategyId: String,
-    val name: String,
     val fallback: Boolean,
+    val name: String?,
     val slots: List<Slot>?,
     val pageNumber: Int?,
     val countPages: Int?,
@@ -19,7 +19,7 @@ data class Products(
             }
             return Products(
                 strategyId = json["strategyId"] as String,
-                name = json["name"] as String,
+                name = json["name"] as String?,
                 pageNumber = (json["pageNumber"] as Number?)?.toInt(),
                 countPages = (json["countPages"] as Number?)?.toInt(),
                 fallback = json["fallback"] as Boolean,
@@ -33,7 +33,7 @@ data class Slot(
     val item: Map<String, Any?>,
     val fallback: Boolean,
     val strId: Int,
-    val slotId: String,
+    val slotId: String?,
     val events: List<ProductEvent>?,
 ) {
     companion object {
@@ -43,7 +43,7 @@ data class Slot(
                 item = json["item"] as Map<String, Any?>,
                 fallback = json["fallback"] as Boolean,
                 strId = (json["strId"] as Number).toInt(),
-                slotId = json["slotId"] as String,
+                slotId = json["slotId"] as String?,
                 events = (json["events"] as List<Map<String, Any?>>?)?.map {
                     ProductEvent.fromJson(
                         it

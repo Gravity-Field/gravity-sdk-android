@@ -22,10 +22,10 @@ internal fun CloseButton(
     Box(
         modifier = Modifier
             .absolutePosition(
-                left = close.style.positioned?.left?.dp,
-                top = close.style.positioned?.top?.dp,
-                right = close.style.positioned?.right?.dp,
-                bottom = close.style.positioned?.bottom?.dp,
+                left = close.style?.positioned?.left?.dp,
+                top = close.style?.positioned?.top?.dp,
+                right = close.style?.positioned?.right?.dp,
+                bottom = close.style?.positioned?.bottom?.dp,
             )
     ) {
         IconButton(
