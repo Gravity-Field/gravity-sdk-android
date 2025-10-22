@@ -151,13 +151,21 @@ internal class GravityRepository private constructor() {
             put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
             put(
                 "data",
-                JsonArray(listOf(json.encodeToJsonElement(mapOf("campaignId" to campaignId))))
+                JsonArray(
+                    listOf(
+                        json.encodeToJsonElement(
+                            mapOf(
+                                "campaignId" to campaignId,
+                                "options" to contentSettings
+                            )
+                        )
+                    )
+                )
             )
             put("device", json.encodeToJsonElement(DeviceUtils.getDevice()))
             put("user", json.encodeToJsonElement(userForRequest(customerUser)))
             put("ctx", json.encodeToJsonElement(mixPageContextAttributes(pageContext)))
             put("options", json.encodeToJsonElement(options))
-            put("contentSettings", json.encodeToJsonElement(contentSettings))
         }
 
         val data = client.post("$baseUrl$CHOOSE") {
@@ -179,12 +187,23 @@ internal class GravityRepository private constructor() {
     ): ContentResponse {
         val jsonBody = buildJsonObject {
             put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
-            put("data", JsonArray(listOf(json.encodeToJsonElement(mapOf("selector" to selector)))))
+            put(
+                "data",
+                JsonArray(
+                    listOf(
+                        json.encodeToJsonElement(
+                            mapOf(
+                                "selector" to selector,
+                                "options" to contentSettings
+                            )
+                        )
+                    )
+                )
+            )
             put("device", json.encodeToJsonElement(DeviceUtils.getDevice()))
             put("user", json.encodeToJsonElement(userForRequest(customerUser)))
             put("ctx", json.encodeToJsonElement(mixPageContextAttributes(pageContext)))
             put("options", json.encodeToJsonElement(options))
-            put("contentSettings", json.encodeToJsonElement(contentSettings))
         }
 
         val data = client.post("$baseUrl$CHOOSE") {
