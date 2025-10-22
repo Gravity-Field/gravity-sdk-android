@@ -94,7 +94,7 @@ internal class GravityRepository private constructor() {
     suspend fun visit(
         pageContext: PageContext,
         options: Options,
-        customerUser: User?
+        customerUser: User?,
     ): CampaignIdsResponse {
         val jsonBody = buildJsonObject {
             put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
@@ -119,7 +119,7 @@ internal class GravityRepository private constructor() {
         events: List<TriggerEvent>,
         pageContext: PageContext,
         options: Options,
-        customerUser: User?
+        customerUser: User?,
     ): CampaignIdsResponse {
         val jsonBody = buildJsonObject {
             put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
@@ -145,7 +145,7 @@ internal class GravityRepository private constructor() {
         options: Options,
         contentSettings: ContentSettings,
         customerUser: User? = null,
-        pageContext: PageContext? = null
+        pageContext: PageContext? = null,
     ): ContentResponse {
         val jsonBody = buildJsonObject {
             put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
@@ -175,7 +175,7 @@ internal class GravityRepository private constructor() {
         options: Options,
         contentSettings: ContentSettings,
         customerUser: User? = null,
-        pageContext: PageContext? = null
+        pageContext: PageContext? = null,
     ): ContentResponse {
         val jsonBody = buildJsonObject {
             put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
@@ -206,6 +206,9 @@ internal class GravityRepository private constructor() {
             return customerUser
         } else if (userIdCache != null && sessionIdCache != null) {
             return User(uid = userIdCache, ses = sessionIdCache)
+        } else if (userIdCache == null && sessionIdCache != null) {
+            val userId = Prefs.getUserId()
+            return User(uid = userId, ses = sessionIdCache);
         } else {
             val userId = Prefs.getUserId()
             return User(uid = userId, ses = null)
@@ -218,9 +221,12 @@ internal class GravityRepository private constructor() {
         val uid = contentResponseUser?.uid
         val ses = contentResponseUser?.ses
 
-        if (uid != null && ses != null) {
+        if (uid != null) {
             Prefs.setUserId(uid)
-            userIdCache = uid
+            userIdCache = uid;
+        }
+
+        if (ses != null) {
             sessionIdCache = ses
         }
     }
