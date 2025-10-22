@@ -30,9 +30,7 @@ import androidx.compose.ui.platform.AbstractComposeView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class GravityInlineView @JvmOverloads constructor(
     context: Context,
@@ -117,17 +115,18 @@ private fun GravityView(
 
         scope.launch {
             try {
-                val result = GravitySDK.instance.getContentBySelector(selector)
-                campaign = result.data.firstOrNull()
-                val content = campaign?.payload?.firstOrNull()?.contents?.firstOrNull()
-                val height = content?.variables?.frameUI?.container?.style?.size?.height
-                withContext(Dispatchers.Main) {
-                    if (content == null) {
-                        changeHeight(0.0)
-                    } else if (height != null) {
-                        changeHeight(height)
-                    }
-                }
+                // TODO: get pageContext
+//                val result = GravitySDK.instance.getContentBySelector(selector, null)
+//                campaign = result.data.firstOrNull()
+//                val content = campaign?.payload?.firstOrNull()?.contents?.firstOrNull()
+//                val height = content?.variables?.frameUI?.container?.style?.size?.height
+//                withContext(Dispatchers.Main) {
+//                    if (content == null) {
+//                        changeHeight(0.0)
+//                    } else if (height != null) {
+//                        changeHeight(height)
+//                    }
+//                }
             } catch (e: Exception) {
                 changeHeight(0.0)
             }

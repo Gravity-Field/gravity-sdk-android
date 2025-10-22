@@ -2,6 +2,7 @@ package ai.gravityfield.gravity_sdk.ui
 
 import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.extensions.conditional
+import ai.gravityfield.gravity_sdk.models.PageContext
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
@@ -28,6 +29,7 @@ import kotlinx.coroutines.withContext
 fun GravityInlineCompose(
     modifier: Modifier,
     selector: String,
+    pageContext: PageContext,
 ) {
     var campaign by remember { mutableStateOf<Campaign?>(null) }
     var changedHeight by remember { mutableStateOf<Double?>(null) }
@@ -39,7 +41,7 @@ fun GravityInlineCompose(
 
         scope.launch {
             try {
-                val result = GravitySDK.instance.getContentBySelector(selector)
+                val result = GravitySDK.instance.getContentBySelector(selector, pageContext)
                 campaign = result.data.firstOrNull()
                 val content = campaign?.payload?.firstOrNull()?.contents?.firstOrNull()
                 val height = content?.variables?.frameUI?.container?.style?.size?.height

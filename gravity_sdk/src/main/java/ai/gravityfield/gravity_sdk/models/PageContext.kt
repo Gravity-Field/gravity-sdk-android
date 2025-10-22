@@ -19,5 +19,5 @@ data class PageContext(
     val location: String,
     val lng: String? = null,
     val utm: Map<String, String>? = null,
-    val attributes: Map<String, String>? = null,
+    val attributes: Map<String, String> = emptyMap(),
 )

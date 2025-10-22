@@ -234,7 +234,7 @@ class GravitySDK private constructor(
 
     suspend fun getContentByCampaignId(
         campaignId: String,
-        pageContext: PageContext? = null
+        pageContext: PageContext,
     ): ContentResponse {
         val response = withContext(Dispatchers.IO) {
             repository.chooseByCampaignId(
@@ -256,7 +256,7 @@ class GravitySDK private constructor(
 
     suspend fun getContentBySelector(
         selector: String,
-        pageContext: PageContext? = null
+        pageContext: PageContext,
     ): ContentResponse {
         val response = withContext(Dispatchers.IO) {
             repository.chooseBySelector(

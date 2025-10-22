@@ -101,7 +101,7 @@ internal class GravityRepository private constructor() {
             put("device", json.encodeToJsonElement(DeviceUtils.getDevice()))
             put("type", json.encodeToJsonElement("screenview"))
             put("user", json.encodeToJsonElement(userForRequest(customerUser)))
-            put("ctx", json.encodeToJsonElement(pageContext))
+            put("ctx", json.encodeToJsonElement(mixPageContextAttributes(pageContext)))
             put("options", json.encodeToJsonElement(options))
         }
 
@@ -126,7 +126,7 @@ internal class GravityRepository private constructor() {
             put("device", json.encodeToJsonElement(DeviceUtils.getDevice()))
             put("data", json.encodeToJsonElement(events))
             put("user", json.encodeToJsonElement(userForRequest(customerUser)))
-            put("ctx", json.encodeToJsonElement(pageContext))
+            put("ctx", json.encodeToJsonElement(mixPageContextAttributes(pageContext)))
             put("options", json.encodeToJsonElement(options))
         }
 
@@ -145,7 +145,7 @@ internal class GravityRepository private constructor() {
         options: Options,
         contentSettings: ContentSettings,
         customerUser: User? = null,
-        pageContext: PageContext? = null,
+        pageContext: PageContext,
     ): ContentResponse {
         val jsonBody = buildJsonObject {
             put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
@@ -155,7 +155,7 @@ internal class GravityRepository private constructor() {
             )
             put("device", json.encodeToJsonElement(DeviceUtils.getDevice()))
             put("user", json.encodeToJsonElement(userForRequest(customerUser)))
-            put("ctx", json.encodeToJsonElement(pageContext))
+            put("ctx", json.encodeToJsonElement(mixPageContextAttributes(pageContext)))
             put("options", json.encodeToJsonElement(options))
             put("contentSettings", json.encodeToJsonElement(contentSettings))
         }
@@ -175,14 +175,14 @@ internal class GravityRepository private constructor() {
         options: Options,
         contentSettings: ContentSettings,
         customerUser: User? = null,
-        pageContext: PageContext? = null,
+        pageContext: PageContext,
     ): ContentResponse {
         val jsonBody = buildJsonObject {
             put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
             put("data", JsonArray(listOf(json.encodeToJsonElement(mapOf("selector" to selector)))))
             put("device", json.encodeToJsonElement(DeviceUtils.getDevice()))
             put("user", json.encodeToJsonElement(userForRequest(customerUser)))
-            put("ctx", json.encodeToJsonElement(pageContext))
+            put("ctx", json.encodeToJsonElement(mixPageContextAttributes(pageContext)))
             put("options", json.encodeToJsonElement(options))
             put("contentSettings", json.encodeToJsonElement(contentSettings))
         }
@@ -213,6 +213,12 @@ internal class GravityRepository private constructor() {
             val userId = Prefs.getUserId()
             return User(uid = userId, ses = null)
         }
+    }
+
+    private fun mixPageContextAttributes(pageContext: PageContext): PageContext {
+        val attributes = pageContext.attributes.toMutableMap()
+        attributes.putAll(DeviceUtils.contextAttributes)
+        return pageContext.copy(attributes = attributes)
     }
 
     private fun saveUserIfNeeded(customerUser: User?, contentResponseUser: User?) {
