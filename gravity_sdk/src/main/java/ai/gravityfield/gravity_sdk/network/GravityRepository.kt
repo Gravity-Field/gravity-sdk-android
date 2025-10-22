@@ -147,32 +147,24 @@ internal class GravityRepository private constructor() {
         customerUser: User? = null,
         pageContext: PageContext,
     ): ContentResponse {
+        val data = buildJsonObject {
+            put("campaignId", Json.parseToJsonElement(campaignId))
+            put("option", json.encodeToJsonElement(contentSettings))
+        }
         val jsonBody = buildJsonObject {
             put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
-            put(
-                "data",
-                JsonArray(
-                    listOf(
-                        json.encodeToJsonElement(
-                            mapOf(
-                                "campaignId" to campaignId,
-                                "options" to contentSettings
-                            )
-                        )
-                    )
-                )
-            )
+            put("data", JsonArray(listOf(data)))
             put("device", json.encodeToJsonElement(DeviceUtils.getDevice()))
             put("user", json.encodeToJsonElement(userForRequest(customerUser)))
             put("ctx", json.encodeToJsonElement(mixPageContextAttributes(pageContext)))
             put("options", json.encodeToJsonElement(options))
         }
 
-        val data = client.post("$baseUrl$CHOOSE") {
+        val stringData = client.post("$baseUrl$CHOOSE") {
             setBody(jsonBody)
         }.body<String>()
 
-        val json = JSONObject(data).toMap()
+        val json = JSONObject(stringData).toMap()
         val response = ContentResponse.fromJson(json)
         saveUserIfNeeded(customerUser, response.user)
         return response
@@ -185,32 +177,24 @@ internal class GravityRepository private constructor() {
         customerUser: User? = null,
         pageContext: PageContext,
     ): ContentResponse {
+        val data = buildJsonObject {
+            put("selector", Json.parseToJsonElement(selector))
+            put("option", json.encodeToJsonElement(contentSettings))
+        }
         val jsonBody = buildJsonObject {
             put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
-            put(
-                "data",
-                JsonArray(
-                    listOf(
-                        json.encodeToJsonElement(
-                            mapOf(
-                                "selector" to selector,
-                                "options" to contentSettings
-                            )
-                        )
-                    )
-                )
-            )
+            put("data", JsonArray(listOf(data)))
             put("device", json.encodeToJsonElement(DeviceUtils.getDevice()))
             put("user", json.encodeToJsonElement(userForRequest(customerUser)))
             put("ctx", json.encodeToJsonElement(mixPageContextAttributes(pageContext)))
             put("options", json.encodeToJsonElement(options))
         }
 
-        val data = client.post("$baseUrl$CHOOSE") {
+        val stringData = client.post("$baseUrl$CHOOSE") {
             setBody(jsonBody)
         }.body<String>()
 
-        val json = JSONObject(data).toMap()
+        val json = JSONObject(stringData).toMap()
         val response = ContentResponse.fromJson(json)
         saveUserIfNeeded(customerUser, response.user)
         return response
