@@ -40,7 +40,7 @@ internal fun GravitySnackbarContent2(
     val frameUi = content.variables.frameUI ?: return
     val container = frameUi.container
     val style = container.style
-    val padding = style.padding
+    val padding = style?.padding
     val onClick = container.onClick
     val elements = content.variables.elements
     val texts = elements.filter { it.type == ElementType.TEXT }
@@ -70,8 +70,8 @@ internal fun GravitySnackbarContent2(
                         onClickCallback.invoke(onClick!!)
                     }, indication = null)
                 },
-            shape = RoundedCornerShape(style.cornerRadius?.dp ?: 0.dp),
-            color = container.style.backgroundColor ?: Color.White,
+            shape = RoundedCornerShape(style?.cornerRadius?.dp ?: 0.dp),
+            color = container.style?.backgroundColor ?: Color.White,
         ) {
             Row(
                 modifier = Modifier.conditional(padding != null) {

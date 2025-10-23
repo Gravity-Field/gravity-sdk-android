@@ -37,16 +37,16 @@ internal fun GravityModalContent(
         onVisible = { ContentEventService.instance.sendContentVisibleImpression(content, campaign) }
     ) {
         Surface(
-            shape = RoundedCornerShape(container.style.cornerRadius?.dp ?: 0.dp),
-            color = container.style.backgroundColor ?: Color.White,
+            shape = RoundedCornerShape(container.style?.cornerRadius?.dp ?: 0.dp),
+            color = container.style?.backgroundColor ?: Color.White,
         ) {
             Box {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .conditional(container.style.padding != null) {
+                        .conditional(container.style?.padding != null) {
                             padding(
-                                start = container.style.padding!!.left.dp,
+                                start = container.style!!.padding!!.left.dp,
                                 top = container.style.padding.top.dp,
                                 end = container.style.padding.right.dp,
                                 bottom = container.style.padding.bottom.dp
