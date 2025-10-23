@@ -24,7 +24,6 @@ class AddToCartEvent(
 class PurchaseEvent(
     val uniqueTransactionId: String,
     val value: Double,
-    val productId: String,
     val cart: List<CartItem>,
     val currency: String? = null,
 ) : TriggerEvent() {
@@ -77,7 +76,7 @@ class SignUpEvent(
 class LoginEvent(
     val hashedEmail: String? = null,
     val cuid: String? = null,
-    val cuidType: String? = null
+    val cuidType: String? = null,
 ) : TriggerEvent() {
     override val type: String = "login-v1"
     override val name: String = "Login"
@@ -91,4 +90,8 @@ class CustomEvent(
 ) : TriggerEvent()
 
 @Serializable
-data class CartItem(val productId: String, val quantity: Int, val itemPrice: Double)
+data class CartItem(
+    val productId: String,
+    val quantity: Int,
+    val itemPrice: Double,
+)
