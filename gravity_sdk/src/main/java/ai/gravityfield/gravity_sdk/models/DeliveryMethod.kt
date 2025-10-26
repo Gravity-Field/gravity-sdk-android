@@ -14,7 +14,7 @@ enum class DeliveryMethod {
                 "snackBar", "snackbar", "snack_bar" -> SNACK_BAR
                 "modal" -> MODAL
                 "bottomSheet", "bottom-sheet", "BOTTOM_SHEET", "bottom_sheet" -> BOTTOM_SHEET
-                "fullscreen" -> FULL_SCREEN
+                "fullscreen", "full_screen" -> FULL_SCREEN
                 "inline" -> INLINE
                 else -> UNKNOWN
             }
