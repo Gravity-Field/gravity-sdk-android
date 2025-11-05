@@ -1,5 +1,6 @@
 package ai.gravityfield.gravity_sdk.ui.gravity_elements
 
+import ai.gravityfield.gravity_sdk.LocalAppFont
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.Element
 import ai.gravityfield.gravity_sdk.models.GravityContentAlignment
@@ -56,5 +57,6 @@ internal fun GravityText(
         text = element.text ?: "",
         textAlign = textAlign,
         style = textStyle,
+        fontFamily = LocalAppFont.current
     )
 }

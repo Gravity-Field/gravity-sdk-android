@@ -1,5 +1,6 @@
 package ai.gravityfield.gravity_sdk.ui.gravity_elements
 
+import ai.gravityfield.gravity_sdk.LocalAppFont
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.Element
 import ai.gravityfield.gravity_sdk.models.GravityLayoutWidth
@@ -96,7 +97,8 @@ internal fun GravityButton(
                 style = TextStyle(
                     color = textStyle?.color ?: Color.Unspecified,
                     fontSize = textStyle?.fontSize ?: TextUnit.Unspecified,
-                    fontWeight = textStyle?.fontWeight ?: FontWeight.Normal
+                    fontWeight = textStyle?.fontWeight ?: FontWeight.Normal,
+                    fontFamily = LocalAppFont.current
                 )
             )
         }

@@ -26,6 +26,7 @@ import ai.gravityfield.gravity_sdk.models.Slot
 import ai.gravityfield.gravity_sdk.models.TemplateSystemName
 import ai.gravityfield.gravity_sdk.models.TrackingEvent
 import ai.gravityfield.gravity_sdk.models.TriggerEvent
+import ai.gravityfield.gravity_sdk.models.UISettings
 import ai.gravityfield.gravity_sdk.models.User
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.network.ContentResponse
@@ -63,11 +64,15 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.core.view.children
@@ -85,6 +90,7 @@ class GravitySDK private constructor(
     internal val gravityEventCallback: GravityEventCallback,
     internal val productViewBuilder: ProductViewBuilder?,
     internal val productFilter: ProductFilter?,
+    internal val uiSettings: UISettings?,
 ) {
 
     companion object {
@@ -105,6 +111,7 @@ class GravitySDK private constructor(
             gravityEventCallback: GravityEventCallback,
             productViewBuilder: ProductViewBuilder? = null,
             productFilter: ProductFilter? = null,
+            uiSettings: UISettings? = null,
         ) {
             DeviceUtils.initialize(context)
             _instance = GravitySDK(
@@ -113,6 +120,7 @@ class GravitySDK private constructor(
                 gravityEventCallback,
                 productViewBuilder,
                 productFilter,
+                uiSettings,
             )
         }
     }
@@ -130,7 +138,7 @@ class GravitySDK private constructor(
     fun setOptions(
         options: Options?,
         contentSettings: ContentSettings?,
-        proxyUrl: String?
+        proxyUrl: String?,
     ) {
         this.options = options ?: Options()
         this.contentSettings = contentSettings ?: ContentSettings()
@@ -147,7 +155,7 @@ class GravitySDK private constructor(
 
     suspend fun trackView(
         pageContext: PageContext,
-        activityContext: Context
+        activityContext: Context,
     ) {
         withContext(Dispatchers.IO) {
             val campaignIdsResponse = repository.visit(pageContext, options, user)
@@ -169,7 +177,7 @@ class GravitySDK private constructor(
     suspend fun triggerEvent(
         events: List<TriggerEvent>,
         pageContext: PageContext,
-        activityContext: Context
+        activityContext: Context,
     ) {
         withContext(Dispatchers.IO) {
             val campaignIdsResponse = repository.event(events, pageContext, options, user)
@@ -546,7 +554,6 @@ class GravitySDK private constructor(
         gravityEventCallback.invoke(event)
     }
 
-
     private fun showOverlay(
         context: Context,
         dismissController: DismissController = DismissController(),
@@ -554,10 +561,17 @@ class GravitySDK private constructor(
         content: @Composable () -> Unit,
     ) {
         val decorView = findOwner<Activity>(context)?.window?.decorView as ViewGroup
+        val fontResId = uiSettings?.fontResId
+
         val view = ComposeView(context).apply {
             setContent {
+                val font = remember(fontResId) {
+                    if (fontResId != null) FontFamily(Font(fontResId)) else FontFamily.Default
+                }
                 BackHandler { onBack.invoke() }
-                content()
+                CompositionLocalProvider(LocalAppFont provides font) {
+                    content()
+                }
             }
             z = decorView.children.maxOf { it.z } + 1
         }
@@ -592,4 +606,8 @@ internal class DismissController {
     fun dispose() {
         listener = null
     }
+}
+
+internal val LocalAppFont = compositionLocalOf<FontFamily> {
+    FontFamily.Default
 }
