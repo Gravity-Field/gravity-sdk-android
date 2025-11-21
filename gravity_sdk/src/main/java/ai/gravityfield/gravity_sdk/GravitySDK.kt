@@ -29,6 +29,7 @@ import ai.gravityfield.gravity_sdk.models.TriggerEvent
 import ai.gravityfield.gravity_sdk.models.UISettings
 import ai.gravityfield.gravity_sdk.models.User
 import ai.gravityfield.gravity_sdk.network.Campaign
+import ai.gravityfield.gravity_sdk.network.CampaignIdsResponse
 import ai.gravityfield.gravity_sdk.network.ContentResponse
 import ai.gravityfield.gravity_sdk.network.GravityRepository
 import ai.gravityfield.gravity_sdk.ui.GravityBottomSheetContent
@@ -78,6 +79,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.core.view.children
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -159,18 +161,7 @@ class GravitySDK private constructor(
     ) {
         withContext(Dispatchers.IO) {
             val campaignIdsResponse = repository.visit(pageContext, options, user)
-            val campaignId = campaignIdsResponse.campaigns.firstOrNull()
-            if (campaignId != null) {
-                val result = getContentByCampaignId(campaignId.campaignId, pageContext)
-
-                val campaign = result.data.firstOrNull() ?: return@withContext
-                val content =
-                    campaign.payload.firstOrNull()?.contents?.firstOrNull() ?: return@withContext
-
-                withContext(Dispatchers.Main) {
-                    showBackendContent(activityContext, content, campaign)
-                }
-            }
+            handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext)
         }
     }
 
@@ -181,17 +172,36 @@ class GravitySDK private constructor(
     ) {
         withContext(Dispatchers.IO) {
             val campaignIdsResponse = repository.event(events, pageContext, options, user)
-            val campaignId = campaignIdsResponse.campaigns.firstOrNull()
-            if (campaignId != null) {
-                val result = getContentByCampaignId(campaignId.campaignId, pageContext)
+            handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext)
+        }
+    }
 
-                val campaign = result.data.firstOrNull() ?: return@withContext
-                val content =
-                    campaign.payload.firstOrNull()?.contents?.firstOrNull() ?: return@withContext
+    private suspend fun handleCampaignIdsResponse(
+        response: CampaignIdsResponse,
+        pageContext: PageContext,
+        activityContext: Context,
+    ) {
+        val activity = findOwner<Activity>(activityContext) ?: return
 
-                withContext(Dispatchers.Main) {
-                    showBackendContent(activityContext, content, campaign)
-                }
+        val sortedByPriority = response.campaigns.sortedByDescending { it.priority }
+        for (campaignId in sortedByPriority) {
+            val result = getContentByCampaignId(campaignId.campaignId, pageContext)
+
+            val campaign = result.data.firstOrNull() ?: continue
+            val content =
+                campaign.payload.firstOrNull()?.contents?.firstOrNull() ?: continue
+
+            val delayTime = campaignId.delayTime
+            if (delayTime != null) {
+                delay(delayTime.toLong())
+            }
+
+            if (activity.isFinishing || activity.isDestroyed) {
+                return
+            }
+
+            withContext(Dispatchers.Main) {
+                showBackendContent(activity, content, campaign)
             }
         }
     }
@@ -295,19 +305,23 @@ class GravitySDK private constructor(
         }
     }
 
-    private fun showBackendContent(context: Context, content: CampaignContent, campaign: Campaign) {
+    private fun showBackendContent(
+        activity: Activity,
+        content: CampaignContent,
+        campaign: Campaign,
+    ) {
         when (content.deliveryMethod) {
-            DeliveryMethod.MODAL -> showModal(context, content, campaign)
-            DeliveryMethod.BOTTOM_SHEET -> showBottomSheet(context, content, campaign)
-            DeliveryMethod.FULL_SCREEN -> showFullScreen(context, content, campaign)
-            DeliveryMethod.SNACK_BAR -> showSnackbar(context, content, campaign)
+            DeliveryMethod.MODAL -> showModal(activity, content, campaign)
+            DeliveryMethod.BOTTOM_SHEET -> showBottomSheet(activity, content, campaign)
+            DeliveryMethod.FULL_SCREEN -> showFullScreen(activity, content, campaign)
+            DeliveryMethod.SNACK_BAR -> showSnackbar(activity, content, campaign)
             DeliveryMethod.INLINE -> {}
             DeliveryMethod.UNKNOWN -> {}
         }
     }
 
 
-    private fun showModal(context: Context, content: CampaignContent, campaign: Campaign) {
+    private fun showModal(activity: Activity, content: CampaignContent, campaign: Campaign) {
         val dismissController = DismissController()
         fun dismiss() {
             contentEventService.sendContentClosed(content, campaign)
@@ -316,7 +330,7 @@ class GravitySDK private constructor(
         }
 
         showOverlay(
-            context = context,
+            activity = activity,
             dismissController = dismissController,
             onBack = ::dismiss
         ) {
@@ -329,7 +343,7 @@ class GravitySDK private constructor(
                             onClickModel,
                             content,
                             campaign,
-                            context,
+                            activity,
                             ::dismiss
                         )
                     }
@@ -339,7 +353,7 @@ class GravitySDK private constructor(
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
-    private fun showBottomSheet(context: Context, content: CampaignContent, campaign: Campaign) {
+    private fun showBottomSheet(activity: Activity, content: CampaignContent, campaign: Campaign) {
         val frameUI = content.variables.frameUI
         val container = frameUI?.container
         val cornerRadius = container?.style?.cornerRadius ?: 0.0
@@ -352,7 +366,7 @@ class GravitySDK private constructor(
         }
 
         showOverlay(
-            context = context,
+            activity = activity,
             dismissController = dismissController,
             onBack = ::dismiss
         ) {
@@ -376,7 +390,7 @@ class GravitySDK private constructor(
                             onClickModel,
                             content,
                             campaign,
-                            context,
+                            activity,
                             dismissCallback = {
                                 scope.launch { state.hide() }
                                     .invokeOnCompletion { dismiss() }
@@ -388,7 +402,7 @@ class GravitySDK private constructor(
         }
     }
 
-    private fun showFullScreen(context: Context, content: CampaignContent, campaign: Campaign) {
+    private fun showFullScreen(activity: Activity, content: CampaignContent, campaign: Campaign) {
         val dismissController = DismissController()
         fun dismiss() {
             contentEventService.sendContentClosed(content, campaign)
@@ -397,7 +411,7 @@ class GravitySDK private constructor(
         }
 
         showOverlay(
-            context = context,
+            activity = activity,
             dismissController = dismissController,
             onBack = ::dismiss
         ) {
@@ -409,7 +423,7 @@ class GravitySDK private constructor(
                         onClickModel,
                         content,
                         campaign,
-                        context,
+                        activity,
                         ::dismiss
                     )
                 }
@@ -417,7 +431,7 @@ class GravitySDK private constructor(
         }
     }
 
-    private fun showSnackbar(context: Context, content: CampaignContent, campaign: Campaign) {
+    private fun showSnackbar(activity: Activity, content: CampaignContent, campaign: Campaign) {
         val template = content.templateSystemName
         if (template == null || template == TemplateSystemName.UNKNOWN) return
 
@@ -433,13 +447,13 @@ class GravitySDK private constructor(
                 onClickModel,
                 content,
                 campaign,
-                context,
+                activity,
                 ::dismiss
             )
         }
 
         showOverlay(
-            context = context,
+            activity = activity,
             dismissController = dismissController,
             onBack = ::dismiss
         ) {
@@ -555,15 +569,15 @@ class GravitySDK private constructor(
     }
 
     private fun showOverlay(
-        context: Context,
+        activity: Activity,
         dismissController: DismissController = DismissController(),
         onBack: () -> Unit,
         content: @Composable () -> Unit,
     ) {
-        val decorView = findOwner<Activity>(context)?.window?.decorView as ViewGroup
+        val decorView = activity.window?.decorView as ViewGroup
         val fontResId = uiSettings?.fontResId
 
-        val view = ComposeView(context).apply {
+        val view = ComposeView(activity).apply {
             setContent {
                 val font = remember(fontResId) {
                     if (fontResId != null) FontFamily(Font(fontResId)) else FontFamily.Default
