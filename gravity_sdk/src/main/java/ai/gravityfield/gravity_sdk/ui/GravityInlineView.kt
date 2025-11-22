@@ -6,9 +6,11 @@ import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
+import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
 import android.util.TypedValue
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,12 +28,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.AbstractComposeView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import coil3.compose.rememberAsyncImagePainter
 import kotlinx.coroutines.launch
 
+@SuppressLint("UseKtx")
 class GravityInlineView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -154,11 +159,25 @@ private fun GravityView(
         if (campaign != null && content != null) {
             val frameUi = content.variables.frameUI
             val container = frameUi?.container
-            val padding = container?.style?.padding
+            val style = container?.style
+            val padding = style?.padding
+            val horizontalAlignment =
+                style?.contentAlignment?.toHorizontalAlignment() ?: Alignment.CenterHorizontally
+            val backgroundImage = style?.backgroundImage
+            val backgroundFit = style?.backgroundFit ?: ContentScale.Crop
             val context = LocalContext.current
 
             LaunchedEffect(Unit) {
                 ContentEventService.instance.sendContentImpression(content, campaign!!)
+            }
+
+            if (backgroundImage != null) {
+                Image(
+                    modifier = Modifier.fillMaxSize(),
+                    painter = rememberAsyncImagePainter(model = backgroundImage),
+                    contentDescription = null,
+                    contentScale = backgroundFit,
+                )
             }
 
             Column(
@@ -172,8 +191,7 @@ private fun GravityView(
                             bottom = padding.bottom.dp
                         )
                     },
-                horizontalAlignment = container?.style?.contentAlignment?.toHorizontalAlignment()
-                    ?: Alignment.CenterHorizontally
+                horizontalAlignment = horizontalAlignment
             ) {
                 GravityElements(
                     content,

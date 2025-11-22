@@ -6,15 +6,19 @@ import ai.gravityfield.gravity_sdk.models.OnClickModel
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import coil3.compose.rememberAsyncImagePainter
 
 @Composable
 internal fun GravityBottomSheetContent(
@@ -24,7 +28,12 @@ internal fun GravityBottomSheetContent(
 ) {
     val frameUi = content.variables.frameUI
     val container = frameUi?.container
-    val padding = container?.style?.padding
+    val style = container?.style
+    val padding = style?.padding
+    val horizontalAlignment =
+        style?.contentAlignment?.toHorizontalAlignment() ?: Alignment.CenterHorizontally
+    val backgroundImage = style?.backgroundImage
+    val backgroundFit = style?.backgroundFit ?: ContentScale.Crop
     val close = frameUi?.close
 
     LaunchedEffect(Unit) {
@@ -37,6 +46,15 @@ internal fun GravityBottomSheetContent(
         Box(
             modifier = Modifier.fillMaxWidth()
         ) {
+            if (backgroundImage != null) {
+                Image(
+                    modifier = Modifier.fillMaxSize(),
+                    painter = rememberAsyncImagePainter(model = backgroundImage),
+                    contentDescription = null,
+                    contentScale = backgroundFit,
+                )
+            }
+
             Column(
                 modifier = Modifier
                     .conditional(padding != null)
@@ -48,8 +66,7 @@ internal fun GravityBottomSheetContent(
                             bottom = padding.bottom.dp
                         )
                     },
-                horizontalAlignment = container?.style?.contentAlignment?.toHorizontalAlignment()
-                    ?: Alignment.CenterHorizontally
+                horizontalAlignment = horizontalAlignment
             ) {
                 GravityElements(content, campaign, onClickCallback)
             }

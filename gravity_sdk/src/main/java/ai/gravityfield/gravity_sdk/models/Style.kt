@@ -10,6 +10,8 @@ import androidx.compose.ui.unit.sp
 
 data class Style(
     val backgroundColor: Color? = null,
+    val backgroundImage: String? = null,
+    val backgroundFit: ContentScale? = null,
     val pressColor: Color? = null,
     val outlineColor: Color? = null,
     val cornerRadius: Double? = null,
@@ -26,7 +28,7 @@ data class Style(
     val positioned: GravityPositioned? = null,
     val weight: Float? = null,
     val productContainerType: ProductContainerType? = null,
-    val gridColumns: Int? = null
+    val gridColumns: Int? = null,
 ) {
     companion object {
         val empty = Style()
@@ -35,6 +37,8 @@ data class Style(
         fun fromJson(json: Map<String, Any?>): Style {
             return Style(
                 backgroundColor = ParseUtils.parseColor(json["backgroundColor"]),
+                backgroundImage = json["backgroundColor"] as String?,
+                backgroundFit = ParseUtils.parseBoxFit(json["backgroundFit"]),
                 pressColor = ParseUtils.parseColor(json["pressColor"]),
                 outlineColor = ParseUtils.parseColor(json["outlineColor"]),
                 cornerRadius = ParseUtils.parseDimension(json["cornerRadius"]),
