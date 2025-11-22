@@ -29,7 +29,10 @@ class CancelEvent(
 ) : TrackingEvent(campaign)
 
 class FollowUrlEvent(
-    val url: String, val content: CampaignContent, campaign: Campaign
+    val url: String,
+    val type: FollowUrlType,
+    val content: CampaignContent,
+    campaign: Campaign,
 ) : TrackingEvent(campaign)
 
 class FollowDeeplinkEvent(

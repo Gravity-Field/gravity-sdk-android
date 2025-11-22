@@ -5,7 +5,7 @@ data class Element(
     val text: String?,
     val src: String?,
     val onClick: OnClickModel?,
-    val style: Style
+    val style: Style,
 ) {
     companion object {
         @Suppress("UNCHECKED_CAST")
@@ -50,6 +50,7 @@ data class OnClickModel(
     val copyData: String?,
     val step: Int?,
     val url: String?,
+    val type: FollowUrlType?,
     val deeplink: String?,
 ) {
     companion object {
@@ -60,8 +61,24 @@ data class OnClickModel(
                 copyData = json["copyData"] as? String,
                 step = json["step"] as? Int,
                 url = json["url"] as? String,
+                type = FollowUrlType.fromString(json["type"] as String?),
                 deeplink = json["deeplink"] as? String
             )
+        }
+    }
+}
+
+enum class FollowUrlType {
+    BROWSER,
+    WEBVIEW;
+
+    companion object {
+        fun fromString(value: String?): FollowUrlType? {
+            return when (value) {
+                "browser" -> BROWSER
+                "webview" -> WEBVIEW
+                else -> null
+            }
         }
     }
 }

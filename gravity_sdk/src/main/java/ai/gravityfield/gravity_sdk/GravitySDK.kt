@@ -528,9 +528,10 @@ class GravitySDK private constructor(
 
             Action.FOLLOW_URL -> {
                 val url = onClickModel.url ?: return
+                val type = onClickModel.type ?: return
 
                 callbackTrackingEvent(
-                    FollowUrlEvent(url, content, campaign)
+                    FollowUrlEvent(url, type, content, campaign)
                 )
             }
 
