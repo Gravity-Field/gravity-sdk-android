@@ -26,6 +26,7 @@ internal fun ColumnScope.GravityElements(
             ElementType.IMAGE -> GravityImage(it, onClickCallback)
             ElementType.TEXT -> GravityText(it, onClickCallback)
             ElementType.BUTTON -> GravityButton(it, onClickCallback)
+            ElementType.WEBVIEW -> GravityWebview(it)
             ElementType.SPACER -> Spacer(modifier = Modifier.weight(it.style.weight ?: 1f))
             ElementType.PRODUCTS_CONTAINER -> {
                 val slots = products?.slots

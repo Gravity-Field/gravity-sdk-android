@@ -67,12 +67,7 @@ internal fun GravityButton(
                 }
             },
             colors = buttonColors,
-            shape = RoundedCornerShape(
-                topStart = cornerRadius,
-                topEnd = cornerRadius,
-                bottomStart = cornerRadius,
-                bottomEnd = cornerRadius
-            ),
+            shape = RoundedCornerShape(cornerRadius),
             modifier = Modifier
                 .conditional(style.margin != null) {
                     padding(

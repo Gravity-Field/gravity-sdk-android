@@ -24,6 +24,7 @@ data class Element(
 enum class ElementType {
     IMAGE,
     TEXT,
+    WEBVIEW,
     BUTTON,
     SPACER,
     PRODUCTS_CONTAINER,
@@ -35,6 +36,7 @@ enum class ElementType {
                 "image" -> IMAGE
                 "text" -> TEXT
                 "button" -> BUTTON
+                "webview" -> WEBVIEW
                 "spacer" -> SPACER
                 "productsContainer", "products-container", "products_container" -> PRODUCTS_CONTAINER
                 else -> UNKNOWN
