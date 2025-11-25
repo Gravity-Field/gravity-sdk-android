@@ -1,6 +1,7 @@
 package ai.gravityfield.gravity_sdk.models
 
 import ai.gravityfield.gravity_sdk.utils.ParseUtils
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -24,6 +25,7 @@ data class Style(
     val textStyle: GravityTextStyle? = null,
     val fit: ContentScale? = null,
     val contentAlignment: GravityContentAlignment? = null,
+    val verticalAlignment: GravityContentAlignment? = null,
     val layoutWidth: GravityLayoutWidth? = null,
     val positioned: GravityPositioned? = null,
     val weight: Float? = null,
@@ -51,6 +53,11 @@ data class Style(
                 textStyle = json["textStyle"]?.let { GravityTextStyle.fromJson(it as Map<String, Any?>) },
                 fit = ParseUtils.parseBoxFit(json["fit"]),
                 contentAlignment = json["contentAlignment"]?.let {
+                    GravityContentAlignment.fromString(
+                        it as String
+                    )
+                },
+                verticalAlignment = json["verticalAlignment"]?.let {
                     GravityContentAlignment.fromString(
                         it as String
                     )
@@ -173,11 +180,11 @@ enum class GravityContentAlignment {
         }
     }
 
-    fun toVerticalAlignment(): Alignment.Vertical {
+    fun toVerticalArrangement(): Arrangement.Vertical {
         return when (this) {
-            START -> Alignment.Top
-            CENTER -> Alignment.CenterVertically
-            END -> Alignment.Bottom
+            START -> Arrangement.Top
+            CENTER -> Arrangement.Center
+            END -> Arrangement.Bottom
         }
     }
 }
