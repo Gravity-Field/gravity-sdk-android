@@ -9,10 +9,11 @@
 
     <ai.gravityfield.gravity_sdk.ui.GravityInlineView
         android:layout_width="match_parent"
-        android:layout_height="250dp"
+        android:layout_height="300dp"
         app:selector="bottom-sheet-banner"
-        app:color="#FFF1F1F1"
+        app:color="#FFFFFFFF"
         app:cornerRadius="20dp"
+        app:loaderLayout="@layout/loading_indicator"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"

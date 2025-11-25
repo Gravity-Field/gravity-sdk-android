@@ -34,8 +34,10 @@ fun GravityInlineCompose(
     modifier: Modifier,
     selector: String,
     pageContext: PageContext,
+    loader: (@Composable () -> Unit)?,
 ) {
     var campaign by remember { mutableStateOf<Campaign?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
     var changedHeight by remember { mutableStateOf<Double?>(null) }
 
     val scope = rememberCoroutineScope()
@@ -58,6 +60,8 @@ fun GravityInlineCompose(
                 }
             } catch (e: Exception) {
                 changedHeight = 0.0
+            } finally {
+                isLoading = false
             }
         }
     }
@@ -71,55 +75,58 @@ fun GravityInlineCompose(
         contentAlignment = Alignment.Center,
     ) {
         val content = campaign?.payload?.firstOrNull()?.contents?.firstOrNull()
-        if (campaign != null && content != null) {
-            val frameUi = content.variables.frameUI
-            val container = frameUi?.container
-            val style = container?.style
-            val padding = style?.padding
-            val horizontalAlignment =
-                style?.contentAlignment?.toHorizontalAlignment() ?: Alignment.CenterHorizontally
-            val backgroundImage = style?.backgroundImage
-            val backgroundFit = style?.backgroundFit ?: ContentScale.Crop
-            val context = LocalContext.current
+        when {
+            isLoading && loader != null -> loader()
+            campaign != null && content != null -> {
+                val frameUi = content.variables.frameUI
+                val container = frameUi?.container
+                val style = container?.style
+                val padding = style?.padding
+                val horizontalAlignment =
+                    style?.contentAlignment?.toHorizontalAlignment() ?: Alignment.CenterHorizontally
+                val backgroundImage = style?.backgroundImage
+                val backgroundFit = style?.backgroundFit ?: ContentScale.Crop
+                val context = LocalContext.current
 
-            LaunchedEffect(Unit) {
-                ContentEventService.instance.sendContentImpression(content, campaign!!)
-            }
+                LaunchedEffect(Unit) {
+                    ContentEventService.instance.sendContentImpression(content, campaign!!)
+                }
 
-            if (backgroundImage != null) {
-                Image(
-                    modifier = Modifier.fillMaxSize(),
-                    painter = rememberAsyncImagePainter(model = backgroundImage),
-                    contentDescription = null,
-                    contentScale = backgroundFit,
-                )
-            }
+                if (backgroundImage != null) {
+                    Image(
+                        modifier = Modifier.fillMaxSize(),
+                        painter = rememberAsyncImagePainter(model = backgroundImage),
+                        contentDescription = null,
+                        contentScale = backgroundFit,
+                    )
+                }
 
-            Column(
-                modifier = Modifier
-                    .conditional(padding != null)
-                    {
-                        padding(
-                            start = padding!!.left.dp,
-                            top = padding.top.dp,
-                            end = padding.right.dp,
-                            bottom = padding.bottom.dp
-                        )
-                    },
-                horizontalAlignment = horizontalAlignment
-            ) {
-                GravityElements(
-                    content,
-                    campaign!!,
-                    onClickCallback = { onClickModel ->
-                        GravitySDK.instance.onClickHandler(
-                            onClickModel,
-                            content,
-                            campaign!!,
-                            context,
-                        )
-                    }
-                )
+                Column(
+                    modifier = Modifier
+                        .conditional(padding != null)
+                        {
+                            padding(
+                                start = padding!!.left.dp,
+                                top = padding.top.dp,
+                                end = padding.right.dp,
+                                bottom = padding.bottom.dp
+                            )
+                        },
+                    horizontalAlignment = horizontalAlignment
+                ) {
+                    GravityElements(
+                        content,
+                        campaign!!,
+                        onClickCallback = { onClickModel ->
+                            GravitySDK.instance.onClickHandler(
+                                onClickModel,
+                                content,
+                                campaign!!,
+                                context,
+                            )
+                        }
+                    )
+                }
             }
         }
     }

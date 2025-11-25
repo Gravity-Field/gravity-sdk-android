@@ -3,6 +3,8 @@ package ai.gravityfield.gravity_sdk.ui
 import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.R
 import ai.gravityfield.gravity_sdk.extensions.conditional
+import ai.gravityfield.gravity_sdk.models.ContextType
+import ai.gravityfield.gravity_sdk.models.PageContext
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
@@ -34,7 +36,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import coil3.compose.rememberAsyncImagePainter
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @SuppressLint("UseKtx")
 class GravityInlineView @JvmOverloads constructor(
@@ -50,6 +54,7 @@ class GravityInlineView @JvmOverloads constructor(
     private val cornerRadiusTopEnd: Float
     private val cornerRadiusBottomStart: Float
     private val cornerRadiusBottomEnd: Float
+    private val loaderLayoutResId: Int
 
     init {
         val typedArray = context.obtainStyledAttributes(
@@ -74,6 +79,8 @@ class GravityInlineView @JvmOverloads constructor(
             typedArray.getDimension(R.styleable.GravityInlineView_cornerRadiusBottomStart, 0f)
         cornerRadiusBottomEnd =
             typedArray.getDimension(R.styleable.GravityInlineView_cornerRadiusBottomEnd, 0f)
+        loaderLayoutResId =
+            typedArray.getResourceId(R.styleable.GravityInlineView_loaderLayout, -1)
         typedArray.recycle()
     }
 
@@ -87,6 +94,7 @@ class GravityInlineView @JvmOverloads constructor(
             cornerRadiusTopEnd,
             cornerRadiusBottomStart,
             cornerRadiusBottomEnd,
+            loaderLayoutResId,
         ) {
             post {
                 layoutParams = layoutParams.apply {
@@ -110,9 +118,11 @@ private fun GravityView(
     cornerRadiusTopEnd: Float,
     cornerRadiusBottomStart: Float,
     cornerRadiusBottomEnd: Float,
+    loaderLayoutResId: Int,
     changeHeight: (Double) -> Unit,
 ) {
     var campaign by remember { mutableStateOf<Campaign?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(selector) {
@@ -121,19 +131,29 @@ private fun GravityView(
         scope.launch {
             try {
                 // TODO: get pageContext
-//                val result = GravitySDK.instance.getContentBySelector(selector, null)
-//                campaign = result.data.firstOrNull()
-//                val content = campaign?.payload?.firstOrNull()?.contents?.firstOrNull()
-//                val height = content?.variables?.frameUI?.container?.style?.size?.height
-//                withContext(Dispatchers.Main) {
-//                    if (content == null) {
-//                        changeHeight(0.0)
-//                    } else if (height != null) {
-//                        changeHeight(height)
-//                    }
-//                }
+                val pageContextMock = PageContext(
+                    type = ContextType.PRODUCT,
+                    data = emptyList(),
+                    location = "",
+                )
+                val result = GravitySDK.instance.getContentBySelector(
+                    selector,
+                    pageContextMock,
+                )
+                campaign = result.data.firstOrNull()
+                val content = campaign?.payload?.firstOrNull()?.contents?.firstOrNull()
+                val height = content?.variables?.frameUI?.container?.style?.size?.height
+                withContext(Dispatchers.Main) {
+                    if (content == null) {
+                        changeHeight(0.0)
+                    } else if (height != null) {
+                        changeHeight(height)
+                    }
+                }
             } catch (e: Exception) {
                 changeHeight(0.0)
+            } finally {
+                isLoading = false
             }
         }
     }
@@ -156,55 +176,58 @@ private fun GravityView(
         contentAlignment = Alignment.Center
     ) {
         val content = campaign?.payload?.firstOrNull()?.contents?.firstOrNull()
-        if (campaign != null && content != null) {
-            val frameUi = content.variables.frameUI
-            val container = frameUi?.container
-            val style = container?.style
-            val padding = style?.padding
-            val horizontalAlignment =
-                style?.contentAlignment?.toHorizontalAlignment() ?: Alignment.CenterHorizontally
-            val backgroundImage = style?.backgroundImage
-            val backgroundFit = style?.backgroundFit ?: ContentScale.Crop
-            val context = LocalContext.current
+        when {
+            isLoading && loaderLayoutResId != -1 -> XmlLayoutCompose(layoutResId = loaderLayoutResId)
+            campaign != null && content != null -> {
+                val frameUi = content.variables.frameUI
+                val container = frameUi?.container
+                val style = container?.style
+                val padding = style?.padding
+                val horizontalAlignment =
+                    style?.contentAlignment?.toHorizontalAlignment() ?: Alignment.CenterHorizontally
+                val backgroundImage = style?.backgroundImage
+                val backgroundFit = style?.backgroundFit ?: ContentScale.Crop
+                val context = LocalContext.current
 
-            LaunchedEffect(Unit) {
-                ContentEventService.instance.sendContentImpression(content, campaign!!)
-            }
+                LaunchedEffect(Unit) {
+                    ContentEventService.instance.sendContentImpression(content, campaign!!)
+                }
 
-            if (backgroundImage != null) {
-                Image(
-                    modifier = Modifier.fillMaxSize(),
-                    painter = rememberAsyncImagePainter(model = backgroundImage),
-                    contentDescription = null,
-                    contentScale = backgroundFit,
-                )
-            }
+                if (backgroundImage != null) {
+                    Image(
+                        modifier = Modifier.fillMaxSize(),
+                        painter = rememberAsyncImagePainter(model = backgroundImage),
+                        contentDescription = null,
+                        contentScale = backgroundFit,
+                    )
+                }
 
-            Column(
-                modifier = Modifier
-                    .conditional(padding != null)
-                    {
-                        padding(
-                            start = padding!!.left.dp,
-                            top = padding.top.dp,
-                            end = padding.right.dp,
-                            bottom = padding.bottom.dp
-                        )
-                    },
-                horizontalAlignment = horizontalAlignment
-            ) {
-                GravityElements(
-                    content,
-                    campaign!!,
-                    onClickCallback = { onClickModel ->
-                        GravitySDK.instance.onClickHandler(
-                            onClickModel,
-                            content,
-                            campaign!!,
-                            context,
-                        )
-                    }
-                )
+                Column(
+                    modifier = Modifier
+                        .conditional(padding != null)
+                        {
+                            padding(
+                                start = padding!!.left.dp,
+                                top = padding.top.dp,
+                                end = padding.right.dp,
+                                bottom = padding.bottom.dp
+                            )
+                        },
+                    horizontalAlignment = horizontalAlignment
+                ) {
+                    GravityElements(
+                        content,
+                        campaign!!,
+                        onClickCallback = { onClickModel ->
+                            GravitySDK.instance.onClickHandler(
+                                onClickModel,
+                                content,
+                                campaign!!,
+                                context,
+                            )
+                        }
+                    )
+                }
             }
         }
     }
