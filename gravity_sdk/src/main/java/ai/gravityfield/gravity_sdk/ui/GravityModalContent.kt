@@ -2,6 +2,7 @@ package ai.gravityfield.gravity_sdk.ui
 
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.CampaignContent
+import ai.gravityfield.gravity_sdk.models.Item
 import ai.gravityfield.gravity_sdk.models.OnClickModel
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
@@ -28,6 +29,7 @@ internal fun GravityModalContent(
     content: CampaignContent,
     campaign: Campaign,
     onClickCallback: (model: OnClickModel) -> Unit,
+    item: Item?,
 ) {
     val frameUi = content.variables.frameUI
     val container = frameUi?.container
@@ -75,7 +77,7 @@ internal fun GravityModalContent(
                         },
                     horizontalAlignment = horizontalAlignment,
                 ) {
-                    GravityElements(content, campaign, onClickCallback)
+                    GravityElements(content, campaign, onClickCallback, item)
                 }
 
                 close?.let {

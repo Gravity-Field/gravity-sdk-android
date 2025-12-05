@@ -4,6 +4,7 @@ import ai.gravityfield.gravity_sdk.LocalAppFont
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.Element
 import ai.gravityfield.gravity_sdk.models.GravityLayoutWidth
+import ai.gravityfield.gravity_sdk.models.Item
 import ai.gravityfield.gravity_sdk.models.OnClickModel
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,7 +29,10 @@ import androidx.compose.ui.unit.dp
 internal fun GravityButton(
     element: Element,
     onClickCallback: (model: OnClickModel) -> Unit,
+    item: Item? = null,
 ) {
+    val text = if (item != null) item.values[element.text] else element.text
+
     val style = element.style
     val textStyle = style.textStyle
     val layoutWidth = style.layoutWidth
@@ -88,7 +92,7 @@ internal fun GravityButton(
                 },
         ) {
             Text(
-                text = element.text ?: "",
+                text = text ?: "",
                 style = TextStyle(
                     color = textStyle?.color ?: Color.Unspecified,
                     fontSize = textStyle?.fontSize ?: TextUnit.Unspecified,

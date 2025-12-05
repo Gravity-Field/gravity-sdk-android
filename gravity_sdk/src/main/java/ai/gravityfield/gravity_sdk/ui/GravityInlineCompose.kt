@@ -74,7 +74,11 @@ fun GravityInlineCompose(
             .then(modifier),
         contentAlignment = Alignment.Center,
     ) {
-        val content = campaign?.payload?.firstOrNull()?.contents?.firstOrNull()
+        val payload = campaign?.payload?.firstOrNull()
+        val content =
+            payload?.contents?.filter { it.step != null }?.sortedBy { it.step }?.firstOrNull()
+                ?: payload?.contents?.firstOrNull()
+
         when {
             isLoading && loader != null -> loader()
             campaign != null && content != null -> {

@@ -2,11 +2,9 @@ package ai.gravityfield.gravity_sdk.ui
 
 import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.extensions.conditional
-import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.Element
-import ai.gravityfield.gravity_sdk.models.Slot
-import ai.gravityfield.gravity_sdk.network.Campaign
-import ai.gravityfield.gravity_sdk.utils.ProductEventService
+import ai.gravityfield.gravity_sdk.models.Item
+import ai.gravityfield.gravity_sdk.models.OnClickModel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,16 +17,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-internal fun ProductsRow(
+internal fun ItemsRow(
     element: Element,
-    slots: List<Slot>,
-    content: CampaignContent,
-    campaign: Campaign,
+    items: List<Item>,
+    onClickCallback: (model: OnClickModel) -> Unit,
 ) {
     val style = element.style
     val height = style.size?.height
     val margin = style.margin
     val rowSpacing = style.rowSpacing?.dp ?: 0.dp
+
+    val itemCard = element.itemCard ?: return
 
     Box(
         modifier = Modifier
@@ -54,23 +53,9 @@ internal fun ProductsRow(
                 },
             horizontalArrangement = Arrangement.spacedBy(rowSpacing)
         ) {
-            items(slots.size) { index ->
-                val slot = slots[index]
-                VisibilityDetector(
-                    onVisible = {
-                        ProductEventService.instance.sendProductVisibleImpression(
-                            slot,
-                            content,
-                            campaign
-                        )
-                    }
-                ) {
-                    if (GravitySDK.instance.productViewBuilder != null) {
-                        GravitySDK.instance.productViewBuilder!!.Build(slot, content, campaign)
-                    } else {
-                        GravityProduct(slot)
-                    }
-                }
+            items(items.size) { index ->
+                val item = items[index]
+                GravityItemCard(item, itemCard, onClickCallback)
             }
         }
     }

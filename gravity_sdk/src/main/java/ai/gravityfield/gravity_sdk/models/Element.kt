@@ -5,6 +5,7 @@ data class Element(
     val text: String?,
     val src: String?,
     val onClick: OnClickModel?,
+    val itemCard: ItemCard?,
     val style: Style,
 ) {
     companion object {
@@ -15,6 +16,7 @@ data class Element(
                 text = json["text"] as? String,
                 src = json["src"] as? String,
                 onClick = if (json["onClick"] != null) OnClickModel.fromJson(json["onClick"] as Map<String, Any?>) else null,
+                itemCard = if (json["itemCard"] != null) ItemCard.fromJson(json["itemCard"] as Map<String, Any?>) else null,
                 style = if (json["style"] != null) Style.fromJson(json["style"] as Map<String, Any?>) else Style.empty
             )
         }
@@ -28,6 +30,7 @@ enum class ElementType {
     BUTTON,
     SPACER,
     PRODUCTS_CONTAINER,
+    ITEMS_CONTAINER,
     UNKNOWN;
 
     companion object {
@@ -39,6 +42,7 @@ enum class ElementType {
                 "webview" -> WEBVIEW
                 "spacer" -> SPACER
                 "productsContainer", "products-container", "products_container" -> PRODUCTS_CONTAINER
+                "itemsContainer", "items-container", "items_container" -> ITEMS_CONTAINER
                 else -> UNKNOWN
             }
         }
@@ -49,6 +53,7 @@ data class OnClickModel(
     val action: Action,
     val copyData: String?,
     val step: Int?,
+    val itemId: String?,
     val url: String?,
     val type: FollowUrlType?,
     val deeplink: String?,
@@ -59,7 +64,8 @@ data class OnClickModel(
             return OnClickModel(
                 action = Action.fromString(json["action"] as String),
                 copyData = json["copyData"] as? String,
-                step = json["step"] as? Int,
+                step = (json["step"] as Number?)?.toInt(),
+                itemId = json["itemId"] as? String,
                 url = json["url"] as? String,
                 type = FollowUrlType.fromString(json["type"] as String?),
                 deeplink = json["deeplink"] as? String

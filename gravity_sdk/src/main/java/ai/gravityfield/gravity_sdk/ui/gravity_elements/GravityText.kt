@@ -4,6 +4,7 @@ import ai.gravityfield.gravity_sdk.LocalAppFont
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.Element
 import ai.gravityfield.gravity_sdk.models.GravityContentAlignment
+import ai.gravityfield.gravity_sdk.models.Item
 import ai.gravityfield.gravity_sdk.models.OnClickModel
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
@@ -22,7 +23,10 @@ import androidx.compose.ui.unit.dp
 internal fun GravityText(
     element: Element,
     onClickCallback: (model: OnClickModel) -> Unit,
+    item: Item? = null,
 ) {
+    val text = if (item != null) item.values[element.text] else element.text
+
     val style = element.style
 
     val textStyle = TextStyle(
@@ -54,7 +58,7 @@ internal fun GravityText(
             .conditional(element.onClick != null) {
                 clickable { onClickCallback.invoke(element.onClick!!) }
             },
-        text = element.text ?: "",
+        text = text ?: "",
         textAlign = textAlign,
         style = textStyle,
         fontFamily = LocalAppFont.current

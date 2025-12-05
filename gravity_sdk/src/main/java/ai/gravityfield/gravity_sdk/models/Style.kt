@@ -31,6 +31,7 @@ data class Style(
     val weight: Float? = null,
     val productContainerType: ProductContainerType? = null,
     val gridColumns: Int? = null,
+    val rowSpacing: Int? = null,
 ) {
     companion object {
         val empty = Style()
@@ -66,7 +67,8 @@ data class Style(
                 positioned = json["positioned"]?.let { GravityPositioned.fromJson(it as Map<String, Any?>) },
                 weight = (json["rows"] as Number?)?.toFloat() ?: 1f,
                 productContainerType = ProductContainerType.fromString(json["productContainerType"] as String?),
-                gridColumns = (json["gridColumns"] as Number?)?.toInt()
+                gridColumns = (json["gridColumns"] as Number?)?.toInt(),
+                rowSpacing = (json["rowSpacing"] as Number?)?.toInt()
             )
         }
     }

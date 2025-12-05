@@ -11,6 +11,7 @@ enum class Action {
     FOLLOW_DEEPLINK,
     REQUEST_PUSH,
     REQUEST_TRACKING,
+    OPEN_STEP,
     UNKNOWN;
 
     companion object {
@@ -26,6 +27,7 @@ enum class Action {
                 "follow_deeplink" -> FOLLOW_DEEPLINK
                 "request_push" -> REQUEST_PUSH
                 "request_tracking" -> REQUEST_TRACKING
+                "open_step" -> OPEN_STEP
                 else -> UNKNOWN
             }
         }

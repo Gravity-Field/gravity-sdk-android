@@ -141,7 +141,11 @@ private fun GravityView(
                     pageContextMock,
                 )
                 campaign = result.data.firstOrNull()
-                val content = campaign?.payload?.firstOrNull()?.contents?.firstOrNull()
+                val payload = campaign?.payload?.firstOrNull()
+                val content =
+                    payload?.contents?.filter { it.step != null }?.sortedBy { it.step }
+                        ?.firstOrNull()
+                        ?: payload?.contents?.firstOrNull()
                 val height = content?.variables?.frameUI?.container?.style?.size?.height
                 withContext(Dispatchers.Main) {
                     if (content == null) {
@@ -175,7 +179,11 @@ private fun GravityView(
             .clip(shape),
         contentAlignment = Alignment.Center
     ) {
-        val content = campaign?.payload?.firstOrNull()?.contents?.firstOrNull()
+        val payload = campaign?.payload?.firstOrNull()
+        val content =
+            payload?.contents?.filter { it.step != null }?.sortedBy { it.step }
+                ?.firstOrNull()
+                ?: payload?.contents?.firstOrNull()
         when {
             isLoading && loaderLayoutResId != -1 -> XmlLayoutCompose(layoutResId = loaderLayoutResId)
             campaign != null && content != null -> {
