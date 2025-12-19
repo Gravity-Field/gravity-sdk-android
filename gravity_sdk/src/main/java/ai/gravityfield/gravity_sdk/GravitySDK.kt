@@ -29,6 +29,8 @@ import ai.gravityfield.gravity_sdk.models.TrackingEvent
 import ai.gravityfield.gravity_sdk.models.TriggerEvent
 import ai.gravityfield.gravity_sdk.models.UISettings
 import ai.gravityfield.gravity_sdk.models.User
+import ai.gravityfield.gravity_sdk.models.internal.InlineViewCache
+import ai.gravityfield.gravity_sdk.models.internal.ScrollProvider
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.network.CampaignIdsResponse
 import ai.gravityfield.gravity_sdk.network.ContentResponse
@@ -83,6 +85,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Objects
 
 typealias ProductFilter = (Slot) -> Boolean
 typealias GravityEventCallback = (TrackingEvent) -> Unit
@@ -137,6 +140,8 @@ class GravitySDK private constructor(
     private val repository = GravityRepository.instance
     private val contentEventService = ContentEventService.instance
     private val productEventService = ProductEventService.instance
+
+    private val _inlineViewCache = mutableMapOf<Int, InlineViewCache>()
 
     fun setOptions(
         options: Options?,
@@ -294,6 +299,29 @@ class GravitySDK private constructor(
             }
         }
         return response
+    }
+
+    internal fun getInlineViewCache(selector: String, pageContext: PageContext): InlineViewCache? {
+        val key = getInlineViewCacheKey(selector, pageContext)
+        return _inlineViewCache[key]
+    }
+
+    internal fun putInlineViewCache(
+        selector: String,
+        pageContext: PageContext,
+        cache: InlineViewCache,
+    ) {
+        val key = getInlineViewCacheKey(selector, pageContext)
+        _inlineViewCache[key] = cache
+    }
+
+    fun resetInlineViewCache(selector: String, pageContext: PageContext) {
+        val key = getInlineViewCacheKey(selector, pageContext)
+        _inlineViewCache.remove(key)
+    }
+
+    private fun getInlineViewCacheKey(selector: String, pageContext: PageContext): Int {
+        return Objects.hash(selector, pageContext)
     }
 
     private fun trackEngagementEvent(action: Action, events: List<Event>?) {
@@ -662,4 +690,8 @@ internal class DismissController {
 
 internal val LocalAppFont = compositionLocalOf<FontFamily> {
     FontFamily.Default
+}
+
+internal val LocalScrollProvider = compositionLocalOf<ScrollProvider?> {
+    null
 }

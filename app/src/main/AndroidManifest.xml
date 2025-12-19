@@ -23,6 +23,11 @@
             android:label="Inline banner"
             android:theme="@style/Theme.AppCompat.Light" />
         <activity
+            android:name=".InlineDemoActivity"
+            android:exported="false"
+            android:label="Inline demo"
+            android:theme="@style/Theme.AppCompat.Light" />
+        <activity
             android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.GravitySDK">

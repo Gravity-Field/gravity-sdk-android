@@ -29,6 +29,7 @@ import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
@@ -142,19 +143,20 @@ class MainActivity : ComponentActivity() {
                                     context.startActivity(
                                         Intent(
                                             context,
-                                            InlineBannerActivity::class.java,
+                                            InlineDemoActivity::class.java,
                                         )
                                     )
                                 },
                             ) {
-                                Text(text = "Show activity with xml inline view")
+                                Text(text = "Show RecyclerView with InlineView")
                             }
 
                             GravityInlineCompose(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(300.dp),
-                                selector = "bottom-sheet-banner",
+                                    .height(300.dp)
+                                    .background(color = Color(0xFFF9F9F9)),
+                                selector = "inline-items",
                                 pageContext = PageContext(
                                     type = ContextType.PRODUCT,
                                     data = emptyList(),

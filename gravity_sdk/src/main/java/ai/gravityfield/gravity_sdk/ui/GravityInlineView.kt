@@ -1,11 +1,14 @@
 package ai.gravityfield.gravity_sdk.ui
 
 import ai.gravityfield.gravity_sdk.GravitySDK
+import ai.gravityfield.gravity_sdk.LocalScrollProvider
 import ai.gravityfield.gravity_sdk.R
 import ai.gravityfield.gravity_sdk.extensions.conditional
-import ai.gravityfield.gravity_sdk.models.ContextType
 import ai.gravityfield.gravity_sdk.models.PageContext
-import ai.gravityfield.gravity_sdk.network.Campaign
+import ai.gravityfield.gravity_sdk.models.internal.InlineViewCache
+import ai.gravityfield.gravity_sdk.models.internal.ScrollProvider
+import ai.gravityfield.gravity_sdk.network.ContentResponse
+import ai.gravityfield.gravity_sdk.ui.GravityInlineView.PageContextProvider
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import android.annotation.SuppressLint
@@ -20,6 +23,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -84,6 +89,12 @@ class GravityInlineView @JvmOverloads constructor(
         typedArray.recycle()
     }
 
+    private val pageContextProvider = PageContextProvider()
+
+    fun init(pageContext: PageContext) {
+        pageContextProvider.provide(pageContext)
+    }
+
     @Composable
     override fun Content() {
         GravityView(
@@ -95,6 +106,7 @@ class GravityInlineView @JvmOverloads constructor(
             cornerRadiusBottomStart,
             cornerRadiusBottomEnd,
             loaderLayoutResId,
+            pageContextProvider,
         ) {
             post {
                 layoutParams = layoutParams.apply {
@@ -105,6 +117,32 @@ class GravityInlineView @JvmOverloads constructor(
                     ).toInt()
                 }
             }
+        }
+    }
+
+    inner class PageContextProvider {
+        private var pageContext: PageContext? = null
+        private var _listener: ((PageContext) -> Unit)? = null
+
+        fun setListener(listener: ((PageContext) -> Unit)) {
+            _listener = listener
+            pageContext?.let {
+                listener(it)
+            }
+        }
+
+        fun removeListener() {
+            _listener = null
+        }
+
+        fun provide(pageContext: PageContext) {
+            if (this.pageContext == pageContext) return
+            this.pageContext = pageContext
+            _listener?.invoke(pageContext)
+        }
+
+        fun dispose() {
+            _listener = null
         }
     }
 }
@@ -119,46 +157,68 @@ private fun GravityView(
     cornerRadiusBottomStart: Float,
     cornerRadiusBottomEnd: Float,
     loaderLayoutResId: Int,
+    pageContextProvider: PageContextProvider,
     changeHeight: (Double) -> Unit,
 ) {
-    var campaign by remember { mutableStateOf<Campaign?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
+    var result by remember { mutableStateOf<ContentResponse?>(null) }
+    var pageContext by remember { mutableStateOf<PageContext?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(selector) {
-        campaign = null
+        pageContextProvider.setListener {
+            pageContext = it
 
-        scope.launch {
-            try {
-                // TODO: get pageContext
-                val pageContextMock = PageContext(
-                    type = ContextType.PRODUCT,
-                    data = emptyList(),
-                    location = "",
-                )
-                val result = GravitySDK.instance.getContentBySelector(
-                    selector,
-                    pageContextMock,
-                )
-                campaign = result.data.firstOrNull()
-                val payload = campaign?.payload?.firstOrNull()
-                val content =
-                    payload?.contents?.filter { it.step != null }?.sortedBy { it.step }
-                        ?.firstOrNull()
-                        ?: payload?.contents?.firstOrNull()
-                val height = content?.variables?.frameUI?.container?.style?.size?.height
-                withContext(Dispatchers.Main) {
-                    if (content == null) {
-                        changeHeight(0.0)
-                    } else if (height != null) {
-                        changeHeight(height)
+            scope.launch {
+                try {
+                    val cache = GravitySDK.instance.getInlineViewCache(selector, it)
+                    if (cache != null) {
+                        result = cache.content
+                    } else {
+                        isLoading = true
+                        result = GravitySDK.instance.getContentBySelector(
+                            selector,
+                            it,
+                        )
+                        GravitySDK.instance.putInlineViewCache(
+                            selector,
+                            it,
+                            InlineViewCache(result!!),
+                        )
                     }
+
+                    val campaign = result?.data?.firstOrNull()
+                    val payload = campaign?.payload?.firstOrNull()
+                    val content =
+                        payload?.contents?.filter { it.step != null }?.sortedBy { it.step }
+                            ?.firstOrNull()
+                            ?: payload?.contents?.firstOrNull()
+                    val height = content?.variables?.frameUI?.container?.style?.size?.height
+                    withContext(Dispatchers.Main) {
+                        if (content == null) {
+                            changeHeight(0.0)
+                        } else if (height != null) {
+                            changeHeight(height)
+                        }
+                    }
+                } catch (e: Exception) {
+                    changeHeight(0.0)
+                    GravitySDK.instance.putInlineViewCache(
+                        selector,
+                        it,
+                        InlineViewCache(),
+                    )
+                } finally {
+                    isLoading = false
                 }
-            } catch (e: Exception) {
-                changeHeight(0.0)
-            } finally {
-                isLoading = false
             }
+        }
+
+    }
+
+    DisposableEffect(selector) {
+        onDispose {
+            pageContextProvider.removeListener()
         }
     }
 
@@ -179,6 +239,7 @@ private fun GravityView(
             .clip(shape),
         contentAlignment = Alignment.Center
     ) {
+        val campaign = result?.data?.firstOrNull()
         val payload = campaign?.payload?.firstOrNull()
         val content =
             payload?.contents?.filter { it.step != null }?.sortedBy { it.step }
@@ -196,6 +257,11 @@ private fun GravityView(
                 val backgroundImage = style?.backgroundImage
                 val backgroundFit = style?.backgroundFit ?: ContentScale.Crop
                 val context = LocalContext.current
+
+                val scrollPosition = GravitySDK.instance.getInlineViewCache(
+                    selector,
+                    pageContext!!,
+                )?.scrollPosition
 
                 LaunchedEffect(Unit) {
                     ContentEventService.instance.sendContentImpression(content, campaign!!)
@@ -223,18 +289,31 @@ private fun GravityView(
                         },
                     horizontalAlignment = horizontalAlignment
                 ) {
-                    GravityElements(
-                        content,
-                        campaign!!,
-                        onClickCallback = { onClickModel ->
-                            GravitySDK.instance.onClickHandler(
-                                onClickModel,
-                                content,
-                                campaign!!,
-                                context,
-                            )
-                        }
-                    )
+                    CompositionLocalProvider(
+                        LocalScrollProvider provides ScrollProvider(
+                            scrollPosition,
+                            onScrollChanged = { scrollPosition ->
+                                GravitySDK.instance.putInlineViewCache(
+                                    selector,
+                                    pageContext!!,
+                                    InlineViewCache(result!!, scrollPosition),
+                                )
+                            },
+                        )
+                    ) {
+                        GravityElements(
+                            content,
+                            campaign!!,
+                            onClickCallback = { onClickModel ->
+                                GravitySDK.instance.onClickHandler(
+                                    onClickModel,
+                                    content,
+                                    campaign!!,
+                                    context,
+                                )
+                            }
+                        )
+                    }
                 }
             }
         }
