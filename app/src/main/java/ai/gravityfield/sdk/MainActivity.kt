@@ -65,7 +65,7 @@ class MainActivity : ComponentActivity() {
                 override fun createView(
                     context: Context,
                     slot: Slot,
-                    conntent: CampaignContent,
+                    content: CampaignContent,
                     campaign: Campaign,
                 ): View {
                     return ProductView(context, slot)
