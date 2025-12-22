@@ -562,6 +562,10 @@ class GravitySDK private constructor(
 
         trackEngagementEvent(action, content.events)
 
+        if (action != Action.CLOSE && onClickModel.closeOnClick) {
+            dismissCallback?.invoke()
+        }
+
         when (action) {
             Action.COPY -> {
                 val textToCopy = onClickModel.copyData ?: return

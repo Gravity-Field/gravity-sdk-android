@@ -12,6 +12,7 @@ import ai.gravityfield.gravity_sdk.models.CopyEvent
 import ai.gravityfield.gravity_sdk.models.CustomEvent
 import ai.gravityfield.gravity_sdk.models.FollowDeeplinkEvent
 import ai.gravityfield.gravity_sdk.models.FollowUrlEvent
+import ai.gravityfield.gravity_sdk.models.FollowUrlType
 import ai.gravityfield.gravity_sdk.models.PageContext
 import ai.gravityfield.gravity_sdk.models.ProductImpressionEvent
 import ai.gravityfield.gravity_sdk.models.RequestPushEvent
@@ -202,11 +203,12 @@ class MainActivity : ComponentActivity() {
             }
 
             is FollowUrlEvent -> {
-                event.url
-                event.content
-                event.campaign
-
-                val i = Intent(Intent.ACTION_VIEW, event.url.toUri())
+                val i = if (event.type == FollowUrlType.WEBVIEW) {
+                    Intent(this, WebViewActivity::class.java)
+                        .apply { putExtra(WebViewActivity.EXTRA_URL, event.url) }
+                } else {
+                    Intent(Intent.ACTION_VIEW, event.url.toUri())
+                }
                 startActivity(i)
             }
 

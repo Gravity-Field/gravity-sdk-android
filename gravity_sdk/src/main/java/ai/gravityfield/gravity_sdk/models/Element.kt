@@ -57,6 +57,7 @@ data class OnClickModel(
     val url: String?,
     val type: FollowUrlType?,
     val deeplink: String?,
+    val closeOnClick: Boolean,
 ) {
     companion object {
         @Suppress("UNCHECKED_CAST")
@@ -68,7 +69,8 @@ data class OnClickModel(
                 itemId = json["itemId"] as? String,
                 url = json["url"] as? String,
                 type = FollowUrlType.fromString(json["type"] as String?),
-                deeplink = json["deeplink"] as? String
+                deeplink = json["deeplink"] as? String,
+                closeOnClick = json["closeOnClick"] as? Boolean ?: true,
             )
         }
     }

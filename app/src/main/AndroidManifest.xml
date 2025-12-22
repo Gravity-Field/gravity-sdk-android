@@ -28,6 +28,11 @@
             android:label="Inline demo"
             android:theme="@style/Theme.AppCompat.Light" />
         <activity
+            android:name=".WebViewActivity"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:exported="false"
+            android:theme="@style/Theme.AppCompat.Light" />
+        <activity
             android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.GravitySDK">
