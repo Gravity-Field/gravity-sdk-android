@@ -166,8 +166,11 @@ class GravitySDK private constructor(
         activityContext: Context,
     ) {
         withContext(Dispatchers.IO) {
-            val campaignIdsResponse = repository.visit(pageContext, options, user)
-            handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext)
+            try {
+                val campaignIdsResponse = repository.visit(pageContext, options, user)
+                handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext)
+            } catch (_: Throwable) {
+            }
         }
     }
 
@@ -177,8 +180,11 @@ class GravitySDK private constructor(
         activityContext: Context,
     ) {
         withContext(Dispatchers.IO) {
-            val campaignIdsResponse = repository.event(events, pageContext, options, user)
-            handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext)
+            try {
+                val campaignIdsResponse = repository.event(events, pageContext, options, user)
+                handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext)
+            } catch (_: Throwable) {
+            }
         }
     }
 
@@ -257,7 +263,7 @@ class GravitySDK private constructor(
         }
     }
 
-    suspend fun getContentByCampaignId(
+    internal suspend fun getContentByCampaignId(
         campaignId: String,
         pageContext: PageContext,
     ): ContentResponse {
@@ -279,7 +285,7 @@ class GravitySDK private constructor(
         return response
     }
 
-    suspend fun getContentBySelector(
+    internal suspend fun getContentBySelector(
         selector: String,
         pageContext: PageContext,
     ): ContentResponse {

@@ -88,17 +88,14 @@ class MainActivity : ComponentActivity() {
 //                            ShowContentButton(
 //                                onClick = {
 //                                    lifecycleScope.launch {
-//                                        try {
-//                                            GravitySDK.instance.trackView(
-//                                                pageContext = PageContext(
-//                                                    type = ContextType.PRODUCT,
-//                                                    data = emptyList(),
-//                                                    location = "product"
-//                                                ),
-//                                                activityContext = context
-//                                            )
-//                                        } catch (_: Throwable) {
-//                                        }
+//                                        GravitySDK.instance.trackView(
+//                                            pageContext = PageContext(
+//                                                type = ContextType.PRODUCT,
+//                                                data = emptyList(),
+//                                                location = "product"
+//                                            ),
+//                                            activityContext = context
+//                                        )
 //                                    }
 //                                },
 //                            ) {
@@ -108,23 +105,20 @@ class MainActivity : ComponentActivity() {
                             ShowContentButton(
                                 onClick = {
                                     lifecycleScope.launch {
-                                        try {
-                                            GravitySDK.instance.triggerEvent(
-                                                events = listOf(
-                                                    CustomEvent(
-                                                        type = "tapbar_clicked",
-                                                        name = "tapbar_clicked",
-                                                    )
-                                                ),
-                                                pageContext = PageContext(
-                                                    type = ContextType.HOMEPAGE,
-                                                    data = emptyList(),
-                                                    location = "homepage"
-                                                ),
-                                                activityContext = context
-                                            )
-                                        } catch (_: Throwable) {
-                                        }
+                                        GravitySDK.instance.triggerEvent(
+                                            events = listOf(
+                                                CustomEvent(
+                                                    type = "tapbar_clicked",
+                                                    name = "tapbar_clicked",
+                                                )
+                                            ),
+                                            pageContext = PageContext(
+                                                type = ContextType.HOMEPAGE,
+                                                data = emptyList(),
+                                                location = "homepage"
+                                            ),
+                                            activityContext = context
+                                        )
                                     }
                                 },
                             ) {
