@@ -40,7 +40,7 @@ data class Style(
         fun fromJson(json: Map<String, Any?>): Style {
             return Style(
                 backgroundColor = ParseUtils.parseColor(json["backgroundColor"]),
-                backgroundImage = json["backgroundColor"] as String?,
+                backgroundImage = json["backgroundImage"] as String?,
                 backgroundFit = ParseUtils.parseBoxFit(json["backgroundFit"]),
                 pressColor = ParseUtils.parseColor(json["pressColor"]),
                 outlineColor = ParseUtils.parseColor(json["outlineColor"]),

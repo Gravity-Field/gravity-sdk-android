@@ -83,7 +83,7 @@ enum class FollowUrlType {
             return when (value) {
                 "browser" -> BROWSER
                 "webview" -> WEBVIEW
-                else -> null
+                else -> BROWSER
             }
         }
     }

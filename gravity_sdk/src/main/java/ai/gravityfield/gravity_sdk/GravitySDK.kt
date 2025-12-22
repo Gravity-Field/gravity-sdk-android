@@ -196,7 +196,7 @@ class GravitySDK private constructor(
             val campaign = result.data.firstOrNull() ?: continue
             val payload = campaign.payload.firstOrNull() ?: continue
             val content = payload.contents.filter { it.step != null }
-                .sortedBy { it.step }.firstOrNull() ?: continue
+                .sortedBy { it.step }.firstOrNull() ?: payload.contents.firstOrNull() ?: continue
 
             val delayTime = campaignId.delayTime
             if (delayTime != null) {

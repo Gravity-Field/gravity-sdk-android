@@ -1,7 +1,6 @@
 package ai.gravityfield.sdk
 
 import ai.gravityfield.gravity_sdk.GravitySDK
-import ai.gravityfield.gravity_sdk.models.AddToCartEvent
 import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.CancelEvent
 import ai.gravityfield.gravity_sdk.models.ContentCloseEvent
@@ -50,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 
@@ -85,25 +85,25 @@ class MainActivity : ComponentActivity() {
                                 .align(Alignment.Center)
                         ) {
                             val context = LocalContext.current
-                            ShowContentButton(
-                                onClick = {
-                                    lifecycleScope.launch {
-                                        try {
-                                            GravitySDK.instance.trackView(
-                                                pageContext = PageContext(
-                                                    type = ContextType.PRODUCT,
-                                                    data = emptyList(),
-                                                    location = ""
-                                                ),
-                                                activityContext = context
-                                            )
-                                        } catch (_: Throwable) {
-                                        }
-                                    }
-                                },
-                            ) {
-                                Text(text = "Track view")
-                            }
+//                            ShowContentButton(
+//                                onClick = {
+//                                    lifecycleScope.launch {
+//                                        try {
+//                                            GravitySDK.instance.trackView(
+//                                                pageContext = PageContext(
+//                                                    type = ContextType.PRODUCT,
+//                                                    data = emptyList(),
+//                                                    location = "product"
+//                                                ),
+//                                                activityContext = context
+//                                            )
+//                                        } catch (_: Throwable) {
+//                                        }
+//                                    }
+//                                },
+//                            ) {
+//                                Text(text = "Track view")
+//                            }
 
                             ShowContentButton(
                                 onClick = {
@@ -111,22 +111,15 @@ class MainActivity : ComponentActivity() {
                                         try {
                                             GravitySDK.instance.triggerEvent(
                                                 events = listOf(
-                                                    AddToCartEvent(
-                                                        value = 118.26,
-                                                        currency = "any supported currency code",
-                                                        productId = "item-34454",
-                                                        quantity = 2,
-                                                        cart = emptyList()
-                                                    ),
                                                     CustomEvent(
-                                                        type = "new_type",
-                                                        name = "New name",
+                                                        type = "tapbar_clicked",
+                                                        name = "tapbar_clicked",
                                                     )
                                                 ),
                                                 pageContext = PageContext(
-                                                    type = ContextType.CART,
+                                                    type = ContextType.HOMEPAGE,
                                                     data = emptyList(),
-                                                    location = ""
+                                                    location = "homepage"
                                                 ),
                                                 activityContext = context
                                             )
@@ -156,11 +149,11 @@ class MainActivity : ComponentActivity() {
                                     .fillMaxWidth()
                                     .height(300.dp)
                                     .background(color = Color(0xFFF9F9F9)),
-                                selector = "inline-items",
+                                selector = "homepage_inline_banner",
                                 pageContext = PageContext(
-                                    type = ContextType.PRODUCT,
+                                    type = ContextType.HOMEPAGE,
                                     data = emptyList(),
-                                    location = "",
+                                    location = "homepage",
                                 ),
                                 loader = { CircularProgressIndicator() }
                             )
@@ -218,6 +211,9 @@ class MainActivity : ComponentActivity() {
                 event.url
                 event.content
                 event.campaign
+
+                val i = Intent(Intent.ACTION_VIEW, event.url.toUri())
+                startActivity(i)
             }
 
             is ProductImpressionEvent -> {

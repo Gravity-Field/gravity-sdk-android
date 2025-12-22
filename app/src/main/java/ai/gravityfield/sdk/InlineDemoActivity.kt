@@ -15,9 +15,9 @@ import androidx.recyclerview.widget.RecyclerView
 
 class InlineDemoActivity : AppCompatActivity() {
     val pageContext = PageContext(
-        type = ContextType.PRODUCT,
+        type = ContextType.HOMEPAGE,
         data = emptyList(),
-        location = "",
+        location = "recycler_view",
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -30,7 +30,10 @@ class InlineDemoActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        GravitySDK.instance.resetInlineViewCache("inline-items", pageContext)
+        GravitySDK.instance.resetInlineViewCache(
+            "homepage_inline_banner",
+            pageContext
+        )
         super.onDestroy()
     }
 }

@@ -49,7 +49,11 @@ fun GravityInlineCompose(
             try {
                 val result = GravitySDK.instance.getContentBySelector(selector, pageContext)
                 campaign = result.data.firstOrNull()
-                val content = campaign?.payload?.firstOrNull()?.contents?.firstOrNull()
+                val payload = campaign?.payload?.firstOrNull()
+                val content =
+                    payload?.contents?.filter { it.step != null }?.sortedBy { it.step }
+                        ?.firstOrNull()
+                        ?: payload?.contents?.firstOrNull()
                 val height = content?.variables?.frameUI?.container?.style?.size?.height
                 withContext(Dispatchers.Main) {
                     if (content == null) {

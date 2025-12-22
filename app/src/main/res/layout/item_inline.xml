@@ -2,7 +2,7 @@
 <ai.gravityfield.gravity_sdk.ui.GravityInlineView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="300dp"
+    android:layout_height="140dp"
     app:color="@color/white"
     app:loaderLayout="@layout/loading_indicator"
-    app:selector="inline-items" />
+    app:selector="homepage_inline_banner" />
