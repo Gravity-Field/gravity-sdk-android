@@ -141,7 +141,7 @@ class GravitySDK private constructor(
     private val contentEventService = ContentEventService.instance
     private val productEventService = ProductEventService.instance
 
-    private val _inlineViewCache = mutableMapOf<Int, InlineViewCache>()
+    private val inlineViewCache = mutableMapOf<Int, InlineViewCache>()
 
     fun setOptions(
         options: Options?,
@@ -309,7 +309,7 @@ class GravitySDK private constructor(
 
     internal fun getInlineViewCache(selector: String, pageContext: PageContext): InlineViewCache? {
         val key = getInlineViewCacheKey(selector, pageContext)
-        return _inlineViewCache[key]
+        return inlineViewCache[key]
     }
 
     internal fun putInlineViewCache(
@@ -318,12 +318,12 @@ class GravitySDK private constructor(
         cache: InlineViewCache,
     ) {
         val key = getInlineViewCacheKey(selector, pageContext)
-        _inlineViewCache[key] = cache
+        inlineViewCache[key] = cache
     }
 
     fun resetInlineViewCache(selector: String, pageContext: PageContext) {
         val key = getInlineViewCacheKey(selector, pageContext)
-        _inlineViewCache.remove(key)
+        inlineViewCache.remove(key)
     }
 
     private fun getInlineViewCacheKey(selector: String, pageContext: PageContext): Int {
