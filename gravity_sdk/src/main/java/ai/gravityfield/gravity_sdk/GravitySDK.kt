@@ -82,6 +82,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.core.view.children
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -143,6 +145,8 @@ class GravitySDK private constructor(
 
     private val inlineViewCache = mutableMapOf<Int, InlineViewCache>()
 
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
     fun setOptions(
         options: Options?,
         contentSettings: ContentSettings?,
@@ -161,11 +165,11 @@ class GravitySDK private constructor(
         notificationPermissionStatus = status
     }
 
-    suspend fun trackView(
+    fun trackView(
         pageContext: PageContext,
         activityContext: Context,
     ) {
-        withContext(Dispatchers.IO) {
+        scope.launch {
             try {
                 val campaignIdsResponse = repository.visit(pageContext, options, user)
                 handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext)
@@ -174,18 +178,22 @@ class GravitySDK private constructor(
         }
     }
 
-    suspend fun triggerEvent(
+    fun triggerEvent(
         events: List<TriggerEvent>,
         pageContext: PageContext,
         activityContext: Context,
     ) {
-        withContext(Dispatchers.IO) {
+        scope.launch {
             try {
                 val campaignIdsResponse = repository.event(events, pageContext, options, user)
                 handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext)
             } catch (_: Throwable) {
             }
         }
+    }
+
+    fun dispose() {
+        scope.cancel()
     }
 
     private suspend fun handleCampaignIdsResponse(
@@ -267,14 +275,12 @@ class GravitySDK private constructor(
         campaignId: String,
         pageContext: PageContext,
     ): ContentResponse {
-        val response = withContext(Dispatchers.IO) {
-            repository.chooseByCampaignId(
-                campaignId = campaignId,
-                options = options,
-                contentSettings = contentSettings,
-                pageContext = pageContext
-            )
-        }
+        val response = repository.chooseByCampaignId(
+            campaignId = campaignId,
+            options = options,
+            contentSettings = contentSettings,
+            pageContext = pageContext
+        )
         for (campaign in response.data) {
             for (payload in campaign.payload) {
                 for (content in payload.contents) {
@@ -289,14 +295,12 @@ class GravitySDK private constructor(
         selector: String,
         pageContext: PageContext,
     ): ContentResponse {
-        val response = withContext(Dispatchers.IO) {
-            repository.chooseBySelector(
-                selector = selector,
-                options = options,
-                contentSettings = contentSettings,
-                pageContext = pageContext
-            )
-        }
+        val response = repository.chooseBySelector(
+            selector = selector,
+            options = options,
+            contentSettings = contentSettings,
+            pageContext = pageContext
+        )
         for (campaign in response.data) {
             for (payload in campaign.payload) {
                 for (content in payload.contents) {
@@ -332,7 +336,7 @@ class GravitySDK private constructor(
 
     private fun trackEngagementEvent(action: Action, events: List<Event>?) {
         events?.find { it.type == action }?.let { event ->
-            CoroutineScope(Dispatchers.IO).launch {
+            scope.launch {
                 try {
                     repository.trackEngagementEvent(event.urls)
                 } catch (_: Throwable) {

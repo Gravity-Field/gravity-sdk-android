@@ -45,27 +45,29 @@ fun GravityInlineCompose(
     LaunchedEffect(selector) {
         campaign = null
 
-        scope.launch {
+        scope.launch(Dispatchers.IO) {
             try {
                 val result = GravitySDK.instance.getContentBySelector(selector, pageContext)
-                campaign = result.data.firstOrNull()
-                val payload = campaign?.payload?.firstOrNull()
-                val content =
-                    payload?.contents?.filter { it.step != null }?.sortedBy { it.step }
-                        ?.firstOrNull()
-                        ?: payload?.contents?.firstOrNull()
-                val height = content?.variables?.frameUI?.container?.style?.size?.height
                 withContext(Dispatchers.Main) {
+                    isLoading = false
+                    campaign = result.data.firstOrNull()
+                    val payload = campaign?.payload?.firstOrNull()
+                    val content =
+                        payload?.contents?.filter { it.step != null }?.sortedBy { it.step }
+                            ?.firstOrNull()
+                            ?: payload?.contents?.firstOrNull()
+                    val height = content?.variables?.frameUI?.container?.style?.size?.height
                     if (content == null) {
                         changedHeight = 0.0
                     } else if (height != null) {
                         changedHeight = height
                     }
                 }
-            } catch (e: Exception) {
-                changedHeight = 0.0
-            } finally {
-                isLoading = false
+            } catch (_: Throwable) {
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                    changedHeight = 0.0
+                }
             }
         }
     }

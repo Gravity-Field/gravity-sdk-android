@@ -14,7 +14,7 @@ internal object ParseUtils {
         if (color is String && color.startsWith("#")) {
             return try {
                 Color(android.graphics.Color.parseColor(color))
-            } catch (e: Exception) {
+            } catch (_: Throwable) {
                 null
             }
         }

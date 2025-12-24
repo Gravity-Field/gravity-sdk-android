@@ -169,25 +169,28 @@ private fun GravityView(
         pageContextProvider.setListener {
             pageContext = it
 
-            scope.launch {
+            scope.launch(Dispatchers.IO) {
                 try {
                     val cache = GravitySDK.instance.getInlineViewCache(selector, it)
+                    val contentResponse: ContentResponse?
                     if (cache != null) {
-                        result = cache.content
+                        contentResponse = cache.content
                     } else {
-                        isLoading = true
-                        result = GravitySDK.instance.getContentBySelector(
+                        withContext(Dispatchers.Main) {
+                            isLoading = true
+                        }
+                        contentResponse = GravitySDK.instance.getContentBySelector(
                             selector,
                             it,
                         )
                         GravitySDK.instance.putInlineViewCache(
                             selector,
                             it,
-                            InlineViewCache(result!!),
+                            InlineViewCache(contentResponse),
                         )
                     }
 
-                    val campaign = result?.data?.firstOrNull()
+                    val campaign = contentResponse?.data?.firstOrNull()
                     val payload = campaign?.payload?.firstOrNull()
                     val content =
                         payload?.contents?.filter { it.step != null }?.sortedBy { it.step }
@@ -195,21 +198,24 @@ private fun GravityView(
                             ?: payload?.contents?.firstOrNull()
                     val height = content?.variables?.frameUI?.container?.style?.size?.height
                     withContext(Dispatchers.Main) {
+                        result = contentResponse
+                        isLoading = false
                         if (content == null) {
                             changeHeight(0.0)
                         } else if (height != null) {
                             changeHeight(height)
                         }
                     }
-                } catch (e: Exception) {
-                    changeHeight(0.0)
+                } catch (_: Throwable) {
+                    withContext(Dispatchers.Main) {
+                        isLoading = false
+                        changeHeight(0.0)
+                    }
                     GravitySDK.instance.putInlineViewCache(
                         selector,
                         it,
                         InlineViewCache(),
                     )
-                } finally {
-                    isLoading = false
                 }
             }
         }

@@ -23,6 +23,7 @@ class InlineDemoActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_inline_demo)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         val recyclerView: RecyclerView = findViewById(R.id.recyclerView)
         recyclerView.layoutManager = LinearLayoutManager(this)
@@ -36,6 +37,11 @@ class InlineDemoActivity : AppCompatActivity() {
         )
         super.onDestroy()
     }
+
+    override fun onSupportNavigateUp(): Boolean {
+        finish()
+        return true;
+    }
 }
 
 class RecyclerAdapter(
@@ -48,7 +54,7 @@ class RecyclerAdapter(
         private const val TYPE_RECTANGLE = 2
     }
 
-    override fun getItemCount(): Int = 15
+    override fun getItemCount(): Int = 20
 
     override fun getItemViewType(position: Int): Int {
         return if (position == 0) {

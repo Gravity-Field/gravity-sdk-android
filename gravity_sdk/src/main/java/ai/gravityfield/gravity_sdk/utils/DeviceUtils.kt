@@ -30,12 +30,12 @@ internal object DeviceUtils {
     private fun getUserAgent(context: Context): String {
         val info: PackageInfo? = try {
             context.packageManager.getPackageInfo(context.packageName, 0)
-        } catch (e: Throwable) {
+        } catch (_: Throwable) {
             null
         }
         val appName: String? = try {
             info?.applicationInfo?.loadLabel(context.packageManager)?.toString()
-        } catch (e: Throwable) {
+        } catch (_: Throwable) {
             null
         }
         val version = info?.versionName

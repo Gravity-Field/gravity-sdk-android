@@ -16,6 +16,7 @@ class WebViewActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_webview)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         webView = findViewById(R.id.webView)
 
@@ -27,6 +28,11 @@ class WebViewActivity : AppCompatActivity() {
 
         webView.webViewClient = WebViewClient()
         webView.loadUrl(url)
+    }
+
+    override fun onSupportNavigateUp(): Boolean {
+        finish()
+        return true;
     }
 
     override fun onBackPressed() {

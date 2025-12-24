@@ -51,8 +51,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -88,16 +86,14 @@ class MainActivity : ComponentActivity() {
                             val context = LocalContext.current
 //                            ShowContentButton(
 //                                onClick = {
-//                                    lifecycleScope.launch {
-//                                        GravitySDK.instance.trackView(
-//                                            pageContext = PageContext(
-//                                                type = ContextType.PRODUCT,
-//                                                data = emptyList(),
-//                                                location = "product"
-//                                            ),
-//                                            activityContext = context
-//                                        )
-//                                    }
+//                                    GravitySDK.instance.trackView(
+//                                        pageContext = PageContext(
+//                                            type = ContextType.PRODUCT,
+//                                            data = emptyList(),
+//                                            location = "product"
+//                                        ),
+//                                        activityContext = context
+//                                    )
 //                                },
 //                            ) {
 //                                Text(text = "Track view")
@@ -105,22 +101,20 @@ class MainActivity : ComponentActivity() {
 
                             ShowContentButton(
                                 onClick = {
-                                    lifecycleScope.launch {
-                                        GravitySDK.instance.triggerEvent(
-                                            events = listOf(
-                                                CustomEvent(
-                                                    type = "tapbar_clicked",
-                                                    name = "tapbar_clicked",
-                                                )
-                                            ),
-                                            pageContext = PageContext(
-                                                type = ContextType.HOMEPAGE,
-                                                data = emptyList(),
-                                                location = "homepage"
-                                            ),
-                                            activityContext = context
-                                        )
-                                    }
+                                    GravitySDK.instance.triggerEvent(
+                                        events = listOf(
+                                            CustomEvent(
+                                                type = "tapbar_clicked",
+                                                name = "tapbar_clicked",
+                                            )
+                                        ),
+                                        pageContext = PageContext(
+                                            type = ContextType.HOMEPAGE,
+                                            data = emptyList(),
+                                            location = "homepage"
+                                        ),
+                                        activityContext = context
+                                    )
                                 },
                             ) {
                                 Text(text = "Trigger event")
