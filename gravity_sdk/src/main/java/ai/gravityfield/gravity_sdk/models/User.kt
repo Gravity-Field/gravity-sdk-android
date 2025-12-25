@@ -12,8 +12,8 @@ data class User(
     companion object {
         fun fromJson(json: Map<String, Any?>): User {
             return User(
-                uid = json["uid"] as String?,
-                ses = json["ses"] as String?
+                uid = json["uid"] as? String,
+                ses = json["ses"] as? String
             )
         }
     }

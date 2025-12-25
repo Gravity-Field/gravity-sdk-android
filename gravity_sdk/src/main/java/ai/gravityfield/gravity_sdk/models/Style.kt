@@ -40,7 +40,7 @@ data class Style(
         fun fromJson(json: Map<String, Any?>): Style {
             return Style(
                 backgroundColor = ParseUtils.parseColor(json["backgroundColor"]),
-                backgroundImage = json["backgroundImage"] as String?,
+                backgroundImage = json["backgroundImage"] as? String,
                 backgroundFit = ParseUtils.parseBoxFit(json["backgroundFit"]),
                 pressColor = ParseUtils.parseColor(json["pressColor"]),
                 outlineColor = ParseUtils.parseColor(json["outlineColor"]),
@@ -65,10 +65,10 @@ data class Style(
                 },
                 layoutWidth = json["layoutWidth"]?.let { GravityLayoutWidth.fromString(it as String) },
                 positioned = json["positioned"]?.let { GravityPositioned.fromJson(it as Map<String, Any?>) },
-                weight = (json["rows"] as Number?)?.toFloat() ?: 1f,
-                productContainerType = ProductContainerType.fromString(json["productContainerType"] as String?),
-                gridColumns = (json["gridColumns"] as Number?)?.toInt(),
-                rowSpacing = (json["rowSpacing"] as Number?)?.toInt()
+                weight = (json["rows"] as? Number)?.toFloat() ?: 1f,
+                productContainerType = ProductContainerType.fromString(json["productContainerType"] as? String),
+                gridColumns = (json["gridColumns"] as? Number)?.toInt(),
+                rowSpacing = (json["rowSpacing"] as? Number)?.toInt()
             )
         }
     }

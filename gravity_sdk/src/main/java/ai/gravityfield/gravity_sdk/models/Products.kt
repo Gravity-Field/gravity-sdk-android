@@ -13,15 +13,15 @@ data class Products(
     companion object {
         @Suppress("UNCHECKED_CAST")
         fun fromJson(json: Map<String, Any?>): Products {
-            var slots = (json["slots"] as List<Map<String, Any?>>?)?.map { Slot.fromJson(it) }
+            var slots = (json["slots"] as? List<Map<String, Any?>>)?.map { Slot.fromJson(it) }
             if (GravitySDK.instance.productFilter != null) {
                 slots = slots?.filter(GravitySDK.instance.productFilter!!)
             }
             return Products(
                 strategyId = json["strategyId"] as String,
-                name = json["name"] as String?,
-                pageNumber = (json["pageNumber"] as Number?)?.toInt(),
-                countPages = (json["countPages"] as Number?)?.toInt(),
+                name = json["name"] as? String,
+                pageNumber = (json["pageNumber"] as? Number)?.toInt(),
+                countPages = (json["countPages"] as? Number)?.toInt(),
                 fallback = json["fallback"] as Boolean,
                 slots = slots
             )
@@ -43,8 +43,8 @@ data class Slot(
                 item = json["item"] as Map<String, Any?>,
                 fallback = json["fallback"] as Boolean,
                 strId = (json["strId"] as Number).toInt(),
-                slotId = json["slotId"] as String?,
-                events = (json["events"] as List<Map<String, Any?>>?)?.map {
+                slotId = json["slotId"] as? String,
+                events = (json["events"] as? List<Map<String, Any?>>)?.map {
                     ProductEvent.fromJson(
                         it
                     )

@@ -11,7 +11,7 @@ data class CampaignIdsResponse(
         fun fromJson(json: Map<String, Any?>): CampaignIdsResponse {
             return CampaignIdsResponse(
                 user = User.fromJson(json["user"] as Map<String, Any?>),
-                campaigns = (json["campaigns"] as List<Map<String, Any?>>?)?.map {
+                campaigns = (json["campaigns"] as? List<Map<String, Any?>>)?.map {
                     CampaignId.fromJson(
                         it
                     )
@@ -32,8 +32,8 @@ data class CampaignId(
             return CampaignId(
                 campaignId = json["campaignId"] as String,
                 trigger = if (json["trigger"] != null) json["trigger"] as String else "",
-                priority = (json["priority"] as Number?)?.toInt(),
-                delayTime = (json["delayTime"] as Number?)?.toInt()
+                priority = (json["priority"] as? Number)?.toInt(),
+                delayTime = (json["delayTime"] as? Number)?.toInt()
             )
         }
     }

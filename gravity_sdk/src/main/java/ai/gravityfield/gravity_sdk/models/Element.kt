@@ -65,10 +65,10 @@ data class OnClickModel(
             return OnClickModel(
                 action = Action.fromString(json["action"] as String),
                 copyData = json["copyData"] as? String,
-                step = (json["step"] as Number?)?.toInt(),
+                step = (json["step"] as? Number)?.toInt(),
                 itemId = json["itemId"] as? String,
                 url = json["url"] as? String,
-                type = FollowUrlType.fromString(json["type"] as String?),
+                type = FollowUrlType.fromString(json["type"] as? String),
                 deeplink = json["deeplink"] as? String,
                 closeOnClick = json["closeOnClick"] as? Boolean ?: true,
             )
