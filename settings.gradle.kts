@@ -17,6 +17,11 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
     }
+    versionCatalogs {
+        create("gravitySdk") {
+            from(files("gravity_sdk/gradle/libs.versions.toml"))
+        }
+    }
 }
 
 rootProject.name = "gravity-sdk-android"
