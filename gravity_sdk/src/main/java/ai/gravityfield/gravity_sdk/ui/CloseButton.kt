@@ -12,7 +12,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import coil3.compose.rememberAsyncImagePainter
+import coil.compose.rememberAsyncImagePainter
 
 @Composable
 internal fun CloseButton(

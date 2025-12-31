@@ -1,9 +1,8 @@
 plugins {
-    alias(gravitySdk.plugins.android.library)
-    alias(gravitySdk.plugins.jetbrains.kotlin.android)
-    alias(gravitySdk.plugins.jetbrains.kotlin.serialization)
-    alias(gravitySdk.plugins.compose.compiler)
+    id("com.android.library")
+    id("org.jetbrains.kotlin.android")
     id("maven-publish")
+    alias(gravitySdk.plugins.jetbrains.kotlin.serialization)
 }
 
 android {
@@ -37,7 +36,7 @@ android {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.1"
+        kotlinCompilerExtensionVersion = "1.5.15"
     }
 }
 
