@@ -20,6 +20,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -260,6 +261,9 @@ private fun GravityView(
                 val padding = style?.padding
                 val horizontalAlignment =
                     style?.contentAlignment?.toHorizontalAlignment() ?: Alignment.CenterHorizontally
+                val verticalAlignment =
+                    style?.verticalAlignment?.toAlignment() ?: Alignment.TopCenter
+                val backgroundColor = style?.backgroundColor
                 val backgroundImage = style?.backgroundImage
                 val backgroundFit = style?.backgroundFit ?: ContentScale.Crop
                 val context = LocalContext.current
@@ -273,52 +277,64 @@ private fun GravityView(
                     ContentEventService.instance.sendContentImpression(content, campaign!!)
                 }
 
-                if (backgroundImage != null) {
-                    Image(
-                        modifier = Modifier.fillMaxSize(),
-                        painter = rememberAsyncImagePainter(model = backgroundImage),
-                        contentDescription = null,
-                        contentScale = backgroundFit,
-                    )
-                }
-
-                Column(
+                Box(
                     modifier = Modifier
-                        .conditional(padding != null)
-                        {
-                            padding(
-                                start = padding!!.left.dp,
-                                top = padding.top.dp,
-                                end = padding.right.dp,
-                                bottom = padding.bottom.dp
+                        .fillMaxSize()
+                        .conditional(backgroundColor != null) {
+                            background(
+                                color = backgroundColor!!,
                             )
                         },
-                    horizontalAlignment = horizontalAlignment
+                    contentAlignment = verticalAlignment
                 ) {
-                    CompositionLocalProvider(
-                        LocalScrollProvider provides ScrollProvider(
-                            scrollPosition,
-                            onScrollChanged = { scrollPosition ->
-                                GravitySDK.instance.putInlineViewCache(
-                                    selector,
-                                    pageContext!!,
-                                    InlineViewCache(result!!, scrollPosition),
+                    if (backgroundImage != null) {
+                        Image(
+                            modifier = Modifier.fillMaxSize(),
+                            painter = rememberAsyncImagePainter(model = backgroundImage),
+                            contentDescription = null,
+                            contentScale = backgroundFit,
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .conditional(padding != null)
+                            {
+                                padding(
+                                    start = padding!!.left.dp,
+                                    top = padding.top.dp,
+                                    end = padding.right.dp,
+                                    bottom = padding.bottom.dp
                                 )
                             },
-                        )
+                        horizontalAlignment = horizontalAlignment
                     ) {
-                        GravityElements(
-                            content,
-                            campaign!!,
-                            onClickCallback = { onClickModel ->
-                                GravitySDK.instance.onClickHandler(
-                                    onClickModel,
-                                    content,
-                                    campaign!!,
-                                    context,
-                                )
-                            }
-                        )
+                        CompositionLocalProvider(
+                            LocalScrollProvider provides ScrollProvider(
+                                scrollPosition,
+                                onScrollChanged = { scrollPosition ->
+                                    GravitySDK.instance.putInlineViewCache(
+                                        selector,
+                                        pageContext!!,
+                                        InlineViewCache(result!!, scrollPosition),
+                                    )
+                                },
+                            )
+                        ) {
+                            GravityElements(
+                                content,
+                                campaign!!,
+                                onClickCallback = { onClickModel ->
+                                    GravitySDK.instance.onClickHandler(
+                                        onClickModel,
+                                        content,
+                                        campaign!!,
+                                        context,
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
             }

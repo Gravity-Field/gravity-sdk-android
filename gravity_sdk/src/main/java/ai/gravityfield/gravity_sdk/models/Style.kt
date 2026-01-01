@@ -76,7 +76,7 @@ data class Style(
 
 data class GravitySize(
     val width: Double?,
-    val height: Double?
+    val height: Double?,
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): GravitySize {
@@ -92,7 +92,7 @@ data class GravityMargin(
     val left: Double,
     val right: Double,
     val top: Double,
-    val bottom: Double
+    val bottom: Double,
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): GravityMargin {
@@ -110,7 +110,7 @@ data class GravityPadding(
     val left: Double,
     val right: Double,
     val top: Double,
-    val bottom: Double
+    val bottom: Double,
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): GravityPadding {
@@ -128,7 +128,7 @@ data class GravityPositioned(
     val left: Double?,
     val right: Double?,
     val top: Double?,
-    val bottom: Double?
+    val bottom: Double?,
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): GravityPositioned {
@@ -145,7 +145,7 @@ data class GravityPositioned(
 data class GravityTextStyle(
     val fontSize: TextUnit,
     val fontWeight: FontWeight,
-    val color: Color
+    val color: Color,
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): GravityTextStyle {
@@ -187,6 +187,14 @@ enum class GravityContentAlignment {
             START -> Arrangement.Top
             CENTER -> Arrangement.Center
             END -> Arrangement.Bottom
+        }
+    }
+
+    fun toAlignment(): Alignment {
+        return when (this) {
+            START -> Alignment.TopCenter
+            CENTER -> Alignment.Center
+            END -> Alignment.BottomCenter
         }
     }
 }
