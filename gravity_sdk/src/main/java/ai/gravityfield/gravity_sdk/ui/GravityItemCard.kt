@@ -9,7 +9,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -45,8 +44,8 @@ internal fun GravityItemCard(
     val cornerRadius = style?.cornerRadius?.dp ?: 0.dp
     val horizontalAlignment =
         style?.contentAlignment?.toHorizontalAlignment() ?: Alignment.CenterHorizontally
-    val verticalArrangement =
-        style?.verticalAlignment?.toVerticalArrangement() ?: Arrangement.Top
+    val verticalAlignment =
+        style?.verticalAlignment?.toAlignment() ?: Alignment.TopCenter
     val backgroundColor = style?.backgroundColor ?: MaterialTheme.colorScheme.background
     val backgroundImage = style?.backgroundImage
     val backgroundFit = style?.backgroundFit ?: ContentScale.Crop
@@ -65,6 +64,7 @@ internal fun GravityItemCard(
                     onClickCallback.invoke(onClick!!.copy(itemId = item.id))
                 }, indication = null)
             },
+        contentAlignment = verticalAlignment
     ) {
         if (backgroundImage != null) {
             Image(
@@ -87,7 +87,6 @@ internal fun GravityItemCard(
                     )
                 },
             horizontalAlignment = horizontalAlignment,
-            verticalArrangement = verticalArrangement,
         ) {
             GravityElementsInCard(elements, onClickCallback, item)
         }
