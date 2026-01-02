@@ -4,11 +4,15 @@ import ai.gravityfield.gravity_sdk.LocalAppFont
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.Element
 import ai.gravityfield.gravity_sdk.models.GravityContentAlignment
+import ai.gravityfield.gravity_sdk.models.GravityLayoutWidth
 import ai.gravityfield.gravity_sdk.models.Item
 import ai.gravityfield.gravity_sdk.models.OnClickModel
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -55,6 +59,15 @@ internal fun GravityText(
     Text(
         modifier = Modifier
             .padding(paddingValues)
+            .conditional(style.size?.width != null) {
+                width(style.size!!.width!!.dp)
+            }
+            .conditional(style.size?.height != null) {
+                height(style.size!!.height!!.dp)
+            }
+            .conditional(style.layoutWidth == GravityLayoutWidth.MATCH_PARENT) {
+                fillMaxWidth()
+            }
             .conditional(element.onClick != null) {
                 clickable { onClickCallback.invoke(element.onClick!!) }
             },
