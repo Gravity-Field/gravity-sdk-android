@@ -84,20 +84,20 @@ class MainActivity : ComponentActivity() {
                                 .align(Alignment.Center)
                         ) {
                             val context = LocalContext.current
-//                            ShowContentButton(
-//                                onClick = {
-//                                    GravitySDK.instance.trackView(
-//                                        pageContext = PageContext(
-//                                            type = ContextType.PRODUCT,
-//                                            data = emptyList(),
-//                                            location = "product"
-//                                        ),
-//                                        activityContext = context
-//                                    )
-//                                },
-//                            ) {
-//                                Text(text = "Track view")
-//                            }
+                            ShowContentButton(
+                                onClick = {
+                                    GravitySDK.instance.trackView(
+                                        pageContext = PageContext(
+                                            type = ContextType.HOMEPAGE,
+                                            data = emptyList(),
+                                            location = "product"
+                                        ),
+                                        activityContext = context
+                                    )
+                                },
+                            ) {
+                                Text(text = "Track view")
+                            }
 
                             ShowContentButton(
                                 onClick = {
@@ -118,6 +118,123 @@ class MainActivity : ComponentActivity() {
                                 },
                             ) {
                                 Text(text = "Trigger event")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            context,
+                                            TestViewActivity::class.java,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Text(text = "Test View")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            context,
+                                            CustomEventActivity::class.java,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Text(text = "Test Event")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            context,
+                                            AddToCartEventActivity::class.java,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Text(text = "Add To Cart Event")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            context,
+                                            PurchaseEventActivity::class.java,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Text(text = "Purchase Event")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            context,
+                                            RemoveFromCartEventActivity::class.java,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Text(text = "Remove From Cart Event")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            context,
+                                            SyncCartEventActivity::class.java,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Text(text = "Sync Cart Event")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            context,
+                                            AddToWishlistEventActivity::class.java,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Text(text = "Add To Wishlist Event")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            context,
+                                            SignUpEventActivity::class.java,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Text(text = "Sign Up Event")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            context,
+                                            LoginEventActivity::class.java,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Text(text = "Login Event")
                             }
 
                             ShowContentButton(
