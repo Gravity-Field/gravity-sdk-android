@@ -90,9 +90,9 @@ class MainActivity : ComponentActivity() {
                                         pageContext = PageContext(
                                             type = ContextType.HOMEPAGE,
                                             data = emptyList(),
-                                            location = "homepage"
+                                            location = "product"
                                         ),
-                                        activityContext = context,
+                                        activityContext = context
                                     )
                                 },
                             ) {
@@ -125,12 +125,12 @@ class MainActivity : ComponentActivity() {
                                     context.startActivity(
                                         Intent(
                                             context,
-                                            InlineDemoActivity::class.java,
+                                            TestViewActivity::class.java,
                                         )
                                     )
                                 },
                             ) {
-                                Text(text = "Show RecyclerView with InlineView")
+                                Text(text = "Test View")
                             }
 
                             ShowContentButton(
@@ -138,12 +138,116 @@ class MainActivity : ComponentActivity() {
                                     context.startActivity(
                                         Intent(
                                             context,
-                                            InlineListDemoActivity::class.java,
+                                            CustomEventActivity::class.java,
                                         )
                                     )
                                 },
                             ) {
-                                Text(text = "Show RecyclerView with InlineListView")
+                                Text(text = "Test Event")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            context,
+                                            AddToCartEventActivity::class.java,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Text(text = "Add To Cart Event")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            context,
+                                            PurchaseEventActivity::class.java,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Text(text = "Purchase Event")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            context,
+                                            RemoveFromCartEventActivity::class.java,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Text(text = "Remove From Cart Event")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            context,
+                                            SyncCartEventActivity::class.java,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Text(text = "Sync Cart Event")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            context,
+                                            AddToWishlistEventActivity::class.java,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Text(text = "Add To Wishlist Event")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            context,
+                                            SignUpEventActivity::class.java,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Text(text = "Sign Up Event")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            context,
+                                            LoginEventActivity::class.java,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Text(text = "Login Event")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            context,
+                                            InlineDemoActivity::class.java,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Text(text = "Show RecyclerView with InlineView")
                             }
 
                             GravityInlineCompose(

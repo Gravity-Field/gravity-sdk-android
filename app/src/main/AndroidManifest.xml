@@ -47,6 +47,51 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".TestViewActivity"
+            android:exported="false"
+            android:label="Test View"
+            android:theme="@style/Theme.GravitySDK" />
+        <activity
+            android:name=".CustomEventActivity"
+            android:exported="false"
+            android:label="Custom Event"
+            android:theme="@style/Theme.GravitySDK" />
+        <activity
+            android:name=".AddToCartEventActivity"
+            android:exported="false"
+            android:label="Add To Cart Event"
+            android:theme="@style/Theme.GravitySDK" />
+        <activity
+            android:name=".PurchaseEventActivity"
+            android:exported="false"
+            android:label="Purchase Event"
+            android:theme="@style/Theme.GravitySDK" />
+        <activity
+            android:name=".RemoveFromCartEventActivity"
+            android:exported="false"
+            android:label="Remove From Cart Event"
+            android:theme="@style/Theme.GravitySDK" />
+        <activity
+            android:name=".SyncCartEventActivity"
+            android:exported="false"
+            android:label="Sync Cart Event"
+            android:theme="@style/Theme.GravitySDK" />
+        <activity
+            android:name=".AddToWishlistEventActivity"
+            android:exported="false"
+            android:label="Add To Wishlist Event"
+            android:theme="@style/Theme.GravitySDK" />
+        <activity
+            android:name=".SignUpEventActivity"
+            android:exported="false"
+            android:label="Sign Up Event"
+            android:theme="@style/Theme.GravitySDK" />
+        <activity
+            android:name=".LoginEventActivity"
+            android:exported="false"
+            android:label="Login Event"
+            android:theme="@style/Theme.GravitySDK" />
     </application>
 
 </manifest>
