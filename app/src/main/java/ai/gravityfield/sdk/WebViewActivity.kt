@@ -24,6 +24,7 @@ class WebViewActivity : AppCompatActivity() {
 
         with(webView.settings) {
             domStorageEnabled = true
+            javaScriptEnabled = true
         }
 
         webView.webViewClient = WebViewClient()
