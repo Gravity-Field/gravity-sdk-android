@@ -8,9 +8,9 @@ import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,6 +38,8 @@ internal fun GravityModalContent(
     val cornerRadius = style?.cornerRadius?.dp ?: 0.dp
     val horizontalAlignment =
         style?.contentAlignment?.toHorizontalAlignment() ?: Alignment.CenterHorizontally
+    val verticalArrangement =
+        style?.verticalAlignment?.toVerticalArrangement() ?: Arrangement.Top
     val backgroundColor = style?.backgroundColor ?: MaterialTheme.colorScheme.surface
     val backgroundImage = style?.backgroundImage
     val backgroundFit = style?.backgroundFit ?: ContentScale.Crop
@@ -57,7 +59,7 @@ internal fun GravityModalContent(
             Box {
                 if (backgroundImage != null) {
                     Image(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.matchParentSize(),
                         painter = rememberAsyncImagePainter(model = backgroundImage),
                         contentDescription = null,
                         contentScale = backgroundFit,
@@ -76,6 +78,7 @@ internal fun GravityModalContent(
                             )
                         },
                     horizontalAlignment = horizontalAlignment,
+                    verticalArrangement = verticalArrangement
                 ) {
                     GravityElements(content, campaign, onClickCallback, item)
                 }
