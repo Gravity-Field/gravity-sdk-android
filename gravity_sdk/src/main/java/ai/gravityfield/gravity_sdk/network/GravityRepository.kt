@@ -35,7 +35,7 @@ import kotlinx.serialization.json.encodeToJsonElement
 import org.json.JSONArray
 import org.json.JSONObject
 
-private const val BASE_URL = "https://ev.stellarlabs.ai/v2"
+private const val BASE_URL = "http://evs-01.gravityfield.ai/v2"
 private const val CHOOSE = "/choose"
 private const val VISIT = "/visit"
 private const val EVENT = "/event"
