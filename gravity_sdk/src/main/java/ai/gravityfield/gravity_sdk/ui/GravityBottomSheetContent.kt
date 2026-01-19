@@ -11,7 +11,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -53,7 +52,7 @@ internal fun GravityBottomSheetContent(
         ) {
             if (backgroundImage != null) {
                 Image(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.matchParentSize(),
                     painter = rememberAsyncImagePainter(model = backgroundImage),
                     contentDescription = null,
                     contentScale = backgroundFit,
@@ -71,7 +70,7 @@ internal fun GravityBottomSheetContent(
                             bottom = padding.bottom.dp
                         )
                     }
-                    .fillMaxSize(),
+                    .fillMaxWidth(),
                 horizontalAlignment = horizontalAlignment,
                 verticalArrangement = verticalArrangement
             ) {
