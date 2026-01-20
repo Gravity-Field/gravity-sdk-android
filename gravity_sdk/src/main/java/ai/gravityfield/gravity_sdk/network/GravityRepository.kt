@@ -10,7 +10,7 @@ import ai.gravityfield.gravity_sdk.prefs.Prefs
 import ai.gravityfield.gravity_sdk.utils.DeviceUtils
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
-import io.ktor.client.engine.cio.CIO
+import io.ktor.client.engine.android.Android
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.api.createClientPlugin
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -35,7 +35,7 @@ import kotlinx.serialization.json.encodeToJsonElement
 import org.json.JSONArray
 import org.json.JSONObject
 
-private const val BASE_URL = "http://evs-01.gravityfield.ai/v2"
+private const val BASE_URL = "https://evs-01.gravityfield.ai/v2"
 private const val CHOOSE = "/choose"
 private const val VISIT = "/visit"
 private const val EVENT = "/event"
@@ -61,7 +61,7 @@ internal class GravityRepository private constructor() {
         }
     }
 
-    private val client = HttpClient(CIO) {
+    private val client = HttpClient(Android) {
         defaultRequest {
             contentType(ContentType.Application.Json)
         }
