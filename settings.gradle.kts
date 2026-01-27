@@ -16,6 +16,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven { url = uri("gravity_sdk/repository") }
     }
     versionCatalogs {
         create("gravitySdk") {

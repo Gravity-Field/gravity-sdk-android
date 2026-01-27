@@ -1,0 +1,220 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "ai.gravityfield",
+    "module": "gravity-sdk",
+    "version": "1.0.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.10.2"
+    }
+  },
+  "variants": [
+    {
+      "name": "releaseApiElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "1.9.25"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "gravity-sdk-1.0.0.aar",
+          "url": "gravity-sdk-1.0.0.aar",
+          "size": 1554672,
+          "sha512": "6b3fcd8faf37b74e32402b4b5ecff9b82de612b79eaf165c6df7ebfaef50fffa13328bb778d0c6307e7a9f24a165b4c978d56d1549e157f55f831661db2d8c5a",
+          "sha256": "e6c29b806f3ea45a647dd5dc8148b9c19cdc911d159b2e58aa8d6499c14f2ebe",
+          "sha1": "16949de42877c09a38cfa92a15c7c5bfa9306a61",
+          "md5": "40205a75c92e4cae4f81e971b77c91a2"
+        }
+      ]
+    },
+    {
+      "name": "releaseRuntimeElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "dependencies": [
+        {
+          "group": "androidx.activity",
+          "module": "activity-compose",
+          "version": {
+            "requires": "1.9.2"
+          }
+        },
+        {
+          "group": "androidx.core",
+          "module": "core-ktx",
+          "version": {
+            "requires": "1.13.1"
+          }
+        },
+        {
+          "group": "androidx.appcompat",
+          "module": "appcompat",
+          "version": {
+            "requires": "1.7.0"
+          }
+        },
+        {
+          "group": "com.google.android.material",
+          "module": "material",
+          "version": {
+            "requires": "1.12.0"
+          }
+        },
+        {
+          "group": "androidx.compose",
+          "module": "compose-bom",
+          "version": {
+            "requires": "2024.04.01"
+          },
+          "attributes": {
+            "org.gradle.category": "platform"
+          }
+        },
+        {
+          "group": "androidx.compose.ui",
+          "module": "ui"
+        },
+        {
+          "group": "androidx.compose.ui",
+          "module": "ui-graphics"
+        },
+        {
+          "group": "androidx.compose.ui",
+          "module": "ui-tooling-preview"
+        },
+        {
+          "group": "androidx.compose.material3",
+          "module": "material3"
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-core",
+          "version": {
+            "requires": "2.3.12"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-android",
+          "version": {
+            "requires": "2.3.12"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-logging",
+          "version": {
+            "requires": "2.3.12"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-content-negotiation",
+          "version": {
+            "requires": "2.3.12"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-serialization-kotlinx-json",
+          "version": {
+            "requires": "2.3.12"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-json",
+          "version": {
+            "requires": "1.6.3"
+          }
+        },
+        {
+          "group": "com.russhwolf",
+          "module": "multiplatform-settings",
+          "version": {
+            "requires": "1.1.1"
+          }
+        },
+        {
+          "group": "com.russhwolf",
+          "module": "multiplatform-settings-no-arg",
+          "version": {
+            "requires": "1.1.1"
+          }
+        },
+        {
+          "group": "io.coil-kt",
+          "module": "coil-compose",
+          "version": {
+            "requires": "2.7.0"
+          }
+        },
+        {
+          "group": "io.coil-kt",
+          "module": "coil",
+          "version": {
+            "requires": "2.7.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "1.9.25"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "gravity-sdk-1.0.0.aar",
+          "url": "gravity-sdk-1.0.0.aar",
+          "size": 1554672,
+          "sha512": "6b3fcd8faf37b74e32402b4b5ecff9b82de612b79eaf165c6df7ebfaef50fffa13328bb778d0c6307e7a9f24a165b4c978d56d1549e157f55f831661db2d8c5a",
+          "sha256": "e6c29b806f3ea45a647dd5dc8148b9c19cdc911d159b2e58aa8d6499c14f2ebe",
+          "sha1": "16949de42877c09a38cfa92a15c7c5bfa9306a61",
+          "md5": "40205a75c92e4cae4f81e971b77c91a2"
+        }
+      ]
+    },
+    {
+      "name": "releaseSourcesElements-published",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "files": [
+        {
+          "name": "gravity-sdk-1.0.0-sources.jar",
+          "url": "gravity-sdk-1.0.0-sources.jar",
+          "size": 101235,
+          "sha512": "4ae934049aea7b9a4065ffba688d5644247b2413741a5b102136ddda4c4beabe3885504bfcf1686a82f5cce5338ea18c6559c3fa29196fbb5c755be2fdf852b5",
+          "sha256": "2f34a8cea00a8315c238232a7ea7a4e39570b96f378b9a0b269a76ee8c31e411",
+          "sha1": "b6eab464b08c491d2004161f0f68e021acf6b322",
+          "md5": "d602f735d58c376378354c1563983dfc"
+        }
+      ]
+    }
+  ]
+}
