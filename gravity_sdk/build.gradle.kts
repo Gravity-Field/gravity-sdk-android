@@ -75,6 +75,7 @@ dependencies {
     implementation(gravitySdk.androidx.ui.graphics)
     implementation(gravitySdk.androidx.ui.tooling.preview)
     implementation(gravitySdk.androidx.material3)
+    implementation(gravitySdk.androidx.material)
     implementation(gravitySdk.ktor.client.core)
     implementation(gravitySdk.ktor.client.cio)
     implementation(gravitySdk.ktor.client.logging)

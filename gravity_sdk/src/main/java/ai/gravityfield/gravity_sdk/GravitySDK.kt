@@ -61,18 +61,21 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.ModalBottomSheetLayout
+import androidx.compose.material.ModalBottomSheetValue
+import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.font.Font
@@ -85,6 +88,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Objects
@@ -399,7 +403,7 @@ class GravitySDK private constructor(
         }
     }
 
-    @OptIn(ExperimentalMaterial3Api::class)
+    @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
     private fun showBottomSheet(
         activity: Activity,
         content: CampaignContent,
@@ -422,36 +426,47 @@ class GravitySDK private constructor(
             dismissController = dismissController,
             onBack = ::dismiss
         ) {
-            val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            val state = rememberModalBottomSheetState(ModalBottomSheetValue.HalfExpanded)
             val scope = rememberCoroutineScope()
-            ModalBottomSheet(
-                onDismissRequest = ::dismiss,
-                shape = RoundedCornerShape(
+
+            LaunchedEffect(state) {
+                snapshotFlow { state.currentValue }
+                    .filter { it == ModalBottomSheetValue.Hidden }
+                    .collect {
+                        if (state.targetValue == ModalBottomSheetValue.Hidden) {
+                            dismiss()
+                        }
+                    }
+            }
+
+            ModalBottomSheetLayout(
+                sheetShape = RoundedCornerShape(
                     topStart = cornerRadius.dp, topEnd = cornerRadius.dp
                 ),
-                containerColor = container?.style?.backgroundColor
+                sheetContentColor = container?.style?.backgroundColor
                     ?: BottomSheetDefaults.ContainerColor,
-                dragHandle = null,
                 sheetState = state,
-            ) {
-                GravityBottomSheetContent(
-                    content,
-                    campaign,
-                    onClickCallback = { onClickModel ->
-                        onClickHandler(
-                            onClickModel,
-                            content,
-                            campaign,
-                            activity,
-                            dismissCallback = {
-                                scope.launch { state.hide() }
-                                    .invokeOnCompletion { dismiss() }
-                            }
-                        )
-                    },
-                    item,
-                )
-            }
+                content = {},
+                sheetContent = {
+                    GravityBottomSheetContent(
+                        content,
+                        campaign,
+                        onClickCallback = { onClickModel ->
+                            onClickHandler(
+                                onClickModel,
+                                content,
+                                campaign,
+                                activity,
+                                dismissCallback = {
+                                    scope.launch { state.hide() }
+                                        .invokeOnCompletion { dismiss() }
+                                }
+                            )
+                        },
+                        item,
+                    )
+                },
+            )
         }
     }
 
