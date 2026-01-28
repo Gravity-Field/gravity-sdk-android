@@ -34,11 +34,11 @@
         {
           "name": "gravity-sdk-1.0.0.aar",
           "url": "gravity-sdk-1.0.0.aar",
-          "size": 1554672,
-          "sha512": "6b3fcd8faf37b74e32402b4b5ecff9b82de612b79eaf165c6df7ebfaef50fffa13328bb778d0c6307e7a9f24a165b4c978d56d1549e157f55f831661db2d8c5a",
-          "sha256": "e6c29b806f3ea45a647dd5dc8148b9c19cdc911d159b2e58aa8d6499c14f2ebe",
-          "sha1": "16949de42877c09a38cfa92a15c7c5bfa9306a61",
-          "md5": "40205a75c92e4cae4f81e971b77c91a2"
+          "size": 1564223,
+          "sha512": "bcfd93b93e1b4240bb0660bd5abf09f55fadad1744f4ad71ad73282af85cb76f89086e633de4a0ca61d9bb156153de30cd372a4780ca76551f0afd321ce4e396",
+          "sha256": "797664c88648b383780df602fcd7c15e3272b73e6429d2761dd80f2842208486",
+          "sha1": "c4e1737a146c7723086c28020c3687428c487a29",
+          "md5": "733c13aba70b74819d438287601bd829"
         }
       ]
     },
@@ -82,7 +82,7 @@
           "group": "androidx.compose",
           "module": "compose-bom",
           "version": {
-            "requires": "2024.04.01"
+            "requires": "2023.09.01"
           },
           "attributes": {
             "org.gradle.category": "platform"
@@ -103,6 +103,10 @@
         {
           "group": "androidx.compose.material3",
           "module": "material3"
+        },
+        {
+          "group": "androidx.compose.material",
+          "module": "material"
         },
         {
           "group": "io.ktor",
@@ -186,11 +190,11 @@
         {
           "name": "gravity-sdk-1.0.0.aar",
           "url": "gravity-sdk-1.0.0.aar",
-          "size": 1554672,
-          "sha512": "6b3fcd8faf37b74e32402b4b5ecff9b82de612b79eaf165c6df7ebfaef50fffa13328bb778d0c6307e7a9f24a165b4c978d56d1549e157f55f831661db2d8c5a",
-          "sha256": "e6c29b806f3ea45a647dd5dc8148b9c19cdc911d159b2e58aa8d6499c14f2ebe",
-          "sha1": "16949de42877c09a38cfa92a15c7c5bfa9306a61",
-          "md5": "40205a75c92e4cae4f81e971b77c91a2"
+          "size": 1564223,
+          "sha512": "bcfd93b93e1b4240bb0660bd5abf09f55fadad1744f4ad71ad73282af85cb76f89086e633de4a0ca61d9bb156153de30cd372a4780ca76551f0afd321ce4e396",
+          "sha256": "797664c88648b383780df602fcd7c15e3272b73e6429d2761dd80f2842208486",
+          "sha1": "c4e1737a146c7723086c28020c3687428c487a29",
+          "md5": "733c13aba70b74819d438287601bd829"
         }
       ]
     },
@@ -208,11 +212,11 @@
         {
           "name": "gravity-sdk-1.0.0-sources.jar",
           "url": "gravity-sdk-1.0.0-sources.jar",
-          "size": 101235,
-          "sha512": "4ae934049aea7b9a4065ffba688d5644247b2413741a5b102136ddda4c4beabe3885504bfcf1686a82f5cce5338ea18c6559c3fa29196fbb5c755be2fdf852b5",
-          "sha256": "2f34a8cea00a8315c238232a7ea7a4e39570b96f378b9a0b269a76ee8c31e411",
-          "sha1": "b6eab464b08c491d2004161f0f68e021acf6b322",
-          "md5": "d602f735d58c376378354c1563983dfc"
+          "size": 101527,
+          "sha512": "5887afdbb30e65dcbf608983c5bd9b683e221f9b89d7650c913501e665b71c0edd1ebe4cae35fc5eae4adba14a018bf12241c5a90b2801aa950c5a2f42c8b58f",
+          "sha256": "db22fdf04e64ee68826c8022b75f13bb74cdccaa1b3c74b90e592b4ac6af3b29",
+          "sha1": "9b9da7b456a5a24ea946d537fd0569738c460221",
+          "md5": "cb1262a4e7868c4336502c5395e07f02"
         }
       ]
     }
