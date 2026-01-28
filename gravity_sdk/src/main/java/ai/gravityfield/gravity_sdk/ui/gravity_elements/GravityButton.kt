@@ -39,7 +39,6 @@ internal fun GravityButton(
 
     val buttonColors = ButtonDefaults.buttonColors(
         containerColor = style.backgroundColor ?: Color.Unspecified,
-        contentColor = textStyle?.color ?: Color.Unspecified,
     )
     val cornerRadius = style.cornerRadius?.dp ?: 0.0.dp
     val rippleColor = style.pressColor
