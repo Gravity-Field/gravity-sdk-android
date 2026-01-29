@@ -8,12 +8,14 @@ import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -37,6 +39,7 @@ internal fun GravityBottomSheetContent(
         style?.contentAlignment?.toHorizontalAlignment() ?: Alignment.CenterHorizontally
     val verticalArrangement =
         style?.verticalAlignment?.toVerticalArrangement() ?: Arrangement.Top
+    val backgroundColor = style?.backgroundColor ?: MaterialTheme.colorScheme.background
     val backgroundImage = style?.backgroundImage
     val backgroundFit = style?.backgroundFit ?: ContentScale.Crop
     val close = frameUi?.close
@@ -51,6 +54,7 @@ internal fun GravityBottomSheetContent(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(color = backgroundColor)
                 .navigationBarsPadding()
         ) {
             if (backgroundImage != null) {
