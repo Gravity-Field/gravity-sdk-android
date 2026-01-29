@@ -7,7 +7,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
-import androidx.compose.ui.unit.sp
 
 data class Style(
     val backgroundColor: Color? = null,
@@ -150,7 +149,7 @@ data class GravityTextStyle(
     companion object {
         fun fromJson(json: Map<String, Any?>): GravityTextStyle {
             return GravityTextStyle(
-                fontSize = ParseUtils.parseFontSize(json["fontSize"]) ?: 0.sp,
+                fontSize = ParseUtils.parseFontSize(json["fontSize"]) ?: TextUnit.Unspecified,
                 fontWeight = ParseUtils.parseFontWeight(json["fontWeight"]) ?: FontWeight.Normal,
                 color = ParseUtils.parseColor(json["color"]) ?: Color(0xFF000000)
             )

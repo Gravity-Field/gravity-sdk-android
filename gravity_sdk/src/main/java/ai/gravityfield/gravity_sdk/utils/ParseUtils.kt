@@ -5,6 +5,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.toColorInt
 
 internal object ParseUtils {
 
@@ -12,10 +13,17 @@ internal object ParseUtils {
         if (color == null) return null
 
         if (color is String && color.startsWith("#")) {
-            return try {
-                Color(android.graphics.Color.parseColor(color))
+            try {
+                val hex = color.substring(1)
+                if (hex.length == 6) {
+                    Color("#ff$hex".toColorInt())
+                } else if (hex.length == 8) {
+                    val rrggbb = hex.substring(0, 6)
+                    val aa = hex.substring(6, 8)
+                    return Color("#$aa$rrggbb".toColorInt())
+                }
             } catch (_: Throwable) {
-                null
+                return null
             }
         }
 
