@@ -200,6 +200,36 @@ internal class GravityRepository private constructor() {
         return response
     }
 
+    suspend fun chooseByGroup(
+        group: String,
+        options: Options,
+        contentSettings: ContentSettings,
+        customerUser: User? = null,
+        pageContext: PageContext,
+    ): ContentResponse {
+        val data = buildJsonObject {
+            put("group", Json.parseToJsonElement(group))
+            put("option", json.encodeToJsonElement(contentSettings))
+        }
+        val jsonBody = buildJsonObject {
+            put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
+            put("data", JsonArray(listOf(data)))
+            put("device", json.encodeToJsonElement(DeviceUtils.getDevice()))
+            put("user", json.encodeToJsonElement(userForRequest(customerUser)))
+            put("ctx", json.encodeToJsonElement(mixPageContextAttributes(pageContext)))
+            put("options", json.encodeToJsonElement(options))
+        }
+
+        val stringData = client.post("$baseUrl$CHOOSE") {
+            setBody(jsonBody)
+        }.body<String>()
+
+        val json = JSONObject(stringData).toMap()
+        val response = ContentResponse.fromJson(json)
+        saveUserIfNeeded(customerUser, response.user)
+        return response
+    }
+
     internal suspend fun trackEngagementEvent(urls: List<String>) {
         urls.forEach { client.get(it) }
     }

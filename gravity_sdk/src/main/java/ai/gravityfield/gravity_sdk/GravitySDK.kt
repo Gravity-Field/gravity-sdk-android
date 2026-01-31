@@ -315,6 +315,26 @@ class GravitySDK private constructor(
         return response
     }
 
+    internal suspend fun getContentByGroupSelector(
+        groupSelector: String,
+        pageContext: PageContext,
+    ): ContentResponse {
+        val response = repository.chooseByGroup(
+            group = groupSelector,
+            options = options,
+            contentSettings = contentSettings,
+            pageContext = pageContext
+        )
+        for (campaign in response.data) {
+            for (payload in campaign.payload) {
+                for (content in payload.contents) {
+                    contentEventService.sendContentLoaded(content, campaign)
+                }
+            }
+        }
+        return response
+    }
+
     internal fun getInlineViewCache(selector: String, pageContext: PageContext): InlineViewCache? {
         val key = getInlineViewCacheKey(selector, pageContext)
         return inlineViewCache[key]

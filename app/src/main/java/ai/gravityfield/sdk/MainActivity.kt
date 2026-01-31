@@ -133,6 +133,19 @@ class MainActivity : ComponentActivity() {
                                 Text(text = "Show RecyclerView with InlineView")
                             }
 
+                            ShowContentButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            context,
+                                            InlineListDemoActivity::class.java,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Text(text = "Show RecyclerView with InlineListView")
+                            }
+
                             GravityInlineCompose(
                                 modifier = Modifier
                                     .fillMaxWidth()

@@ -8,7 +8,6 @@ import ai.gravityfield.gravity_sdk.models.PageContext
 import ai.gravityfield.gravity_sdk.models.internal.InlineViewCache
 import ai.gravityfield.gravity_sdk.models.internal.ScrollProvider
 import ai.gravityfield.gravity_sdk.network.ContentResponse
-import ai.gravityfield.gravity_sdk.ui.GravityInlineView.PageContextProvider
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import android.annotation.SuppressLint
@@ -118,32 +117,6 @@ class GravityInlineView @JvmOverloads constructor(
                     ).toInt()
                 }
             }
-        }
-    }
-
-    inner class PageContextProvider {
-        private var pageContext: PageContext? = null
-        private var _listener: ((PageContext) -> Unit)? = null
-
-        fun setListener(listener: ((PageContext) -> Unit)) {
-            _listener = listener
-            pageContext?.let {
-                listener(it)
-            }
-        }
-
-        fun removeListener() {
-            _listener = null
-        }
-
-        fun provide(pageContext: PageContext) {
-            if (this.pageContext == pageContext) return
-            this.pageContext = pageContext
-            _listener?.invoke(pageContext)
-        }
-
-        fun dispose() {
-            _listener = null
         }
     }
 }
@@ -274,7 +247,7 @@ private fun GravityView(
                 )?.scrollPosition
 
                 LaunchedEffect(Unit) {
-                    ContentEventService.instance.sendContentImpression(content, campaign!!)
+                    ContentEventService.instance.sendContentImpression(content, campaign)
                 }
 
                 Box(
@@ -314,22 +287,27 @@ private fun GravityView(
                             LocalScrollProvider provides ScrollProvider(
                                 scrollPosition,
                                 onScrollChanged = { scrollPosition ->
-                                    GravitySDK.instance.putInlineViewCache(
+                                    GravitySDK.instance.getInlineViewCache(
                                         selector,
                                         pageContext!!,
-                                        InlineViewCache(result!!, scrollPosition),
-                                    )
+                                    )?.let {
+                                        GravitySDK.instance.putInlineViewCache(
+                                            selector,
+                                            pageContext!!,
+                                            it.copy(scrollPosition = scrollPosition),
+                                        )
+                                    }
                                 },
                             )
                         ) {
                             GravityElements(
                                 content,
-                                campaign!!,
+                                campaign,
                                 onClickCallback = { onClickModel ->
                                     GravitySDK.instance.onClickHandler(
                                         onClickModel,
                                         content,
-                                        campaign!!,
+                                        campaign,
                                         context,
                                     )
                                 }

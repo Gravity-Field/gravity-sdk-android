@@ -1,13 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <attr name="color" format="color|reference" />
+    <attr name="cornerRadius" format="dimension" />
+    <attr name="cornerRadiusTopStart" format="dimension" />
+    <attr name="cornerRadiusTopEnd" format="dimension" />
+    <attr name="cornerRadiusBottomStart" format="dimension" />
+    <attr name="cornerRadiusBottomEnd" format="dimension" />
+    <attr name="loaderLayout" format="reference" />
+
     <declare-styleable name="GravityInlineView">
         <attr name="selector" format="string" />
-        <attr name="color" format="color|reference" />
-        <attr name="cornerRadius" format="dimension" />
-        <attr name="cornerRadiusTopStart" format="dimension" />
-        <attr name="cornerRadiusTopEnd" format="dimension" />
-        <attr name="cornerRadiusBottomStart" format="dimension" />
-        <attr name="cornerRadiusBottomEnd" format="dimension" />
-        <attr name="loaderLayout" format="reference" />
+        <attr name="color" />
+        <attr name="cornerRadius" />
+        <attr name="cornerRadiusTopStart" />
+        <attr name="cornerRadiusTopEnd" />
+        <attr name="cornerRadiusBottomStart" />
+        <attr name="cornerRadiusBottomEnd" />
+        <attr name="loaderLayout" />
+    </declare-styleable>
+
+    <declare-styleable name="GravityInlineListView">
+        <attr name="groupSelector" format="string" />
+        <attr name="rowSpacing" format="dimension" />
+        <attr name="color" />
+        <attr name="cornerRadius" />
+        <attr name="cornerRadiusTopStart" />
+        <attr name="cornerRadiusTopEnd" />
+        <attr name="cornerRadiusBottomStart" />
+        <attr name="cornerRadiusBottomEnd" />
+        <attr name="loaderLayout" />
     </declare-styleable>
 </resources>
