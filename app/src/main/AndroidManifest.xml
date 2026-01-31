@@ -28,6 +28,11 @@
             android:label="Inline demo"
             android:theme="@style/Theme.AppCompat.Light" />
         <activity
+            android:name=".InlineListDemoActivity"
+            android:exported="false"
+            android:label="InlineList demo"
+            android:theme="@style/Theme.AppCompat.Light" />
+        <activity
             android:name=".WebViewActivity"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:exported="false"
