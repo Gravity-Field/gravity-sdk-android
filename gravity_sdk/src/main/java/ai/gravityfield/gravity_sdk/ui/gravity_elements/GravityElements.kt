@@ -25,7 +25,7 @@ internal fun ColumnScope.GravityElements(
     val elements = content.variables.elements
     val products = content.products
 
-    elements.forEach {
+    elements?.forEach {
         when (it.type) {
             ElementType.IMAGE -> GravityImage(it, onClickCallback, item)
             ElementType.TEXT -> GravityText(it, onClickCallback, item)

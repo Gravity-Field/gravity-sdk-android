@@ -196,6 +196,18 @@ class GravitySDK private constructor(
         }
     }
 
+    suspend fun getContentBySelector(
+        selector: String,
+        pageContext: PageContext,
+    ): ContentResponse {
+        return repository.chooseBySelector(
+            selector = selector,
+            options = options,
+            contentSettings = contentSettings,
+            pageContext = pageContext
+        )
+    }
+
     fun dispose() {
         scope.cancel()
     }
@@ -295,7 +307,7 @@ class GravitySDK private constructor(
         return response
     }
 
-    internal suspend fun getContentBySelector(
+    internal suspend fun getContentBySelectorInternal(
         selector: String,
         pageContext: PageContext,
     ): ContentResponse {
