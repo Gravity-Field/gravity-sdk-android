@@ -9,6 +9,7 @@ data class CampaignContent(
     val variables: Variables,
     val products: Products?,
     val items: List<Item>?,
+    val custom: CustomModel?,
     val events: List<Event>?,
 ) {
     companion object {
@@ -29,6 +30,7 @@ data class CampaignContent(
                         it
                     )
                 } else null,
+                custom = if (json["custom"] != null) CustomModel.fromJson(json["custom"] as Map<String, Any?>) else null,
                 events = if (json["events"] != null) (json["events"] as List<Map<String, Any?>>).map {
                     Event.fromJson(
                         it

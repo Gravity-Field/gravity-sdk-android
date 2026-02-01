@@ -43,9 +43,9 @@ internal fun GravitySnackbarContent2(
     val padding = style?.padding
     val onClick = container.onClick
     val elements = content.variables.elements
-    val texts = elements.filter { it.type == ElementType.TEXT }
-    val image = elements.firstOrNull { it.type == ElementType.IMAGE }
-    val button = elements.firstOrNull { it.type == ElementType.BUTTON }
+    val texts = elements?.filter { it.type == ElementType.TEXT }
+    val image = elements?.firstOrNull { it.type == ElementType.IMAGE }
+    val button = elements?.firstOrNull { it.type == ElementType.BUTTON }
 
     val interactionSource = remember { MutableInteractionSource() }
 
@@ -89,10 +89,10 @@ internal fun GravitySnackbarContent2(
                     Spacer(modifier = Modifier.width(12.dp))
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    texts.getOrNull(0)?.let {
+                    texts?.getOrNull(0)?.let {
                         GravityText(it, onClickCallback)
                     }
-                    texts.getOrNull(1)?.let {
+                    texts?.getOrNull(1)?.let {
                         Spacer(modifier = Modifier.height(4.dp))
                         GravityText(it, onClickCallback)
                     }

@@ -153,7 +153,7 @@ private fun GravityView(
                         withContext(Dispatchers.Main) {
                             isLoading = true
                         }
-                        contentResponse = GravitySDK.instance.getContentBySelector(
+                        contentResponse = GravitySDK.instance.getContentBySelectorInternal(
                             selector,
                             it,
                         )
