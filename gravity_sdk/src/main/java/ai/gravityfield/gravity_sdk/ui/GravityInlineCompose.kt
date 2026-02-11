@@ -54,10 +54,7 @@ fun GravityInlineCompose(
                     isLoading = false
                     campaign = result.data.firstOrNull()
                     val payload = campaign?.payload?.firstOrNull()
-                    val content =
-                        payload?.contents?.filter { it.step != null }?.sortedBy { it.step }
-                            ?.firstOrNull()
-                            ?: payload?.contents?.firstOrNull()
+                    val content = payload?.contents?.sortedBy { it.step }?.firstOrNull()
                     val height = content?.variables?.frameUI?.container?.style?.size?.height
                     if (content == null) {
                         changedHeight = 0.0

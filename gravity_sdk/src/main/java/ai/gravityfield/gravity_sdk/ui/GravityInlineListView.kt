@@ -182,9 +182,8 @@ private fun GravityListView(
                         val campaigns = contentResponse?.data ?: emptyList()
                         for (campaign in campaigns) {
                             val payload = campaign.payload.firstOrNull() ?: continue
-                            val content = payload.contents.sortedWith(
-                                compareBy(nullsLast()) { it.step }
-                            ).firstOrNull() ?: continue
+                            val content =
+                                payload.contents.sortedBy { it.step }.firstOrNull() ?: continue
 
                             contentItems.add(InlineListViewItem(campaign, content))
                         }

@@ -225,8 +225,7 @@ class GravitySDK private constructor(
 
             val campaign = result.data.firstOrNull() ?: continue
             val payload = campaign.payload.firstOrNull() ?: continue
-            val content = payload.contents.filter { it.step != null }
-                .sortedBy { it.step }.firstOrNull() ?: payload.contents.firstOrNull() ?: continue
+            val content = payload.contents.sortedBy { it.step }.firstOrNull() ?: continue
 
             val delayTime = campaignId.delayTime
             if (delayTime != null) {
@@ -677,8 +676,8 @@ class GravitySDK private constructor(
 
             Action.OPEN_STEP -> {
                 val nextStep = onClickModel.step ?: return
-                val itemId = onClickModel.itemId ?: return
-                val item = content.items?.find { it.id == itemId } ?: return
+                val itemId = onClickModel.itemId
+                val item = if (itemId != null) content.items?.find { it.id == itemId } else null
                 val targetContent =
                     campaign.payload.firstOrNull()?.contents?.find { it.step == nextStep } ?: return
 
