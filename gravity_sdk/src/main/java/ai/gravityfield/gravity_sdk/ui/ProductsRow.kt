@@ -10,6 +10,7 @@ import ai.gravityfield.gravity_sdk.utils.ProductEventService
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -28,6 +29,14 @@ internal fun ProductsRow(
     val style = element.style
     val height = style.size?.height
     val margin = style.margin
+    val paddingValues = if (style.padding != null)
+        PaddingValues(
+            start = style.padding.left.dp,
+            top = style.padding.top.dp,
+            end = style.padding.right.dp,
+            bottom = style.padding.bottom.dp
+        )
+    else PaddingValues()
     val rowSpacing = style.rowSpacing?.dp ?: 0.dp
 
     Box(
@@ -52,6 +61,7 @@ internal fun ProductsRow(
                 {
                     background(color = style.backgroundColor!!)
                 },
+            contentPadding = paddingValues,
             horizontalArrangement = Arrangement.spacedBy(rowSpacing)
         ) {
             items(slots.size) { index ->

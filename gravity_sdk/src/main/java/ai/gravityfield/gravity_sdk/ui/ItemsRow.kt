@@ -32,6 +32,14 @@ internal fun ItemsRow(
     val style = element.style
     val height = style.size?.height
     val margin = style.margin
+    val paddingValues = if (style.padding != null)
+        PaddingValues(
+            start = style.padding.left.dp,
+            top = style.padding.top.dp,
+            end = style.padding.right.dp,
+            bottom = style.padding.bottom.dp
+        )
+    else PaddingValues()
     val rowSpacing = style.rowSpacing?.dp ?: 0.dp
 
     val itemCard = element.itemCard ?: return
@@ -78,7 +86,7 @@ internal fun ItemsRow(
                     background(color = style.backgroundColor!!)
                 },
             state = listState,
-            contentPadding = PaddingValues(horizontal = rowSpacing),
+            contentPadding = paddingValues,
             horizontalArrangement = Arrangement.spacedBy(rowSpacing),
         ) {
             items(items.size) { index ->

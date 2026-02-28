@@ -29,24 +29,29 @@ internal fun GravityImage(
 
     val style = element.style
     val cornerRadius = style.cornerRadius?.dp ?: 0.0.dp
+    val margin = style.margin
+    val width = style.size?.width
+    val height = style.size?.height
+    val layoutWidth = style.layoutWidth
+    val contentScale = style.fit ?: ContentScale.Crop
 
     Image(
         modifier = Modifier
-            .conditional(style.margin != null) {
+            .conditional(margin != null) {
                 padding(
-                    start = style.margin!!.left.dp,
-                    top = style.margin.top.dp,
-                    end = style.margin.right.dp,
-                    bottom = style.margin.bottom.dp
+                    start = margin!!.left.dp,
+                    top = margin.top.dp,
+                    end = margin.right.dp,
+                    bottom = margin.bottom.dp
                 )
             }
-            .conditional(style.size?.width != null) {
-                width(style.size!!.width!!.dp)
+            .conditional(width != null) {
+                width(width!!.dp)
             }
-            .conditional(style.size?.height != null) {
-                height(style.size!!.height!!.dp)
+            .conditional(height != null) {
+                height(height!!.dp)
             }
-            .conditional(style.layoutWidth == GravityLayoutWidth.MATCH_PARENT) {
+            .conditional(layoutWidth == GravityLayoutWidth.MATCH_PARENT) {
                 fillMaxWidth()
             }
             .conditional(element.onClick != null) {
@@ -55,6 +60,6 @@ internal fun GravityImage(
             .clip(RoundedCornerShape(cornerRadius)),
         painter = rememberAsyncImagePainter(model = url),
         contentDescription = null,
-        contentScale = style.fit ?: ContentScale.Crop,
+        contentScale = contentScale,
     )
 }

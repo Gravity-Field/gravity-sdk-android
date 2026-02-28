@@ -32,6 +32,9 @@ internal fun GravityText(
     val text = if (item != null) item.values[element.text] else element.text
 
     val style = element.style
+    val width = style.size?.width
+    val height = style.size?.height
+    val layoutWidth = style.layoutWidth
 
     val textStyle = TextStyle(
         color = style.textColor ?: Color.Unspecified,
@@ -59,13 +62,13 @@ internal fun GravityText(
     Text(
         modifier = Modifier
             .padding(paddingValues)
-            .conditional(style.size?.width != null) {
-                width(style.size!!.width!!.dp)
+            .conditional(width != null) {
+                width(width!!.dp)
             }
-            .conditional(style.size?.height != null) {
-                height(style.size!!.height!!.dp)
+            .conditional(height != null) {
+                height(height!!.dp)
             }
-            .conditional(style.layoutWidth == GravityLayoutWidth.MATCH_PARENT) {
+            .conditional(layoutWidth == GravityLayoutWidth.MATCH_PARENT) {
                 fillMaxWidth()
             }
             .conditional(element.onClick != null) {

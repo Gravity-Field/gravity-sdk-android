@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -23,6 +24,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -91,10 +93,12 @@ fun GravityInlineCompose(
                 val container = frameUi?.container
                 val style = container?.style
                 val padding = style?.padding
+                val margin = style?.margin
                 val horizontalAlignment =
                     style?.contentAlignment?.toHorizontalAlignment() ?: Alignment.CenterHorizontally
                 val verticalAlignment =
                     style?.verticalAlignment?.toAlignment() ?: Alignment.TopCenter
+                val cornerRadius = style?.cornerRadius?.dp ?: 0.dp
                 val backgroundColor = style?.backgroundColor
                 val backgroundImage = style?.backgroundImage
                 val backgroundFit = style?.backgroundFit ?: ContentScale.Crop
@@ -107,12 +111,22 @@ fun GravityInlineCompose(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .conditional(margin != null)
+                        {
+                            padding(
+                                start = margin!!.left.dp,
+                                top = margin.top.dp,
+                                end = margin.right.dp,
+                                bottom = margin.bottom.dp
+                            )
+                        }
                         .conditional(backgroundColor != null) {
                             background(
                                 color = backgroundColor!!,
                             )
-                        },
-                    contentAlignment = verticalAlignment
+                        }
+                        .clip(RoundedCornerShape(cornerRadius)),
+                    contentAlignment = verticalAlignment,
                 ) {
                     if (backgroundImage != null) {
                         Image(

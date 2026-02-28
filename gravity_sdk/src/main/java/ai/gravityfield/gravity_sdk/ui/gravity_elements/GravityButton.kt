@@ -6,9 +6,12 @@ import ai.gravityfield.gravity_sdk.models.Element
 import ai.gravityfield.gravity_sdk.models.GravityLayoutWidth
 import ai.gravityfield.gravity_sdk.models.Item
 import ai.gravityfield.gravity_sdk.models.OnClickModel
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ripple.LocalRippleTheme
 import androidx.compose.material.ripple.RippleAlpha
@@ -18,6 +21,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -35,7 +39,19 @@ internal fun GravityButton(
 
     val style = element.style
     val textStyle = style.textStyle
+    val paddingValues = if (style.padding != null)
+        PaddingValues(
+            start = style.padding.left.dp,
+            top = style.padding.top.dp,
+            end = style.padding.right.dp,
+            bottom = style.padding.bottom.dp
+        )
+    else PaddingValues()
+    val width = style.size?.width
+    val height = style.size?.height
     val layoutWidth = style.layoutWidth
+    val margin = style.margin
+    val horizontalAlignment = style.contentAlignment?.toAlignment() ?: Alignment.Center
 
     val buttonColors = ButtonDefaults.buttonColors(
         containerColor = style.backgroundColor ?: Color.Unspecified,
@@ -71,34 +87,40 @@ internal fun GravityButton(
             },
             colors = buttonColors,
             shape = RoundedCornerShape(cornerRadius),
+            contentPadding = paddingValues,
             modifier = Modifier
-                .conditional(style.margin != null) {
+                .conditional(margin != null) {
                     padding(
-                        start = style.margin!!.left.dp,
-                        top = style.margin.top.dp,
-                        end = style.margin.right.dp,
-                        bottom = style.margin.bottom.dp
+                        start = margin!!.left.dp,
+                        top = margin.top.dp,
+                        end = margin.right.dp,
+                        bottom = margin.bottom.dp
                     )
                 }
-                .conditional(layoutWidth == GravityLayoutWidth.MATCH_PARENT) {
-                    fillMaxWidth()
-                }
-                .conditional(style.size?.height != null) {
-                    height(style.size!!.height!!.dp)
-                }
-                .conditional(style.size == null) {
-                    height(48.dp)
-                },
         ) {
-            Text(
-                text = text ?: "",
-                style = TextStyle(
-                    color = textStyle?.color ?: Color.Unspecified,
-                    fontSize = textStyle?.fontSize ?: TextUnit.Unspecified,
-                    fontWeight = textStyle?.fontWeight ?: FontWeight.Normal,
-                    fontFamily = LocalAppFont.current
+            Box(
+                modifier = Modifier
+                    .conditional(width != null) {
+                        width(width!!.dp)
+                    }
+                    .conditional(height != null) {
+                        height(height!!.dp)
+                    }
+                    .conditional(layoutWidth == GravityLayoutWidth.MATCH_PARENT) {
+                        fillMaxWidth()
+                    },
+                contentAlignment = horizontalAlignment,
+            ) {
+                Text(
+                    text = text ?: "",
+                    style = TextStyle(
+                        color = textStyle?.color ?: Color.Unspecified,
+                        fontSize = textStyle?.fontSize ?: TextUnit.Unspecified,
+                        fontWeight = textStyle?.fontWeight ?: FontWeight.Normal,
+                        fontFamily = LocalAppFont.current
+                    )
                 )
-            )
+            }
         }
     }
 }

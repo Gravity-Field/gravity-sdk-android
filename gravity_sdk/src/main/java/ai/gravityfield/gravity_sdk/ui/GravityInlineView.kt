@@ -232,10 +232,12 @@ private fun GravityView(
                 val container = frameUi?.container
                 val style = container?.style
                 val padding = style?.padding
+                val margin = style?.margin
                 val horizontalAlignment =
                     style?.contentAlignment?.toHorizontalAlignment() ?: Alignment.CenterHorizontally
                 val verticalAlignment =
                     style?.verticalAlignment?.toAlignment() ?: Alignment.TopCenter
+                val cornerRadius = style?.cornerRadius?.dp ?: 0.dp
                 val backgroundColor = style?.backgroundColor
                 val backgroundImage = style?.backgroundImage
                 val backgroundFit = style?.backgroundFit ?: ContentScale.Crop
@@ -253,11 +255,21 @@ private fun GravityView(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .conditional(margin != null)
+                        {
+                            padding(
+                                start = margin!!.left.dp,
+                                top = margin.top.dp,
+                                end = margin.right.dp,
+                                bottom = margin.bottom.dp
+                            )
+                        }
                         .conditional(backgroundColor != null) {
                             background(
                                 color = backgroundColor!!,
                             )
-                        },
+                        }
+                        .clip(RoundedCornerShape(cornerRadius)),
                     contentAlignment = verticalAlignment
                 ) {
                     if (backgroundImage != null) {
