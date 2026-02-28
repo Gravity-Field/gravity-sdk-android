@@ -9,7 +9,6 @@ import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -36,8 +35,6 @@ internal fun GravityBottomSheetContent(
     val padding = style?.padding
     val horizontalAlignment =
         style?.contentAlignment?.toHorizontalAlignment() ?: Alignment.CenterHorizontally
-    val verticalArrangement =
-        style?.verticalAlignment?.toVerticalArrangement() ?: Arrangement.Top
     val backgroundColor = style?.backgroundColor ?: MaterialTheme.colorScheme.background
     val backgroundImage = style?.backgroundImage
     val backgroundFit = style?.backgroundFit ?: ContentScale.Crop
@@ -77,7 +74,6 @@ internal fun GravityBottomSheetContent(
                     }
                     .fillMaxWidth(),
                 horizontalAlignment = horizontalAlignment,
-                verticalArrangement = verticalArrangement
             ) {
                 GravityElements(content, campaign, onClickCallback, item)
             }

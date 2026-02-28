@@ -19,18 +19,18 @@ internal fun GravityWebview(
     element: Element,
 ) {
     val style = element.style
-    val padding = style.padding
+    val margin = style.margin
     val cornerRadius = style.cornerRadius?.dp ?: 0.0.dp
     val url = element.src ?: ""
 
     Box(
         modifier = Modifier
-            .conditional(padding != null) {
+            .conditional(margin != null) {
                 padding(
-                    start = padding!!.left.dp,
-                    top = padding.top.dp,
-                    end = padding.right.dp,
-                    bottom = padding.bottom.dp
+                    start = margin!!.left.dp,
+                    top = margin.top.dp,
+                    end = margin.right.dp,
+                    bottom = margin.bottom.dp
                 )
             }
             .fillMaxSize()
