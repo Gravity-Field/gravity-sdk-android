@@ -59,7 +59,7 @@ internal class ProductEventService private constructor() {
                             )
                             else -> null
                         } ?: return@launch
-                        GravitySDK.instance.gravityEventCallback.invoke(trackingEvent)
+                        GravitySDK.instance.callbackTrackingEvent(trackingEvent)
                     }
                 } catch (_: Throwable) {
                 }
