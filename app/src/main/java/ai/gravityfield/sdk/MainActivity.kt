@@ -84,20 +84,20 @@ class MainActivity : ComponentActivity() {
                                 .align(Alignment.Center)
                         ) {
                             val context = LocalContext.current
-//                            ShowContentButton(
-//                                onClick = {
-//                                    GravitySDK.instance.trackView(
-//                                        pageContext = PageContext(
-//                                            type = ContextType.PRODUCT,
-//                                            data = emptyList(),
-//                                            location = "product"
-//                                        ),
-//                                        activityContext = context
-//                                    )
-//                                },
-//                            ) {
-//                                Text(text = "Track view")
-//                            }
+                            ShowContentButton(
+                                onClick = {
+                                    GravitySDK.instance.trackView(
+                                        pageContext = PageContext(
+                                            type = ContextType.HOMEPAGE,
+                                            data = emptyList(),
+                                            location = "homepage"
+                                        ),
+                                        activityContext = context,
+                                    )
+                                },
+                            ) {
+                                Text(text = "Track view")
+                            }
 
                             ShowContentButton(
                                 onClick = {
