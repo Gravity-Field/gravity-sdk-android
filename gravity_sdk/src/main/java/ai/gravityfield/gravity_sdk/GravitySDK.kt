@@ -149,7 +149,8 @@ class GravitySDK private constructor(
 
     private val inlineViewCache = mutableMapOf<Int, InlineViewCache>()
 
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val ioScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val mainScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     fun setOptions(
         options: Options?,
@@ -173,7 +174,7 @@ class GravitySDK private constructor(
         pageContext: PageContext,
         activityContext: Context,
     ) {
-        scope.launch {
+        ioScope.launch {
             try {
                 val campaignIdsResponse = repository.visit(pageContext, options, user)
                 handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext)
@@ -187,7 +188,7 @@ class GravitySDK private constructor(
         pageContext: PageContext,
         activityContext: Context,
     ) {
-        scope.launch {
+        ioScope.launch {
             try {
                 val campaignIdsResponse = repository.event(events, pageContext, options, user)
                 handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext)
@@ -209,7 +210,8 @@ class GravitySDK private constructor(
     }
 
     fun dispose() {
-        scope.cancel()
+        ioScope.cancel()
+        mainScope.cancel()
     }
 
     private suspend fun handleCampaignIdsResponse(
@@ -371,7 +373,7 @@ class GravitySDK private constructor(
 
     private fun trackEngagementEvent(action: Action, events: List<Event>?) {
         events?.find { it.type == action }?.let { event ->
-            scope.launch {
+            ioScope.launch {
                 try {
                     repository.trackEngagementEvent(event.urls)
                 } catch (_: Throwable) {
@@ -406,7 +408,7 @@ class GravitySDK private constructor(
         val dismissController = DismissController()
         fun dismiss() {
             contentEventService.sendContentClosed(content, campaign)
-            gravityEventCallback.invoke(ContentCloseEvent(content, campaign))
+            callbackTrackingEvent(ContentCloseEvent(content, campaign))
             dismissController.dismiss()
         }
 
@@ -448,7 +450,7 @@ class GravitySDK private constructor(
         val dismissController = DismissController()
         fun dismiss() {
             contentEventService.sendContentClosed(content, campaign)
-            gravityEventCallback.invoke(ContentCloseEvent(content, campaign))
+            callbackTrackingEvent(ContentCloseEvent(content, campaign))
             dismissController.dismiss()
         }
 
@@ -510,7 +512,7 @@ class GravitySDK private constructor(
         val dismissController = DismissController()
         fun dismiss() {
             contentEventService.sendContentClosed(content, campaign)
-            gravityEventCallback.invoke(ContentCloseEvent(content, campaign))
+            callbackTrackingEvent(ContentCloseEvent(content, campaign))
             dismissController.dismiss()
         }
 
@@ -547,7 +549,7 @@ class GravitySDK private constructor(
         val dismissController = DismissController()
         fun dismiss() {
             contentEventService.sendContentClosed(content, campaign)
-            gravityEventCallback.invoke(ContentCloseEvent(content, campaign))
+            callbackTrackingEvent(ContentCloseEvent(content, campaign))
             dismissController.dismiss()
         }
 
@@ -690,8 +692,10 @@ class GravitySDK private constructor(
         }
     }
 
-    private fun callbackTrackingEvent(event: TrackingEvent) {
-        gravityEventCallback.invoke(event)
+    internal fun callbackTrackingEvent(event: TrackingEvent) {
+        mainScope.launch {
+            gravityEventCallback.invoke(event)
+        }
     }
 
     private fun showOverlay(
