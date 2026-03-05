@@ -41,15 +41,25 @@ android {
     }
 }
 
-publishing {
-    publications {
-        create<MavenPublication>("release")
-        {
-            groupId = "ai.gravityfield"
-            artifactId = "gravity-sdk"
-            version = "1.0.0"
-            afterEvaluate {
+afterEvaluate {
+    publishing {
+        repositories {
+            maven {
+                name = "local"
+                url = uri("repository")
+            }
+        }
+
+        publications {
+            create<MavenPublication>("release")
+            {
+                groupId = "ai.gravityfield"
+                artifactId = "gravity-sdk"
+                version = "1.0.0"
                 from(components["release"])
+                pom {
+                    name.set("GravitySDK")
+                }
             }
         }
     }
