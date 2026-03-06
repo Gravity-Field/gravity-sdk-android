@@ -57,8 +57,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         GravitySDK.initialize(
             this,
-            apiKey = "api_key",
-            section = "section",
+            apiKey = "YzQ1MWRiYTMzNDhhYTUwYjE5NTRkNDg1MDYwYmQ3MmIyMDZkYTUyYzgzNDcyYjQ2YjEyM2RjZTA5OWRjNDE4MQ==",
+            section = "6315de6591f0f2701104047b",
             gravityEventCallback = ::handleTrackingEvent,
             productViewBuilder = object : LegacyProductViewBuilder {
                 override fun createView(
@@ -91,8 +91,7 @@ class MainActivity : ComponentActivity() {
                                             type = ContextType.HOMEPAGE,
                                             data = emptyList(),
                                             location = "product"
-                                        ),
-                                        activityContext = context
+                                        ), activityContext = context
                                     )
                                 },
                             ) {
@@ -107,13 +106,11 @@ class MainActivity : ComponentActivity() {
                                                 type = "tapbar_clicked",
                                                 name = "tapbar_clicked",
                                             )
-                                        ),
-                                        pageContext = PageContext(
+                                        ), pageContext = PageContext(
                                             type = ContextType.HOMEPAGE,
                                             data = emptyList(),
                                             location = "homepage"
-                                        ),
-                                        activityContext = context
+                                        ), activityContext = context
                                     )
                                 },
                             ) {
@@ -242,6 +239,19 @@ class MainActivity : ComponentActivity() {
                                     context.startActivity(
                                         Intent(
                                             context,
+                                            ChooseSelectorActivity::class.java,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Text(text = "Choose Selector")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            context,
                                             InlineDemoActivity::class.java,
                                         )
                                     )
@@ -315,8 +325,10 @@ class MainActivity : ComponentActivity() {
 
             is FollowUrlEvent -> {
                 val i = if (event.type == FollowUrlType.WEBVIEW) {
-                    Intent(this, WebViewActivity::class.java)
-                        .apply { putExtra(WebViewActivity.EXTRA_URL, event.url) }
+                    Intent(
+                        this,
+                        WebViewActivity::class.java
+                    ).apply { putExtra(WebViewActivity.EXTRA_URL, event.url) }
                 } else {
                     Intent(Intent.ACTION_VIEW, event.url.toUri())
                 }
