@@ -51,7 +51,7 @@ fun GravityInlineCompose(
 
         scope.launch(Dispatchers.IO) {
             try {
-                val result = GravitySDK.instance.getContentBySelectorInternal(selector, pageContext)
+                val result = GravitySDK.instance.getContentBySelector(selector, pageContext)
                 withContext(Dispatchers.Main) {
                     isLoading = false
                     campaign = result.data.firstOrNull()

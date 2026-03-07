@@ -197,12 +197,20 @@ class GravitySDK private constructor(
         selector: String,
         pageContext: PageContext,
     ): ContentResponse {
-        return repository.chooseBySelector(
+        val response = repository.chooseBySelector(
             selector = selector,
             options = options,
             contentSettings = contentSettings,
             pageContext = pageContext
         )
+        for (campaign in response.data) {
+            for (payload in campaign.payload) {
+                for (content in payload.contents) {
+                    contentEventService.sendContentLoaded(content, campaign)
+                }
+            }
+        }
+        return response
     }
 
     fun dispose() {
@@ -284,7 +292,7 @@ class GravitySDK private constructor(
         }
     }
 
-    internal suspend fun getContentByCampaignId(
+    suspend fun getContentByCampaignId(
         campaignId: String,
         pageContext: PageContext,
     ): ContentResponse {
@@ -304,27 +312,7 @@ class GravitySDK private constructor(
         return response
     }
 
-    internal suspend fun getContentBySelectorInternal(
-        selector: String,
-        pageContext: PageContext,
-    ): ContentResponse {
-        val response = repository.chooseBySelector(
-            selector = selector,
-            options = options,
-            contentSettings = contentSettings,
-            pageContext = pageContext
-        )
-        for (campaign in response.data) {
-            for (payload in campaign.payload) {
-                for (content in payload.contents) {
-                    contentEventService.sendContentLoaded(content, campaign)
-                }
-            }
-        }
-        return response
-    }
-
-    internal suspend fun getContentByGroupSelector(
+    suspend fun getContentByGroupSelector(
         groupSelector: String,
         pageContext: PageContext,
     ): ContentResponse {
