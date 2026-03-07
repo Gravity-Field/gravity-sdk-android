@@ -12,6 +12,7 @@ import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.network.GravityRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 internal class ContentEventService private constructor() {
@@ -22,6 +23,8 @@ internal class ContentEventService private constructor() {
         val instance: ContentEventService
             get() = _instance
     }
+
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     fun sendContentLoaded(
         content: CampaignContent, campaign: Campaign, callbackTrackingEvent: Boolean = true
@@ -64,7 +67,7 @@ internal class ContentEventService private constructor() {
         callbackTrackingEvent: Boolean
     ) {
         content.events?.find { it.type == contentAction.action }?.let { event ->
-            CoroutineScope(Dispatchers.IO).launch {
+            scope.launch {
                 try {
                     GravityRepository.instance.trackEngagementEvent(event.urls)
 

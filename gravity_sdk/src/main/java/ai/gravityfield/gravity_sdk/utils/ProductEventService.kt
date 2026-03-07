@@ -9,6 +9,7 @@ import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.network.GravityRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 internal class ProductEventService private constructor() {
@@ -19,6 +20,8 @@ internal class ProductEventService private constructor() {
         val instance: ProductEventService
             get() = _instance
     }
+
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     fun sendProductClick(
         slot: Slot,
@@ -46,7 +49,7 @@ internal class ProductEventService private constructor() {
         callbackTrackingEvent: Boolean
     ) {
         slot.events?.find { it.type == action }?.let { event ->
-            CoroutineScope(Dispatchers.IO).launch {
+            scope.launch {
                 try {
                     GravityRepository.instance.trackEngagementEvent(event.urls)
 
