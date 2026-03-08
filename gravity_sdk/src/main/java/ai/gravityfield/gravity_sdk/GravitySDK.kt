@@ -43,6 +43,8 @@ import ai.gravityfield.gravity_sdk.ui.GravitySnackbarContent2
 import ai.gravityfield.gravity_sdk.ui.product_view_builder.ProductViewBuilder
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import ai.gravityfield.gravity_sdk.utils.DeviceUtils
+import ai.gravityfield.gravity_sdk.utils.LogLevel
+import ai.gravityfield.gravity_sdk.utils.Logger
 import ai.gravityfield.gravity_sdk.utils.ProductEventService
 import android.app.Activity
 import android.content.ClipData
@@ -120,7 +122,9 @@ class GravitySDK private constructor(
             productViewBuilder: ProductViewBuilder? = null,
             productFilter: ProductFilter? = null,
             uiSettings: UISettings? = null,
+            logLevel: LogLevel = LogLevel.NONE,
         ) {
+            Logger.configure(logLevel)
             DeviceUtils.initialize(context)
             _instance = GravitySDK(
                 apiKey,
@@ -172,7 +176,8 @@ class GravitySDK private constructor(
     ) {
         ioScope.launch {
             try {
-                val campaignIdsResponse = repository.visit(pageContext, options, user)
+                val campaignIdsResponse =
+                    repository.visit(pageContext, options, user) ?: return@launch
                 handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext)
             } catch (_: Throwable) {
             }
@@ -186,7 +191,8 @@ class GravitySDK private constructor(
     ) {
         ioScope.launch {
             try {
-                val campaignIdsResponse = repository.event(events, pageContext, options, user)
+                val campaignIdsResponse =
+                    repository.event(events, pageContext, options, user) ?: return@launch
                 handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext)
             } catch (_: Throwable) {
             }
@@ -196,13 +202,13 @@ class GravitySDK private constructor(
     suspend fun getContentBySelector(
         selector: String,
         pageContext: PageContext,
-    ): ContentResponse {
+    ): ContentResponse? {
         val response = repository.chooseBySelector(
             selector = selector,
             options = options,
             contentSettings = contentSettings,
             pageContext = pageContext
-        )
+        ) ?: return null
         for (campaign in response.data) {
             for (payload in campaign.payload) {
                 for (content in payload.contents) {
@@ -227,7 +233,7 @@ class GravitySDK private constructor(
 
         val sortedByPriority = response.campaigns.sortedByDescending { it.priority }
         for (campaignId in sortedByPriority) {
-            val result = getContentByCampaignId(campaignId.campaignId, pageContext)
+            val result = getContentByCampaignId(campaignId.campaignId, pageContext) ?: continue
 
             val campaign = result.data.firstOrNull() ?: continue
             val payload = campaign.payload.firstOrNull() ?: continue
@@ -295,13 +301,13 @@ class GravitySDK private constructor(
     suspend fun getContentByCampaignId(
         campaignId: String,
         pageContext: PageContext,
-    ): ContentResponse {
+    ): ContentResponse? {
         val response = repository.chooseByCampaignId(
             campaignId = campaignId,
             options = options,
             contentSettings = contentSettings,
             pageContext = pageContext
-        )
+        ) ?: return null
         for (campaign in response.data) {
             for (payload in campaign.payload) {
                 for (content in payload.contents) {
@@ -315,13 +321,13 @@ class GravitySDK private constructor(
     suspend fun getContentByGroupSelector(
         groupSelector: String,
         pageContext: PageContext,
-    ): ContentResponse {
+    ): ContentResponse? {
         val response = repository.chooseByGroup(
             group = groupSelector,
             options = options,
             contentSettings = contentSettings,
             pageContext = pageContext
-        )
+        ) ?: return null
         for (campaign in response.data) {
             for (payload in campaign.payload) {
                 for (content in payload.contents) {

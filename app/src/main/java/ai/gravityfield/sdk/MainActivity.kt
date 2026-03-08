@@ -21,6 +21,7 @@ import ai.gravityfield.gravity_sdk.models.TrackingEvent
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.ui.GravityInlineCompose
 import ai.gravityfield.gravity_sdk.ui.product_view_builder.LegacyProductViewBuilder
+import ai.gravityfield.gravity_sdk.utils.LogLevel
 import ai.gravityfield.sdk.ui.theme.GravitySDKTheme
 import android.content.Context
 import android.content.Intent
@@ -71,6 +72,7 @@ class MainActivity : ComponentActivity() {
                 }
             },
             productFilter = ::checkSlotValid,
+            logLevel = LogLevel.DEBUG,
         )
 
         enableEdgeToEdge()
