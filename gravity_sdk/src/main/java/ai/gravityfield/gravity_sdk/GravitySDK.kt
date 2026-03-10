@@ -433,7 +433,7 @@ class GravitySDK private constructor(
         campaign: Campaign,
         item: Item? = null,
     ) {
-        val frameUI = content.variables.frameUI
+        val frameUI = content.variables?.frameUI
         val container = frameUI?.container
         val cornerRadius = container?.style?.cornerRadius ?: 0.0
 

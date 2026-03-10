@@ -6,7 +6,7 @@ data class CampaignContent(
     val deliveryMethod: DeliveryMethod,
     val contentType: String,
     val step: Int?,
-    val variables: Variables,
+    val variables: Variables?,
     val products: Products?,
     val items: List<Item>?,
     val custom: CustomModel?,
@@ -23,7 +23,7 @@ data class CampaignContent(
                 deliveryMethod = DeliveryMethod.fromString(json["deliveryMethod"] as? String),
                 contentType = json["contentType"] as String,
                 step = (json["step"] as? Number)?.toInt(),
-                variables = Variables.fromJson(json["variables"] as Map<String, Any?>),
+                variables = if (json["variables"] != null) Variables.fromJson(json["variables"] as Map<String, Any?>) else null,
                 products = if (json["products"] != null) Products.fromJson(json["products"] as Map<String, Any?>) else null,
                 items = if (json["items"] != null) (json["items"] as List<Map<String, Any?>>).map {
                     Item.fromJson(

@@ -22,7 +22,7 @@ internal fun ColumnScope.GravityElements(
     onClickCallback: (model: OnClickModel) -> Unit,
     item: Item? = null,
 ) {
-    val elements = content.variables.elements
+    val elements = content.variables?.elements
     val products = content.products
 
     elements?.forEach {

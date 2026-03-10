@@ -89,7 +89,7 @@ fun GravityInlineCompose(
         when {
             isLoading && loader != null -> loader()
             campaign != null && content != null -> {
-                val frameUi = content.variables.frameUI
+                val frameUi = content.variables?.frameUI
                 val container = frameUi?.container
                 val style = container?.style
                 val padding = style?.padding

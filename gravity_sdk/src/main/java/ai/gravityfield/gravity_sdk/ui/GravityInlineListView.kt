@@ -304,7 +304,7 @@ private fun ItemView(
 ) {
     val campaign = item.campaign
     val content = item.content
-    val frameUi = content.variables.frameUI
+    val frameUi = content.variables?.frameUI
     val container = frameUi?.container
     val style = container?.style
     val width = style?.size?.width

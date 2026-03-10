@@ -36,7 +36,7 @@ internal fun GravitySnackbarContent1(
     campaign: Campaign,
     onClickCallback: (model: OnClickModel) -> Unit,
 ) {
-    val frameUi = content.variables.frameUI ?: return
+    val frameUi = content.variables?.frameUI ?: return
     val container = frameUi.container
     val style = container.style
     val padding = style?.padding

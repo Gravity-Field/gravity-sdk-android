@@ -29,7 +29,7 @@ internal class ContentEventService private constructor() {
     fun sendContentLoaded(
         content: CampaignContent, campaign: Campaign, callbackTrackingEvent: Boolean = true
     ) {
-        val onLoad = content.variables.onLoad ?: return
+        val onLoad = content.variables?.onLoad ?: return
         trackEvent(onLoad, content, campaign, callbackTrackingEvent)
     }
 
@@ -38,7 +38,7 @@ internal class ContentEventService private constructor() {
         campaign: Campaign,
         callbackTrackingEvent: Boolean = true
     ) {
-        val onImpression = content.variables.onImpression ?: return
+        val onImpression = content.variables?.onImpression ?: return
         trackEvent(onImpression, content, campaign, callbackTrackingEvent)
     }
 
@@ -47,7 +47,7 @@ internal class ContentEventService private constructor() {
         campaign: Campaign,
         callbackTrackingEvent: Boolean = true
     ) {
-        val onVisibleImpression = content.variables.onVisibleImpression ?: return
+        val onVisibleImpression = content.variables?.onVisibleImpression ?: return
         trackEvent(onVisibleImpression, content, campaign, callbackTrackingEvent)
     }
 
@@ -56,7 +56,7 @@ internal class ContentEventService private constructor() {
         campaign: Campaign,
         callbackTrackingEvent: Boolean = true
     ) {
-        val onClose = content.variables.onClose ?: return
+        val onClose = content.variables?.onClose ?: return
         trackEvent(onClose, content, campaign, callbackTrackingEvent)
     }
 

@@ -228,7 +228,7 @@ private fun GravityView(
         when {
             isLoading && loaderLayoutResId != -1 -> XmlLayoutCompose(layoutResId = loaderLayoutResId)
             campaign != null && content != null -> {
-                val frameUi = content.variables.frameUI
+                val frameUi = content.variables?.frameUI
                 val container = frameUi?.container
                 val style = container?.style
                 val padding = style?.padding
