@@ -313,7 +313,9 @@ fun JSONObject.toMap(): Map<String, Any> {
     val keysItr: Iterator<String> = this.keys()
     while (keysItr.hasNext()) {
         val key = keysItr.next()
-        var value: Any = this.get(key)
+        val rawValue = this.get(key)
+        if (rawValue == JSONObject.NULL) continue
+        var value: Any = rawValue
         when (value) {
             is JSONArray -> value = value.toList()
             is JSONObject -> value = value.toMap()
@@ -326,7 +328,9 @@ fun JSONObject.toMap(): Map<String, Any> {
 fun JSONArray.toList(): List<Any> {
     val list = mutableListOf<Any>()
     for (i in 0 until this.length()) {
-        var value: Any = this[i]
+        val rawValue = this[i]
+        if (rawValue == JSONObject.NULL) continue
+        var value: Any = rawValue
         when (value) {
             is JSONArray -> value = value.toList()
             is JSONObject -> value = value.toMap()
