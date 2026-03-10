@@ -4,14 +4,14 @@ import ai.gravityfield.gravity_sdk.models.CampaignVariation
 import ai.gravityfield.gravity_sdk.models.User
 
 data class ContentResponse(
-    val user: User,
-    val data: List<Campaign>
+    val user: User?,
+    val data: List<Campaign>,
 ) {
     companion object {
         @Suppress("UNCHECKED_CAST")
         fun fromJson(json: Map<String, Any?>): ContentResponse {
             return ContentResponse(
-                user = User.fromJson(json["user"] as Map<String, Any?>),
+                user = if (json["user"] != null) User.fromJson(json["user"] as Map<String, Any?>) else null,
                 data = (json["data"] as? List<Map<String, Any?>>)?.map { Campaign.fromJson(it) }
                     ?: emptyList()
             )
