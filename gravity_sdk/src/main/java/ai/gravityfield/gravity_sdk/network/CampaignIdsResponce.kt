@@ -3,14 +3,14 @@ package ai.gravityfield.gravity_sdk.network
 import ai.gravityfield.gravity_sdk.models.User
 
 data class CampaignIdsResponse(
-    val user: User,
+    val user: User?,
     val campaigns: List<CampaignId>,
 ) {
     companion object {
         @Suppress("UNCHECKED_CAST")
         fun fromJson(json: Map<String, Any?>): CampaignIdsResponse {
             return CampaignIdsResponse(
-                user = User.fromJson(json["user"] as Map<String, Any?>),
+                user = if (json["user"] != null) User.fromJson(json["user"] as Map<String, Any?>) else null,
                 campaigns = (json["campaigns"] as? List<Map<String, Any?>>)?.map {
                     CampaignId.fromJson(
                         it
