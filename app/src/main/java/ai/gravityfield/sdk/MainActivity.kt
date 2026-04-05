@@ -14,6 +14,7 @@ import ai.gravityfield.gravity_sdk.models.FollowDeeplinkEvent
 import ai.gravityfield.gravity_sdk.models.FollowUrlEvent
 import ai.gravityfield.gravity_sdk.models.FollowUrlType
 import ai.gravityfield.gravity_sdk.models.PageContext
+import ai.gravityfield.gravity_sdk.models.ProductClickEvent
 import ai.gravityfield.gravity_sdk.models.ProductImpressionEvent
 import ai.gravityfield.gravity_sdk.models.RequestPushEvent
 import ai.gravityfield.gravity_sdk.models.Slot
@@ -26,6 +27,7 @@ import ai.gravityfield.sdk.ui.theme.GravitySDKTheme
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -52,6 +54,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -120,6 +124,24 @@ class MainActivity : ComponentActivity() {
                                 },
                             ) {
                                 Text(text = "Trigger event")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    lifecycleScope.launch {
+                                        val response = GravitySDK.instance.getContentBySelector(
+                                            selector = "sdk_cart_reco",
+                                            pageContext = PageContext(
+                                                type = ContextType.CART,
+                                                data = listOf(),
+                                                location = "homepage"
+                                            ),
+                                        )
+                                        Log.d("GravitySDK", "response: $response")
+                                    }
+                                },
+                            ) {
+                                Text(text = "Get content by selector")
                             }
 
                             ShowContentButton(
@@ -222,6 +244,12 @@ class MainActivity : ComponentActivity() {
             }
 
             is ProductImpressionEvent -> {
+                event.slot
+                event.content
+                event.campaign
+            }
+
+            is ProductClickEvent -> {
                 event.slot
                 event.content
                 event.campaign

@@ -46,3 +46,7 @@ class RequestPushEvent(
 class ProductImpressionEvent(
     val slot: Slot, val content: CampaignContent, campaign: Campaign
 ) : TrackingEvent(campaign)
+
+class ProductClickEvent(
+    val slot: Slot, val content: CampaignContent, campaign: Campaign
+) : TrackingEvent(campaign)

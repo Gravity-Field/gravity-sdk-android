@@ -3,6 +3,7 @@ package ai.gravityfield.gravity_sdk.utils
 import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.ProductAction
+import ai.gravityfield.gravity_sdk.models.ProductClickEvent
 import ai.gravityfield.gravity_sdk.models.ProductImpressionEvent
 import ai.gravityfield.gravity_sdk.models.Slot
 import ai.gravityfield.gravity_sdk.network.Campaign
@@ -27,7 +28,7 @@ internal class ProductEventService private constructor() {
         slot: Slot,
         content: CampaignContent,
         campaign: Campaign,
-        callbackTrackingEvent: Boolean = true
+        callbackTrackingEvent: Boolean = true,
     ) {
         trackEvent(ProductAction.CLICK, slot, content, campaign, callbackTrackingEvent)
     }
@@ -36,7 +37,7 @@ internal class ProductEventService private constructor() {
         slot: Slot,
         content: CampaignContent,
         campaign: Campaign,
-        callbackTrackingEvent: Boolean = true
+        callbackTrackingEvent: Boolean = true,
     ) {
         trackEvent(ProductAction.VISIBLE_IMPRESSION, slot, content, campaign, callbackTrackingEvent)
     }
@@ -46,7 +47,7 @@ internal class ProductEventService private constructor() {
         slot: Slot,
         content: CampaignContent,
         campaign: Campaign,
-        callbackTrackingEvent: Boolean
+        callbackTrackingEvent: Boolean,
     ) {
         slot.events?.find { it.type == action }?.let { event ->
             scope.launch {
@@ -60,6 +61,13 @@ internal class ProductEventService private constructor() {
                                 content,
                                 campaign
                             )
+
+                            ProductAction.CLICK -> ProductClickEvent(
+                                slot,
+                                content,
+                                campaign
+                            )
+
                             else -> null
                         } ?: return@launch
                         GravitySDK.instance.callbackTrackingEvent(trackingEvent)
