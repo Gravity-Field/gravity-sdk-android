@@ -3,6 +3,7 @@ package ai.gravityfield.gravity_sdk.utils
 import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.models.Device
 import ai.gravityfield.gravity_sdk.prefs.Prefs
+import ai.gravityfield.gravity_sdk.BuildConfig
 import android.content.Context
 import android.content.pm.PackageInfo
 import android.os.Build
@@ -25,6 +26,14 @@ internal object DeviceUtils {
             permission = GravitySDK.instance.notificationPermissionStatus,
             tracking = "notSupported",
         )
+    }
+
+    fun getSDKVersion(): String {
+        return BuildConfig.SDK_VERSION
+    }
+
+    fun getPlatformVersion(): String? {
+        return Build.VERSION.RELEASE
     }
 
     private fun getUserAgent(context: Context): String {
@@ -60,8 +69,7 @@ internal object DeviceUtils {
 
         val contextAttributes = mapOf(
             "app_version" to "$version+$buildNumber",
-            // TODO: SDK version
-            "sdk_version" to "0.0.1",
+            "sdk_version" to getSDKVersion(),
             "app_platform" to "android"
 
         )

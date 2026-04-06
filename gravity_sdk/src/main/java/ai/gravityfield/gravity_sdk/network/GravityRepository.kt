@@ -2,6 +2,8 @@ package ai.gravityfield.gravity_sdk.network
 
 import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.models.ContentSettings
+import ai.gravityfield.gravity_sdk.models.internal.LogMessage
+import ai.gravityfield.gravity_sdk.models.internal.LogMessageLevel
 import ai.gravityfield.gravity_sdk.models.Options
 import ai.gravityfield.gravity_sdk.models.PageContext
 import ai.gravityfield.gravity_sdk.models.TriggerEvent
@@ -49,6 +51,42 @@ internal class GravityRepository private constructor() {
             get() = _instance
 
         private const val TAG = "Repository"
+
+        private fun createAuthInterceptor() = createClientPlugin("AuthInterceptor") {
+            onRequest { request, _ ->
+                request.header("Authorization", "Bearer ${GravitySDK.instance.apiKey}")
+            }
+        }
+
+        private fun createHttpClient(json: Json, auth: Boolean): HttpClient {
+            return HttpClient(Android) {
+                defaultRequest {
+                    contentType(ContentType.Application.Json)
+                }
+
+                install(ContentNegotiation) {
+                    json(json = json)
+                }
+
+                if (auth) {
+                    install(createAuthInterceptor())
+                }
+
+                install(HttpTimeout) {
+                    connectTimeoutMillis = 5000
+                    requestTimeoutMillis = 5000
+                }
+
+                install(Logging) {
+                    logger = object : KtorLogger {
+                        override fun log(message: String) {
+                            Logger.d(prefix = "HTTP", message)
+                        }
+                    }
+                    level = KtorLogLevel.ALL
+                }
+            }
+        }
     }
 
     @OptIn(ExperimentalSerializationApi::class)
@@ -57,39 +95,8 @@ internal class GravityRepository private constructor() {
         classDiscriminatorMode = ClassDiscriminatorMode.NONE
     }
 
-    private val authInterceptor = createClientPlugin("AuthInterceptor") {
-        onRequest { request, _ ->
-            request.header("Authorization", "Bearer ${GravitySDK.instance.apiKey}")
-        }
-    }
-
-    private val client = HttpClient(Android) {
-        defaultRequest {
-            contentType(ContentType.Application.Json)
-        }
-
-        install(ContentNegotiation) {
-            json(
-                json = json
-            )
-        }
-
-        install(authInterceptor)
-
-        install(HttpTimeout) {
-            connectTimeoutMillis = 5000
-            requestTimeoutMillis = 5000
-        }
-
-        install(Logging) {
-            logger = object : KtorLogger {
-                override fun log(message: String) {
-                    Logger.d(prefix = "HTTP", message)
-                }
-            }
-            level = KtorLogLevel.ALL
-        }
-    }
+    private val client = createHttpClient(json, auth = true)
+    private val errorReportingClient = createHttpClient(json, auth = false)
 
     private var userIdCache: String? = null
     private var sessionIdCache: String? = null
@@ -268,6 +275,42 @@ internal class GravityRepository private constructor() {
             } catch (e: Exception) {
                 Logger.e(TAG, "trackEngagementEvent failed: ${e.message}", e)
             }
+        }
+    }
+
+    internal suspend fun sendErrorMessage(
+        message: String,
+        stacktrace: String,
+    ) {
+        val uid: String?
+        val ses: String?
+        val customerUser = GravitySDK.instance.user
+        if (customerUser != null) {
+            uid = customerUser.custom
+            ses = customerUser.ses
+        } else {
+            uid = userIdCache
+            ses = sessionIdCache
+        }
+        val sec = GravitySDK.instance.section
+
+        val logMessage = LogMessage(
+            message = message,
+            level = LogMessageLevel.ERROR,
+            sec = sec,
+            uid = uid ?: "",
+            ses = ses ?: "",
+            sdkVersion = DeviceUtils.getSDKVersion(),
+            platform = DeviceUtils.getPlatformVersion() ?: "",
+            stacktrace = stacktrace,
+        )
+
+        try {
+            errorReportingClient.post("https://sdk-sentry.gravityfield.ai/error") {
+                setBody(json.encodeToJsonElement(logMessage))
+            }.body<String>()
+        } catch (e: Exception) {
+            Logger.e(TAG, "sendErrorMessage failed: ${e.message}", e, sendToBack = false)
         }
     }
 

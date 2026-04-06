@@ -114,6 +114,8 @@ class GravitySDK private constructor(
                 return _instance!!
             }
 
+        private const val TAG = "SDK"
+
         fun initialize(
             context: Context,
             apiKey: String,
@@ -137,9 +139,9 @@ class GravitySDK private constructor(
         }
     }
 
-    private var user: User? = null
     private var options = Options()
     private var contentSettings = ContentSettings()
+    internal var user: User? = null
     internal var proxyUrl: String? = null
     internal var notificationPermissionStatus = NotificationPermissionStatus.UNKNOWN
 
@@ -179,7 +181,8 @@ class GravitySDK private constructor(
                 val campaignIdsResponse =
                     repository.visit(pageContext, options, user) ?: return@launch
                 handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext)
-            } catch (_: Throwable) {
+            } catch (e: Throwable) {
+                Logger.e(TAG, "trackView error: ${e.message}")
             }
         }
     }
@@ -194,7 +197,8 @@ class GravitySDK private constructor(
                 val campaignIdsResponse =
                     repository.event(events, pageContext, options, user) ?: return@launch
                 handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext)
-            } catch (_: Throwable) {
+            } catch (e: Throwable) {
+                Logger.e(TAG, "triggerEvent error: ${e.message}")
             }
         }
     }

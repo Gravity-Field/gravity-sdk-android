@@ -15,6 +15,13 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
+
+        buildConfigField("String", "SDK_VERSION", "\"${project.property("SDK_VERSION")}\"")
+    }
+
+    buildFeatures {
+        compose = true
+        buildConfig = true
     }
 
     buildTypes {
@@ -32,9 +39,6 @@ android {
     }
     kotlinOptions {
         jvmTarget = "11"
-    }
-    buildFeatures {
-        compose = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.1"
@@ -55,7 +59,7 @@ afterEvaluate {
             {
                 groupId = "ai.gravityfield"
                 artifactId = "gravity-sdk"
-                version = "1.0.0"
+                version = project.property("SDK_VERSION").toString()
                 from(components["release"])
                 pom {
                     name.set("GravitySDK")
