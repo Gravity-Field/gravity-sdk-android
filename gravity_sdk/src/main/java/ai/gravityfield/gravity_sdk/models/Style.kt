@@ -64,7 +64,7 @@ data class Style(
                 },
                 layoutWidth = json["layoutWidth"]?.let { GravityLayoutWidth.fromString(it as String) },
                 positioned = json["positioned"]?.let { GravityPositioned.fromJson(it as Map<String, Any?>) },
-                weight = (json["rows"] as? Number)?.toFloat() ?: 1f,
+                weight = (json["weight"] as? Number)?.toFloat() ?: 1f,
                 productContainerType = ProductContainerType.fromString(json["productContainerType"] as? String),
                 gridColumns = (json["gridColumns"] as? Number)?.toInt(),
                 rowSpacing = (json["rowSpacing"] as? Number)?.toInt()
