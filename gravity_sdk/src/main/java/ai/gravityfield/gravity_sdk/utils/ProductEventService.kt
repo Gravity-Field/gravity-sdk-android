@@ -30,7 +30,12 @@ internal class ProductEventService private constructor() {
         campaign: Campaign,
         callbackTrackingEvent: Boolean = true,
     ) {
-        trackEvent(ProductAction.CLICK, slot, content, campaign, callbackTrackingEvent)
+        if (callbackTrackingEvent) {
+            GravitySDK.instance.callbackTrackingEvent(
+                ProductClickEvent(slot, content, campaign)
+            )
+        }
+        trackEngagement(ProductAction.CLICK, slot)
     }
 
     fun sendProductVisibleImpression(
@@ -39,39 +44,22 @@ internal class ProductEventService private constructor() {
         campaign: Campaign,
         callbackTrackingEvent: Boolean = true,
     ) {
-        trackEvent(ProductAction.VISIBLE_IMPRESSION, slot, content, campaign, callbackTrackingEvent)
+        if (callbackTrackingEvent) {
+            GravitySDK.instance.callbackTrackingEvent(
+                ProductImpressionEvent(slot, content, campaign)
+            )
+        }
+        trackEngagement(ProductAction.VISIBLE_IMPRESSION, slot)
     }
 
-    private fun trackEvent(
+    private fun trackEngagement(
         action: ProductAction,
         slot: Slot,
-        content: CampaignContent,
-        campaign: Campaign,
-        callbackTrackingEvent: Boolean,
     ) {
         slot.events?.find { it.type == action }?.let { event ->
             scope.launch {
                 try {
                     GravityRepository.instance.trackEngagementEvent(event.urls)
-
-                    if (callbackTrackingEvent) {
-                        val trackingEvent = when (action) {
-                            ProductAction.VISIBLE_IMPRESSION -> ProductImpressionEvent(
-                                slot,
-                                content,
-                                campaign
-                            )
-
-                            ProductAction.CLICK -> ProductClickEvent(
-                                slot,
-                                content,
-                                campaign
-                            )
-
-                            else -> null
-                        } ?: return@launch
-                        GravitySDK.instance.callbackTrackingEvent(trackingEvent)
-                    }
                 } catch (_: Throwable) {
                 }
             }

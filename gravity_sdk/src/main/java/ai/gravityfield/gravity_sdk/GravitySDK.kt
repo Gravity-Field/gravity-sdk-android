@@ -402,7 +402,6 @@ class GravitySDK private constructor(
         val dismissController = DismissController()
         fun dismiss() {
             contentEventService.sendContentClosed(content, campaign)
-            callbackTrackingEvent(ContentCloseEvent(content, campaign))
             dismissController.dismiss()
         }
 
@@ -444,7 +443,6 @@ class GravitySDK private constructor(
         val dismissController = DismissController()
         fun dismiss() {
             contentEventService.sendContentClosed(content, campaign)
-            callbackTrackingEvent(ContentCloseEvent(content, campaign))
             dismissController.dismiss()
         }
 
@@ -495,7 +493,6 @@ class GravitySDK private constructor(
         val dismissController = DismissController()
         fun dismiss() {
             contentEventService.sendContentClosed(content, campaign)
-            callbackTrackingEvent(ContentCloseEvent(content, campaign))
             dismissController.dismiss()
         }
 
@@ -532,7 +529,6 @@ class GravitySDK private constructor(
         val dismissController = DismissController()
         fun dismiss() {
             contentEventService.sendContentClosed(content, campaign)
-            callbackTrackingEvent(ContentCloseEvent(content, campaign))
             dismissController.dismiss()
         }
 
