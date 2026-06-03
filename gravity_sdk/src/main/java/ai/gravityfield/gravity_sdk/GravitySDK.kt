@@ -30,6 +30,7 @@ import ai.gravityfield.gravity_sdk.models.TriggerEvent
 import ai.gravityfield.gravity_sdk.models.UISettings
 import ai.gravityfield.gravity_sdk.models.User
 import ai.gravityfield.gravity_sdk.models.internal.InlineViewCache
+import ai.gravityfield.gravity_sdk.models.internal.InlineViewCacheKey
 import ai.gravityfield.gravity_sdk.models.internal.ScrollProvider
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.network.CampaignIdsResponse
@@ -89,7 +90,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Objects
 
 typealias ProductFilter = (Slot) -> Boolean
 typealias GravityEventCallback = (TrackingEvent) -> Unit
@@ -149,7 +149,7 @@ class GravitySDK private constructor(
     private val contentEventService = ContentEventService.instance
     private val productEventService = ProductEventService.instance
 
-    private val inlineViewCache = mutableMapOf<Int, InlineViewCache>()
+    private val inlineViewCache = mutableMapOf<InlineViewCacheKey, InlineViewCache>()
 
     private val ioScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val mainScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -361,8 +361,8 @@ class GravitySDK private constructor(
         inlineViewCache.remove(key)
     }
 
-    private fun getInlineViewCacheKey(selector: String, pageContext: PageContext): Int {
-        return Objects.hash(selector, pageContext)
+    private fun getInlineViewCacheKey(selector: String, pageContext: PageContext): InlineViewCacheKey {
+        return InlineViewCacheKey(selector, pageContext)
     }
 
     private fun trackEngagementEvent(action: Action, events: List<Event>?) {

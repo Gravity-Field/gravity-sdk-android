@@ -1,10 +1,16 @@
 package ai.gravityfield.gravity_sdk.models.internal
 
+import ai.gravityfield.gravity_sdk.models.PageContext
 import ai.gravityfield.gravity_sdk.network.ContentResponse
 
 internal data class InlineViewCache(
     val content: ContentResponse? = null,
     val scrollPosition: ScrollPosition? = null,
+)
+
+internal data class InlineViewCacheKey(
+    val selector: String,
+    val pageContext: PageContext,
 )
 
 internal data class ScrollPosition(
