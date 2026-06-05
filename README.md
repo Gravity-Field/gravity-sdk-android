@@ -14,6 +14,7 @@
 - [📈 Взаимодействие](#взаимодействие)
 - [🧩 Получение контента](#получение-контента)
 - [🖼️ Отображение контента](#отображение-контента)
+- [🧱 Inline-контент](#inline-контент)
 - [❗ Обработка ошибок](#обработка-ошибок)
 
 ## Возможности
@@ -27,6 +28,7 @@
     - Bottom sheet
     - Полноэкранном режиме
     - Bottom sheet с рядом товаров
+    - Inline — встроенные в верстку view для отображегния контента
 - Отправка взаимодействий с контентом и продуктами
 
 ## Установка
@@ -105,6 +107,43 @@ GravitySDK.instance.sendProductEngagement(ProductClickEngagement(...))
 
 Отображение контента происходит автоматически после вызова одного из методов: `trackView`
 или `triggerEvent`
+
+## Inline-контент
+
+`GravityInlineView` (и `GravityInlineListView` для списка кампаний) позволяет встраивать персонализированный контент прямо в верстку экрана.
+
+Добавь view в layout, указав `selector` (для `GravityInlineListView` — `groupSelector`):
+
+```xml
+<ai.gravityfield.gravity_sdk.ui.GravityInlineView
+  android:layout_width="match_parent"
+  android:layout_height="140dp"
+  app:selector="homepage_inline_banner"
+  app:color="@color/white"
+  app:loaderLayout="@layout/loading_indicator" />
+```
+
+Передай `PageContext` через `init` — без этого контент не загрузится:
+
+```kotlin
+val view = findViewById<GravityInlineView>(R.id.inlineView)
+view.init(PageContext(...))
+```
+
+Для стабильной работы UI `PageContext` для inline-view должен оставаться неизменным в рамках открытого экрана.
+
+Каждый inline-view содержит кеш контента и позиции скролла, привязанный к паре `selector` + `pageContext` (для списков — `groupSelector` + `pageContext`). Это позволяет переиспользовать view в `RecyclerView` без повторной загрузки при пересоздании view.
+
+При закрытии экрана необходимо очистить кеш, иначе записи будут накапливаться:
+
+```kotlin
+override fun onDestroy() {
+  GravitySDK.instance.resetInlineViewCache("homepage_inline_banner", pageContext)
+  // для GravityInlineListView:
+  GravitySDK.instance.resetInlineListViewCache("slider_banner", pageContext)
+  super.onDestroy()
+}
+```
 
 ## Обработка ошибок
 
