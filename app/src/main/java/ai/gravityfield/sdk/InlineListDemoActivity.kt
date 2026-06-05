@@ -31,7 +31,7 @@ class InlineListDemoActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        GravitySDK.instance.resetInlineViewCache(
+        GravitySDK.instance.resetInlineListViewCache(
             "slider_banner",
             pageContext
         )

@@ -30,7 +30,8 @@ import ai.gravityfield.gravity_sdk.models.TriggerEvent
 import ai.gravityfield.gravity_sdk.models.UISettings
 import ai.gravityfield.gravity_sdk.models.User
 import ai.gravityfield.gravity_sdk.models.internal.InlineViewCache
-import ai.gravityfield.gravity_sdk.models.internal.InlineViewCacheKey
+import ai.gravityfield.gravity_sdk.models.internal.InlineViewCacheStore
+import ai.gravityfield.gravity_sdk.models.internal.ScrollPosition
 import ai.gravityfield.gravity_sdk.models.internal.ScrollProvider
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.network.CampaignIdsResponse
@@ -149,7 +150,8 @@ class GravitySDK private constructor(
     private val contentEventService = ContentEventService.instance
     private val productEventService = ProductEventService.instance
 
-    private val inlineViewCache = mutableMapOf<InlineViewCacheKey, InlineViewCache>()
+    private val inlineViewCache = InlineViewCacheStore()
+    private val inlineListViewCache = InlineViewCacheStore()
 
     private val ioScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val mainScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -343,8 +345,7 @@ class GravitySDK private constructor(
     }
 
     internal fun getInlineViewCache(selector: String, pageContext: PageContext): InlineViewCache? {
-        val key = getInlineViewCacheKey(selector, pageContext)
-        return inlineViewCache[key]
+        return inlineViewCache.get(selector, pageContext)
     }
 
     internal fun putInlineViewCache(
@@ -352,17 +353,46 @@ class GravitySDK private constructor(
         pageContext: PageContext,
         cache: InlineViewCache,
     ) {
-        val key = getInlineViewCacheKey(selector, pageContext)
-        inlineViewCache[key] = cache
+        inlineViewCache.put(selector, pageContext, cache)
+    }
+
+    internal fun updateInlineViewScrollPosition(
+        selector: String,
+        pageContext: PageContext,
+        scrollPosition: ScrollPosition,
+    ) {
+        inlineViewCache.updateScrollPosition(selector, pageContext, scrollPosition)
     }
 
     fun resetInlineViewCache(selector: String, pageContext: PageContext) {
-        val key = getInlineViewCacheKey(selector, pageContext)
-        inlineViewCache.remove(key)
+        inlineViewCache.remove(selector, pageContext)
     }
 
-    private fun getInlineViewCacheKey(selector: String, pageContext: PageContext): InlineViewCacheKey {
-        return InlineViewCacheKey(selector, pageContext)
+    internal fun getInlineListViewCache(
+        groupSelector: String,
+        pageContext: PageContext,
+    ): InlineViewCache? {
+        return inlineListViewCache.get(groupSelector, pageContext)
+    }
+
+    internal fun putInlineListViewCache(
+        groupSelector: String,
+        pageContext: PageContext,
+        cache: InlineViewCache,
+    ) {
+        inlineListViewCache.put(groupSelector, pageContext, cache)
+    }
+
+    internal fun updateInlineListViewScrollPosition(
+        groupSelector: String,
+        pageContext: PageContext,
+        scrollPosition: ScrollPosition,
+    ) {
+        inlineListViewCache.updateScrollPosition(groupSelector, pageContext, scrollPosition)
+    }
+
+    fun resetInlineListViewCache(groupSelector: String, pageContext: PageContext) {
+        inlineListViewCache.remove(groupSelector, pageContext)
     }
 
     private fun trackEngagementEvent(action: Action, events: List<Event>?) {

@@ -299,16 +299,11 @@ private fun GravityView(
                             LocalScrollProvider provides ScrollProvider(
                                 scrollPosition,
                                 onScrollChanged = { scrollPosition ->
-                                    GravitySDK.instance.getInlineViewCache(
+                                    GravitySDK.instance.updateInlineViewScrollPosition(
                                         selector,
                                         pageContext!!,
-                                    )?.let {
-                                        GravitySDK.instance.putInlineViewCache(
-                                            selector,
-                                            pageContext!!,
-                                            it.copy(scrollPosition = scrollPosition),
-                                        )
-                                    }
+                                        scrollPosition,
+                                    )
                                 },
                             )
                         ) {

@@ -157,7 +157,7 @@ private fun GravityListView(
 
             scope.launch(Dispatchers.IO) {
                 try {
-                    val cache = GravitySDK.instance.getInlineViewCache(groupSelector, it)
+                    val cache = GravitySDK.instance.getInlineListViewCache(groupSelector, it)
                     val contentResponse: ContentResponse?
                     if (cache != null) {
                         contentResponse = cache.content
@@ -169,7 +169,7 @@ private fun GravityListView(
                             groupSelector,
                             it,
                         )
-                        GravitySDK.instance.putInlineViewCache(
+                        GravitySDK.instance.putInlineListViewCache(
                             groupSelector,
                             it,
                             InlineViewCache(contentResponse),
@@ -194,7 +194,7 @@ private fun GravityListView(
                         isLoading = false
                         changeHeight(0.0)
                     }
-                    GravitySDK.instance.putInlineViewCache(
+                    GravitySDK.instance.putInlineListViewCache(
                         groupSelector,
                         it,
                         InlineViewCache(),
@@ -230,7 +230,7 @@ private fun GravityListView(
         when {
             isLoading && loaderLayoutResId != -1 -> XmlLayoutCompose(layoutResId = loaderLayoutResId)
             items != null -> {
-                val scrollPosition = GravitySDK.instance.getInlineViewCache(
+                val scrollPosition = GravitySDK.instance.getInlineListViewCache(
                     groupSelector,
                     pageContext!!,
                 )?.scrollPosition
@@ -239,16 +239,11 @@ private fun GravityListView(
                     LocalScrollProvider provides ScrollProvider(
                         scrollPosition,
                         onScrollChanged = { scrollPosition ->
-                            GravitySDK.instance.getInlineViewCache(
+                            GravitySDK.instance.updateInlineListViewScrollPosition(
                                 groupSelector,
                                 pageContext!!,
-                            )?.let {
-                                GravitySDK.instance.putInlineViewCache(
-                                    groupSelector,
-                                    pageContext!!,
-                                    it.copy(scrollPosition = scrollPosition),
-                                )
-                            }
+                                scrollPosition,
+                            )
                         },
                     )
                 ) {
