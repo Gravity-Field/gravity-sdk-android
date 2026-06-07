@@ -4,7 +4,6 @@ import ai.gravityfield.gravity_sdk.models.Action
 import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.CancelEvent
 import ai.gravityfield.gravity_sdk.models.ContentCloseEngagement
-import ai.gravityfield.gravity_sdk.models.ContentCloseEvent
 import ai.gravityfield.gravity_sdk.models.ContentEngagement
 import ai.gravityfield.gravity_sdk.models.ContentImpressionEngagement
 import ai.gravityfield.gravity_sdk.models.ContentSettings
@@ -244,6 +243,11 @@ class GravitySDK private constructor(
             val campaign = result.data.firstOrNull() ?: continue
             val payload = campaign.payload.firstOrNull() ?: continue
             val content = payload.contents.sortedBy { it.step }.firstOrNull() ?: continue
+
+            val elements = content.variables?.elements
+            if (elements == null || elements.isEmpty()) {
+                return
+            }
 
             val delayTime = campaignId.delayTime
             if (delayTime != null) {
