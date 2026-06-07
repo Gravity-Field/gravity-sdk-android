@@ -145,6 +145,10 @@ class GravitySDK private constructor(
     internal var proxyUrl: String? = null
     internal var notificationPermissionStatus = NotificationPermissionStatus.UNKNOWN
 
+    @Volatile
+    private var isPresentationLocked = false
+    private var presentationLockListener: ((Boolean) -> Unit)? = null
+
     private val repository = GravityRepository.instance
     private val contentEventService = ContentEventService.instance
     private val productEventService = ProductEventService.instance
@@ -171,6 +175,22 @@ class GravitySDK private constructor(
 
     fun setNotificationPermissionStatus(status: NotificationPermissionStatus) {
         notificationPermissionStatus = status
+    }
+
+    fun setPresentationLockListener(listener: ((Boolean) -> Unit)?) {
+        presentationLockListener = listener
+    }
+
+    fun lockPresentation() {
+        isPresentationLocked = true
+        Logger.i(TAG, "Presentation lock called, presentation is now locked")
+        presentationLockListener?.invoke(true)
+    }
+
+    fun unlockPresentation() {
+        isPresentationLocked = false
+        Logger.i(TAG, "Presentation unlock called, presentation is now unlocked")
+        presentationLockListener?.invoke(false)
     }
 
     fun trackView(
@@ -255,6 +275,14 @@ class GravitySDK private constructor(
             }
 
             if (activity.isFinishing || activity.isDestroyed) {
+                return
+            }
+
+            if (isPresentationLocked) {
+                Logger.i(
+                    TAG,
+                    "Presentation is locked, skipped content for campaign ${campaignId.campaignId}"
+                )
                 return
             }
 
