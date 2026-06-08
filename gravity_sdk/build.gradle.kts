@@ -16,12 +16,11 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
 
-        buildConfigField("String", "SDK_VERSION", "\"${project.property("SDK_VERSION")}\"")
+        resValue("string", "gravity_sdk_version", project.property("SDK_VERSION").toString())
     }
 
     buildFeatures {
         compose = true
-        buildConfig = true
     }
 
     buildTypes {

@@ -1,9 +1,9 @@
 package ai.gravityfield.gravity_sdk.utils
 
 import ai.gravityfield.gravity_sdk.GravitySDK
+import ai.gravityfield.gravity_sdk.R
 import ai.gravityfield.gravity_sdk.models.Device
 import ai.gravityfield.gravity_sdk.prefs.Prefs
-import ai.gravityfield.gravity_sdk.BuildConfig
 import android.content.Context
 import android.content.pm.PackageInfo
 import android.os.Build
@@ -11,10 +11,12 @@ import java.util.UUID
 
 internal object DeviceUtils {
     private var userAgent: String = ""
+    private var sdkVersion: String = ""
     var contextAttributes: Map<String, String> = emptyMap()
         private set
 
     fun initialize(context: Context) {
+        sdkVersion = context.getString(R.string.gravity_sdk_version)
         userAgent = getUserAgent(context)
         contextAttributes = getContextAttributes(context)
     }
@@ -29,7 +31,7 @@ internal object DeviceUtils {
     }
 
     fun getSDKVersion(): String {
-        return BuildConfig.SDK_VERSION
+        return sdkVersion
     }
 
     fun getPlatformVersion(): String? {
