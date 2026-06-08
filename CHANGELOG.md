@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.0.2
+
 * Clear presentation lock listener on `dispose`
 
 ## 1.0.1
