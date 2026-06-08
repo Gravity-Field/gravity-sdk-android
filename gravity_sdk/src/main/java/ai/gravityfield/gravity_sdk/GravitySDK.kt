@@ -247,6 +247,7 @@ class GravitySDK private constructor(
     fun dispose() {
         ioScope.cancel()
         mainScope.cancel()
+        presentationLockListener = null
     }
 
     private suspend fun handleCampaignIdsResponse(
