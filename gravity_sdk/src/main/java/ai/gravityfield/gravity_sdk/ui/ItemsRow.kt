@@ -1,6 +1,5 @@
 package ai.gravityfield.gravity_sdk.ui
 
-import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.LocalScrollProvider
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.Element
@@ -74,7 +73,7 @@ internal fun ItemsRow(
                     bottom = margin.bottom.dp
                 )
             }
-            .conditional(height != null && GravitySDK.instance.productViewBuilder == null) {
+            .conditional(height != null) {
                 height(height!!.dp)
             }
     ) {
