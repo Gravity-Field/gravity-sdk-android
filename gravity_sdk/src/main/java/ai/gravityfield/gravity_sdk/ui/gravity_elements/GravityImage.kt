@@ -38,7 +38,12 @@ internal fun GravityImage(
     val width = style.size?.width
     val height = style.size?.height
     val layoutWidth = style.layoutWidth
-    val contentScale = style.fit ?: ContentScale.Crop
+    val hasDeterminedWidth = width != null || layoutWidth == GravityLayoutWidth.MATCH_PARENT
+    val contentScale = if (height == null && hasDeterminedWidth) {
+        ContentScale.FillWidth
+    } else {
+        style.fit ?: ContentScale.Crop
+    }
 
     val painter = rememberAsyncImagePainter(model = url)
     val painterState by painter.state.collectAsState()
