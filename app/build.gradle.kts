@@ -61,6 +61,8 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(project(":gravity_sdk"))
+    implementation(libs.coil.compose)
+    implementation(libs.coil.network)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.activity)

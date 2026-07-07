@@ -35,14 +35,12 @@ internal fun ColumnScope.GravityElements(
             ElementType.PRODUCTS_CONTAINER -> {
                 val slots = products?.slots
                 if (slots != null) {
-                    when (it.style.productContainerType) {
+                    when (it.style.productContainerType ?: ProductContainerType.ROW) {
                         ProductContainerType.ROW ->
                             ProductsRow(it, slots, content, campaign)
 
                         ProductContainerType.GRID ->
                             ProductsGrid(it, slots, content, campaign)
-
-                        else -> {}
                     }
                 }
             }

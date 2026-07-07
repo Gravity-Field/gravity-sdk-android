@@ -7,16 +7,21 @@ import ai.gravityfield.gravity_sdk.models.Item
 import ai.gravityfield.gravity_sdk.models.OnClickModel
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImagePainter
 import coil3.compose.rememberAsyncImagePainter
 
 @Composable
@@ -35,6 +40,12 @@ internal fun GravityImage(
     val layoutWidth = style.layoutWidth
     val contentScale = style.fit ?: ContentScale.Crop
 
+    val painter = rememberAsyncImagePainter(model = url)
+    val painterState by painter.state.collectAsState()
+    val isImageReady = painterState is AsyncImagePainter.State.Success
+
+    val interactionSource = remember { MutableInteractionSource() }
+
     Image(
         modifier = Modifier
             .conditional(margin != null) {
@@ -51,14 +62,20 @@ internal fun GravityImage(
             .conditional(height != null) {
                 height(height!!.dp)
             }
+            .conditional(height == null && !isImageReady) {
+                height(0.dp)
+            }
             .conditional(layoutWidth == GravityLayoutWidth.MATCH_PARENT) {
                 fillMaxWidth()
             }
             .conditional(element.onClick != null) {
-                clickable { onClickCallback.invoke(element.onClick!!) }
+                clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                ) { onClickCallback.invoke(element.onClick!!) }
             }
             .clip(RoundedCornerShape(cornerRadius)),
-        painter = rememberAsyncImagePainter(model = url),
+        painter = painter,
         contentDescription = null,
         contentScale = contentScale,
     )

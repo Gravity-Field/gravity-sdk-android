@@ -36,8 +36,8 @@ internal fun ProductsRow(
             end = style.padding.right.dp,
             bottom = style.padding.bottom.dp
         )
-    else PaddingValues()
-    val rowSpacing = style.rowSpacing?.dp ?: 0.dp
+    else PaddingValues(horizontal = 16.dp)
+    val rowSpacing = style.rowSpacing?.dp ?: 8.dp
 
     Box(
         modifier = Modifier
@@ -50,7 +50,7 @@ internal fun ProductsRow(
                     bottom = margin.bottom.dp
                 )
             }
-            .conditional(height != null && GravitySDK.instance.productViewBuilder == null) {
+            .conditional(height != null) {
                 height(height!!.dp)
             }
     ) {
