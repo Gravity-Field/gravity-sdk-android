@@ -49,7 +49,7 @@ internal fun GravityText(
         else -> null
     }
 
-    val paddingValues = if (style.margin != null)
+    val marginValues = if (style.margin != null)
         PaddingValues(
             start = style.margin.left.dp,
             top = style.margin.top.dp,
@@ -58,10 +58,18 @@ internal fun GravityText(
         )
     else PaddingValues()
 
+    val paddingValues = if (style.padding != null)
+        PaddingValues(
+            start = style.padding.left.dp,
+            top = style.padding.top.dp,
+            end = style.padding.right.dp,
+            bottom = style.padding.bottom.dp
+        )
+    else PaddingValues()
 
     Text(
         modifier = Modifier
-            .padding(paddingValues)
+            .padding(marginValues)
             .conditional(width != null) {
                 width(width!!.dp)
             }
@@ -73,7 +81,8 @@ internal fun GravityText(
             }
             .conditional(element.onClick != null) {
                 clickable { onClickCallback.invoke(element.onClick!!) }
-            },
+            }
+            .padding(paddingValues),
         text = text ?: "",
         textAlign = textAlign,
         style = textStyle,
