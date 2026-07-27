@@ -1,3 +1,6 @@
+// TODO: migrate to material3 LocalRippleConfiguration / RippleConfiguration
+@file:Suppress("DEPRECATION_ERROR")
+
 package ai.gravityfield.gravity_sdk.ui.gravity_elements
 
 import ai.gravityfield.gravity_sdk.LocalAppFont
@@ -59,6 +62,11 @@ internal fun GravityButton(
     )
     val cornerRadius = style.cornerRadius?.dp ?: 0.0.dp
     val rippleColor = style.pressColor
+    // TODO: no-op on material3 1.3.0+ — MaterialTheme wires LocalIndication to its own ripple(),
+    //  which reads LocalRippleConfiguration instead of LocalRippleTheme. The version that applies
+    //  here is the one the host app resolves, so pressColor is already ignored on modern Compose.
+    //  Replacement: CompositionLocalProvider(LocalRippleConfiguration provides
+    //  RippleConfiguration(color = it, rippleAlpha = RippleAlpha(...))).
     val ripple = rippleColor?.let {
         object : RippleTheme {
             @Composable
