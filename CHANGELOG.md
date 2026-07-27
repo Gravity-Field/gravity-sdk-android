@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.0.4
+
 * Bump Compose BOM to 2024.09.00 to fix ModalBottomSheet crash
 * Fix padding and margin in GravityText
 * Fix GravityImage layout
