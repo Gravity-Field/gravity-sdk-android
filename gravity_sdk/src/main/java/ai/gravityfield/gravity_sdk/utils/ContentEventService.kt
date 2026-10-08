@@ -1,6 +1,7 @@
 package ai.gravityfield.gravity_sdk.utils
 
 import ai.gravityfield.gravity_sdk.GravitySDK
+import ai.gravityfield.gravity_sdk.models.Action
 import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.ContentActionModel
 import ai.gravityfield.gravity_sdk.models.ContentCloseEvent
@@ -9,6 +10,7 @@ import ai.gravityfield.gravity_sdk.models.ContentLoadEvent
 import ai.gravityfield.gravity_sdk.models.ContentVisibleImpressionEvent
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.network.GravityRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -24,6 +26,7 @@ internal class ContentEventService private constructor() {
     }
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
 
     fun sendContentLoaded(
         content: CampaignContent,
@@ -54,13 +57,23 @@ internal class ContentEventService private constructor() {
         campaign: Campaign,
         callbackTrackingEvent: Boolean = true,
     ) {
-        if (callbackTrackingEvent) {
-            GravitySDK.instance.callbackTrackingEvent(
-                ContentVisibleImpressionEvent(content, campaign)
-            )
+        val sdk = GravitySDK.instance
+        sdk.presentationGate.visible(content.contentId)
+        if (callbackTrackingEvent) sdk.callbackTrackingEvent(ContentVisibleImpressionEvent(content, campaign))
+        val action = content.variables?.onVisibleImpression?.action ?: Action.VISIBLE_IMPRESSION
+        val event = content.events?.find { it.type == action }
+        if (event == null || event.urls.isEmpty()) {
+            Logger.e("ContentEvent", "Visible impression has no tracking URL")
+            return
         }
-        val onVisibleImpression = content.variables?.onVisibleImpression ?: return
-        trackEngagement(onVisibleImpression, content)
+        scope.launch {
+            if (sdk.visibleImpressionDelivery.deliver(event.urls)) {
+                if (action != Action.VISIBLE_IMPRESSION) return@launch
+                sdk.presentationGate.acknowledged(content.contentId)
+            } else {
+                Logger.e("ContentEvent", "Visible impression delivery failed after retries")
+            }
+        }
     }
 
     fun sendContentClosed(
@@ -68,6 +81,7 @@ internal class ContentEventService private constructor() {
         campaign: Campaign,
         callbackTrackingEvent: Boolean = true,
     ) {
+        GravitySDK.instance.presentationGate.closed(content.contentId)
         if (callbackTrackingEvent) {
             GravitySDK.instance.callbackTrackingEvent(ContentCloseEvent(content, campaign))
         }
@@ -83,7 +97,10 @@ internal class ContentEventService private constructor() {
             scope.launch {
                 try {
                     GravityRepository.instance.trackEngagementEvent(event.urls)
-                } catch (_: Throwable) {
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    Logger.e("ContentEvent", "Engagement delivery failed: ${error.message}", error)
                 }
             }
         }
