@@ -70,6 +70,14 @@ class InAppPreparationTest {
         assertNull(InAppPreparation { _, _ -> error("API unavailable") }.prepare(content(), campaign))
     }
 
+    @Test fun clientApiTimeoutSkipsWithoutCancellingCampaignSelection() = runBlocking {
+        val preparation = InAppPreparation { received, _ ->
+            withTimeout(25) { delay(10_000); received }
+        }
+        assertNull(preparation.prepare(content(), campaign))
+        assertTrue(currentCoroutineContext().isActive)
+    }
+
     @Test fun timeoutSkipsAndCancelsClientWork() = runBlocking {
         var cancelled = false
         val preparation = InAppPreparation(timeoutMillis = 25) { received, _ ->

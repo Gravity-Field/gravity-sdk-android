@@ -2,6 +2,8 @@ package ai.gravityfield.gravity_sdk.models
 
 import ai.gravityfield.gravity_sdk.network.Campaign
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withTimeoutOrNull
 
 /** Return the content to present, or null to skip this in-app and try the next campaign. */
@@ -18,7 +20,10 @@ class InAppPreparation(
         return try {
             withTimeoutOrNull(timeoutMillis) { handler(content, campaign) }
         } catch (cancelled: CancellationException) {
-            throw cancelled
+            // A client's own timeout/cancellation skips this content; cancellation of our
+            // parent scope (e.g. dispose) must still prevent further presentation work.
+            currentCoroutineContext().ensureActive()
+            null
         } catch (_: Exception) {
             null
         }
