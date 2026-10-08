@@ -171,3 +171,48 @@ override fun onDestroy() {
 GravitySDK has not been initialized
 ```
 
+## Подготовка in-app перед показом
+
+`initialize` принимает необязательный `inAppPreparation`. Обработчик получает контент и кампанию, асинхронно проверяет товары и возвращает контент для показа либо `null`, чтобы пропустить этот in-app и перейти к следующей кампании.
+
+```kotlin
+GravitySDK.initialize(
+    context,
+    apiKey = "your-api-key",
+    section = "your-section-id",
+    gravityEventCallback = ::handleTrackingEvent,
+    productViewBuilder = reviewIntegration.productViewBuilder,
+    inAppPreparation = reviewIntegration.preparation(),
+)
+```
+
+[Пример ReviewPromptIntegration](app/src/main/java/ai/gravityfield/sdk/ReviewPromptIntegration.kt) включает интерфейс клиентского API eligibility, карточку с кнопкой «Оставить отзыв» и обновление локального статуса через `didSubmitReview(sku)` после успешной отправки отзыва. `onOpenReview` — маршрутизация приложения: клиент закрывает текущий sheet и открывает свой экран отзыва. Пример не включён по умолчанию: для него нужен API клиента.
+
+Обработчик можно написать напрямую:
+
+В примере задайте `selector` кампании отзывов и `fallbackProductViewBuilder` для остальных кампаний. Если у кампании нет selector, ограничьте обработку по `campaign.payload.firstOrNull()?.campaignId`.
+
+```kotlin
+import ai.gravityfield.gravity_sdk.models.InAppPreparation
+import ai.gravityfield.gravity_sdk.models.filteringProducts
+
+val preparation = InAppPreparation(timeoutMillis = 5_000) { content, campaign ->
+    if (campaign.selector != "purchase-reviews") return@InAppPreparation content
+    val skus = content.products?.slots.orEmpty()
+        .mapNotNull { it.item["sku"] as? String }.distinct()
+    if (skus.isEmpty()) return@InAppPreparation null
+    val eligible = reviewAPI.eligibleSkus(skus)
+    content.filteringProducts { it.item["sku"] in eligible }
+}
+```
+
+Порядок: `/choose` → существующий синхронный `productFilter` → content-loaded tracking → задержка кампании → `inAppPreparation` → повторная проверка возможности показа → UI и impression-события. Обработчик применяется к автоматическому показу после `trackView`/`triggerEvent`, а также при `open_step`. Получение через `getContentBy*` и inline-виджеты сохраняют прежнее поведение.
+
+- Без обработчика нет ожидания API. Для других кампаний верните исходный `content`.
+- `filteringProducts` сохраняет исходные слоты, порядок, tracking-данные и метаданные; пустой результат возвращает `null`. Пустые блоки в других кампаниях не запрещены.
+- Таймаут по умолчанию — 5 секунд. Ошибка, таймаут или некорректный timeout (не положительный либо больше часа) пропускают in-app. Используйте отменяемый suspending API; не блокируйте поток. Отмена родительской coroutine распространяется дальше, например при `dispose`.
+- После ожидания проверяются активность Activity, presentation lock и ревизия пользователя. `setUser` и `lockPresentation` инвалидируют ожидающий показ, даже если затем восстановлено прежнее состояние. При навигации внутри одного Activity блокируйте показ через `lockPresentation`. После разблокировки нужен новый view/trigger.
+- Пропущенный in-app не отправляет impression/visible impression; content-loaded сохраняет семантику загрузки. Удалённые слоты не монтируются. В своём builder отправляйте клик через `sendProductEngagement`.
+- Используйте recently purchased без fallback на непокупавшиеся товары. Правила доставки/отмены/возврата проверяет API eligibility. Запрашивайте кандидатов с запасом: SDK не восполняет удалённые товары.
+- Перед запуском проверьте пользователя в `/choose` (отдельное исправление EGO-246). Клиентский статус отзывов должен принадлежать текущему аккаунту.
+

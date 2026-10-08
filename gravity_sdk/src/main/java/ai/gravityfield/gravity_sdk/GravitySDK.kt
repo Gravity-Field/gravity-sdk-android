@@ -90,6 +90,10 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import ai.gravityfield.gravity_sdk.models.InAppPreparation
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import ai.gravityfield.gravity_sdk.utils.PresentationRevision
 
 typealias ProductFilter = (Slot) -> Boolean
 typealias GravityEventCallback = (TrackingEvent) -> Unit
@@ -101,6 +105,7 @@ class GravitySDK private constructor(
     internal val productViewBuilder: ProductViewBuilder?,
     internal val productFilter: ProductFilter?,
     internal val uiSettings: UISettings?,
+    private val inAppPreparation: InAppPreparation?,
 ) {
 
     companion object {
@@ -126,6 +131,21 @@ class GravitySDK private constructor(
             uiSettings: UISettings? = null,
             logLevel: LogLevel = LogLevel.NONE,
         ) {
+            initialize(context, apiKey, section, gravityEventCallback, productViewBuilder,
+                productFilter, uiSettings, logLevel, inAppPreparation = null)
+        }
+
+        fun initialize(
+            context: Context,
+            apiKey: String,
+            section: String,
+            gravityEventCallback: GravityEventCallback,
+            productViewBuilder: ProductViewBuilder? = null,
+            productFilter: ProductFilter? = null,
+            uiSettings: UISettings? = null,
+            logLevel: LogLevel = LogLevel.NONE,
+            inAppPreparation: InAppPreparation?,
+        ) {
             Logger.configure(logLevel)
             DeviceUtils.initialize(context)
             _instance = GravitySDK(
@@ -135,6 +155,7 @@ class GravitySDK private constructor(
                 productViewBuilder,
                 productFilter,
                 uiSettings,
+                inAppPreparation,
             )
         }
     }
@@ -142,6 +163,7 @@ class GravitySDK private constructor(
     private var options = Options()
     private var contentSettings = ContentSettings()
     internal var user: User? = null
+    private val presentationRevision = PresentationRevision()
     internal var proxyUrl: String? = null
     internal var notificationPermissionStatus = NotificationPermissionStatus.UNKNOWN
 
@@ -171,6 +193,7 @@ class GravitySDK private constructor(
 
     fun setUser(userId: String, sessionId: String) {
         user = User(custom = userId, ses = sessionId)
+        presentationRevision.invalidate()
     }
 
     fun setNotificationPermissionStatus(status: NotificationPermissionStatus) {
@@ -183,6 +206,7 @@ class GravitySDK private constructor(
 
     fun lockPresentation() {
         isPresentationLocked = true
+        presentationRevision.invalidate()
         Logger.i(TAG, "Presentation lock called, presentation is now locked")
         presentationLockListener?.invoke(true)
     }
@@ -197,11 +221,12 @@ class GravitySDK private constructor(
         pageContext: PageContext,
         activityContext: Context,
     ) {
+        val revision = presentationRevision.current
         ioScope.launch {
             try {
                 val campaignIdsResponse =
                     repository.visit(pageContext, options, user) ?: return@launch
-                handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext)
+                handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext, revision)
             } catch (e: Throwable) {
                 Logger.e(TAG, "trackView error: ${e.message}")
             }
@@ -213,11 +238,12 @@ class GravitySDK private constructor(
         pageContext: PageContext,
         activityContext: Context,
     ) {
+        val revision = presentationRevision.current
         ioScope.launch {
             try {
                 val campaignIdsResponse =
                     repository.event(events, pageContext, options, user) ?: return@launch
-                handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext)
+                handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext, revision)
             } catch (e: Throwable) {
                 Logger.e(TAG, "triggerEvent error: ${e.message}")
             }
@@ -254,11 +280,13 @@ class GravitySDK private constructor(
         response: CampaignIdsResponse,
         pageContext: PageContext,
         activityContext: Context,
+        revision: Long,
     ) {
         val activity = findOwner<Activity>(activityContext) ?: return
 
         val sortedByPriority = response.campaigns.sortedByDescending { it.priority }
         for (campaignId in sortedByPriority) {
+            if (presentationRevision.current != revision) return
             val result = getContentByCampaignId(campaignId.campaignId, pageContext) ?: continue
 
             val campaign = result.data.firstOrNull() ?: continue
@@ -287,9 +315,45 @@ class GravitySDK private constructor(
                 return
             }
 
-            withContext(Dispatchers.Main) {
-                showBackendContent(activity, content, campaign)
+            prepareAndShowBackendContent(activity, content, campaign, revision)
+        }
+    }
+
+    private suspend fun prepareAndShowBackendContent(
+        activity: Activity,
+        content: CampaignContent,
+        campaign: Campaign,
+        revision: Long,
+        item: Item? = null,
+    ) {
+        val canPrepare = withContext(Dispatchers.Main) {
+            presentationRevision.canPresent(revision, isActivityActive(activity), isPresentationLocked)
+        }
+        if (!canPrepare) return
+
+        val prepared = if (inAppPreparation != null) {
+            inAppPreparation.prepare(content, campaign) ?: run {
+                Logger.i(TAG, "In-app preparation skipped content ${content.contentId}")
+                return
             }
+        } else content
+
+        withContext(Dispatchers.Main) {
+            // Revalidate immediately before mounting the UI, after the asynchronous work.
+            if (!presentationRevision.canPresent(revision, isActivityActive(activity), isPresentationLocked))
+                return@withContext
+            showBackendContent(activity, prepared, campaign, item)
+        }
+    }
+
+    private fun isActivityActive(activity: Activity): Boolean {
+        if (activity.isFinishing || activity.isDestroyed) return false
+        // Preserve the legacy presentation checks when preparation is not configured.
+        if (inAppPreparation == null) return true
+        return if (activity is LifecycleOwner) {
+            activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+        } else {
+            activity.hasWindowFocus()
         }
     }
 
@@ -727,7 +791,10 @@ class GravitySDK private constructor(
 
                 val activity = findOwner<Activity>(context) ?: return
 
-                showBackendContent(activity, targetContent, campaign, item)
+                val revision = presentationRevision.current
+                ioScope.launch {
+                    prepareAndShowBackendContent(activity, targetContent, campaign, revision, item)
+                }
             }
 
             else -> {}
