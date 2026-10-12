@@ -50,7 +50,9 @@ class ReviewPromptIntegration(
                 Text(slot.item["name"] as? String ?: sku)
                 Button(onClick = {
                     GravitySDK.instance.sendProductEngagement(ProductClickEngagement(slot, content, campaign))
-                    onOpenReview(sku)
+                    GravitySDK.instance.dismissInApp(content.contentId) { dismissed ->
+                        if (dismissed) onOpenReview(sku)
+                    }
                 }) { Text("Оставить отзыв") }
             }
         }

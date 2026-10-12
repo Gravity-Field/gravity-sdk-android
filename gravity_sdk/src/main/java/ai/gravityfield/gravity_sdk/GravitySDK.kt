@@ -94,6 +94,9 @@ import ai.gravityfield.gravity_sdk.models.InAppPreparation
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import ai.gravityfield.gravity_sdk.utils.PresentationRevision
+import ai.gravityfield.gravity_sdk.utils.InAppPresentation
+import ai.gravityfield.gravity_sdk.utils.InAppPresentationRegistry
+import java.lang.ref.WeakReference
 
 typealias ProductFilter = (Slot) -> Boolean
 typealias GravityEventCallback = (TrackingEvent) -> Unit
@@ -164,6 +167,7 @@ class GravitySDK private constructor(
     private var contentSettings = ContentSettings()
     internal var user: User? = null
     private val presentationRevision = PresentationRevision()
+    private val inAppPresentations = InAppPresentationRegistry()
     internal var proxyUrl: String? = null
     internal var notificationPermissionStatus = NotificationPermissionStatus.UNKNOWN
 
@@ -401,6 +405,27 @@ class GravitySDK private constructor(
         }
     }
 
+    /** Closes the visible SDK in-app with this contentId. Completion runs on the UI thread
+     * after dismissal; false means no matching presentation. Inline widgets are unaffected. */
+    fun dismissInApp(contentId: String, completion: (Boolean) -> Unit = {}) {
+        mainScope.launch { inAppPresentations.dismiss(contentId, completion) }
+    }
+
+    private fun registerInApp(
+        content: CampaignContent,
+        campaign: Campaign,
+        performDismiss: (complete: (Boolean) -> Unit) -> Unit,
+    ): InAppPresentation {
+        var registered: WeakReference<InAppPresentation>? = null
+        val presentation = InAppPresentation(performDismiss) { success ->
+            inAppPresentations.remove(registered?.get(), content.contentId)
+            if (success) contentEventService.sendContentClosed(content, campaign)
+        }
+        registered = WeakReference(presentation)
+        inAppPresentations.register(presentation, content.contentId)
+        return presentation
+    }
+
     suspend fun getContentByCampaignId(
         campaignId: String,
         pageContext: PageContext,
@@ -527,9 +552,13 @@ class GravitySDK private constructor(
         item: Item?,
     ) {
         val dismissController = DismissController()
-        fun dismiss() {
-            contentEventService.sendContentClosed(content, campaign)
+        val presentation = registerInApp(content, campaign) { complete ->
+            val attached = dismissController.listener != null
             dismissController.dismiss()
+            complete(attached)
+        }
+        fun dismiss() {
+            presentation.close()
         }
 
         showOverlay(
@@ -568,9 +597,17 @@ class GravitySDK private constructor(
         val cornerRadius = container?.style?.cornerRadius ?: 0.0
 
         val dismissController = DismissController()
+        var requestClose: (((Boolean) -> Unit) -> Unit)? = null
+        val presentation = registerInApp(content, campaign) { complete ->
+            if (dismissController.listener == null) complete(false)
+            else {
+                val close = requestClose
+                if (close != null) close(complete)
+                else { dismissController.dismiss(); complete(true) }
+            }
+        }
         fun dismiss() {
-            contentEventService.sendContentClosed(content, campaign)
-            dismissController.dismiss()
+            presentation.close()
         }
 
         showOverlay(
@@ -580,6 +617,13 @@ class GravitySDK private constructor(
         ) {
             val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
             val scope = rememberCoroutineScope()
+            requestClose = { complete ->
+                scope.launch { state.hide() }.invokeOnCompletion {
+                    val attached = dismissController.listener != null
+                    dismissController.dismiss()
+                    complete(attached)
+                }
+            }
             ModalBottomSheet(
                 onDismissRequest = ::dismiss,
                 shape = RoundedCornerShape(
@@ -599,10 +643,7 @@ class GravitySDK private constructor(
                             content,
                             campaign,
                             activity,
-                            dismissCallback = {
-                                scope.launch { state.hide() }
-                                    .invokeOnCompletion { dismiss() }
-                            }
+                            dismissCallback = ::dismiss
                         )
                     },
                     item,
@@ -618,9 +659,13 @@ class GravitySDK private constructor(
         item: Item?,
     ) {
         val dismissController = DismissController()
-        fun dismiss() {
-            contentEventService.sendContentClosed(content, campaign)
+        val presentation = registerInApp(content, campaign) { complete ->
+            val attached = dismissController.listener != null
             dismissController.dismiss()
+            complete(attached)
+        }
+        fun dismiss() {
+            presentation.close()
         }
 
         showOverlay(
@@ -654,9 +699,13 @@ class GravitySDK private constructor(
         if (template == null || template == TemplateSystemName.UNKNOWN) return
 
         val dismissController = DismissController()
-        fun dismiss() {
-            contentEventService.sendContentClosed(content, campaign)
+        val presentation = registerInApp(content, campaign) { complete ->
+            val attached = dismissController.listener != null
             dismissController.dismiss()
+            complete(attached)
+        }
+        fun dismiss() {
+            presentation.close()
         }
 
         val onClickCallback = { onClickModel: OnClickModel ->
