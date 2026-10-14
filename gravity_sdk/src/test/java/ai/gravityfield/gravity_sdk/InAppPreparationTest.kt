@@ -111,6 +111,60 @@ class InAppPreparationTest {
         }.prepare(content(), campaign))
     }
 
+    @Test fun allInvalidTimeoutsSkipWithoutInvokingTheHandler() = runBlocking {
+        for (timeoutMillis in listOf(0L, -1L, Long.MIN_VALUE, 3_600_001L, Long.MAX_VALUE)) {
+            var handlerCalled = false
+            val result = InAppPreparation(timeoutMillis = timeoutMillis) { _, _ ->
+                handlerCalled = true
+                null
+            }.prepare(content(), campaign)
+            assertNull("timeoutMillis=$timeoutMillis must skip", result)
+            assertFalse("timeoutMillis=$timeoutMillis must not invoke the handler", handlerCalled)
+        }
+    }
+
+    @Test fun boundaryTimeoutOfExactlyOneHourIsAllowed() = runBlocking {
+        val preparation = InAppPreparation(timeoutMillis = 3_600_000L) { received, _ -> received }
+        assertNotNull(preparation.prepare(content(), campaign))
+    }
+
+    @Test fun userChangeDuringPreparationStillBlocksPresentationAfterItCompletes() = runBlocking {
+        val revision = PresentationRevision()
+        val expected = revision.current
+        val started = CompletableDeferred<Unit>()
+        val resume = CompletableDeferred<Unit>()
+        val preparation = InAppPreparation { received, _ ->
+            started.complete(Unit)
+            resume.await()
+            received
+        }
+        val result = async { preparation.prepare(content(), campaign) }
+        started.await()
+        revision.invalidate() // simulates a user/account switch mid-flight
+        resume.complete(Unit)
+        assertNotNull(result.await())
+        assertFalse(revision.canPresent(expected, active = true, locked = false))
+    }
+
+    @Test fun leavingTheScreenDuringPreparationStillBlocksPresentationAfterItCompletes() = runBlocking {
+        val revision = PresentationRevision()
+        val expected = revision.current
+        var screenActive = true
+        val started = CompletableDeferred<Unit>()
+        val resume = CompletableDeferred<Unit>()
+        val preparation = InAppPreparation { received, _ ->
+            started.complete(Unit)
+            resume.await()
+            received
+        }
+        val result = async { preparation.prepare(content(), campaign) }
+        started.await()
+        screenActive = false // simulates navigating away mid-flight
+        resume.complete(Unit)
+        assertNotNull(result.await())
+        assertFalse(revision.canPresent(expected, active = screenActive, locked = false))
+    }
+
     @Test fun presentationGateRejectsInactiveLockedOrChangedUser() {
         val revision = PresentationRevision()
         val before = revision.current

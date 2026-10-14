@@ -28,11 +28,17 @@ class ReviewPromptIntegration(
     private val submitted = ConcurrentHashMap.newKeySet<String>()
 
     fun preparation() = InAppPreparation(timeoutMillis = 5_000) { content, campaign ->
-        if (campaign.selector != selector) return@InAppPreparation content
+        recommendedContent(content, campaign)
+    }
+
+    /** The decision logic behind [preparation], exposed so it can be exercised directly
+     *  (e.g. from the demo's test console) without going through the SDK's pipeline. */
+    suspend fun recommendedContent(content: CampaignContent, campaign: Campaign): CampaignContent? {
+        if (campaign.selector != selector) return content
         val skus = content.products?.slots.orEmpty().mapNotNull { it.item["sku"] as? String }.distinct()
-        if (skus.isEmpty()) return@InAppPreparation null
+        if (skus.isEmpty()) return null
         val eligible = api.eligibleSkus(skus)
-        content.filteringProducts { slot ->
+        return content.filteringProducts { slot ->
             val sku = slot.item["sku"] as? String
             sku != null && sku in eligible && sku !in submitted
         }
@@ -61,5 +67,11 @@ class ReviewPromptIntegration(
     /** Call after a successful submission, not when the review screen opens. */
     fun didSubmitReview(sku: String) {
         submitted.add(sku)
+    }
+
+    /** Demo/testing-only: clears the in-session optimistic cache, e.g. after resetting a
+     *  backend-side review status out of band. A real app wouldn't normally need this. */
+    fun clearSubmittedReviews() {
+        submitted.clear()
     }
 }

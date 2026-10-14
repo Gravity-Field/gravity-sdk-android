@@ -161,6 +161,16 @@ class GravitySDK private constructor(
                 inAppPreparation,
             )
         }
+
+        /** No preparation configured passes the content through unchanged; otherwise delegates to it. */
+        internal suspend fun resolvedContent(
+            content: CampaignContent,
+            campaign: Campaign,
+            preparation: InAppPreparation?,
+        ): CampaignContent? {
+            if (preparation == null) return content
+            return preparation.prepare(content, campaign)
+        }
     }
 
     private var options = Options()
@@ -335,12 +345,10 @@ class GravitySDK private constructor(
         }
         if (!canPrepare) return
 
-        val prepared = if (inAppPreparation != null) {
-            inAppPreparation.prepare(content, campaign) ?: run {
-                Logger.i(TAG, "In-app preparation skipped content ${content.contentId}")
-                return
-            }
-        } else content
+        val prepared = resolvedContent(content, campaign, inAppPreparation) ?: run {
+            Logger.i(TAG, "In-app preparation skipped content ${content.contentId}")
+            return
+        }
 
         withContext(Dispatchers.Main) {
             // Revalidate immediately before mounting the UI, after the asynchronous work.
