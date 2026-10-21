@@ -9,6 +9,7 @@ import ai.gravityfield.gravity_sdk.models.Element
 import ai.gravityfield.gravity_sdk.models.GravityLayoutWidth
 import ai.gravityfield.gravity_sdk.models.Item
 import ai.gravityfield.gravity_sdk.models.OnClickModel
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -37,6 +38,7 @@ internal fun GravityButton(
     element: Element,
     onClickCallback: (model: OnClickModel) -> Unit,
     item: Item? = null,
+    enabled: Boolean = true,
 ) {
     val text = if (item != null) item.values[element.text] else element.text
 
@@ -61,6 +63,7 @@ internal fun GravityButton(
         contentColor = textStyle?.color ?: Color.Unspecified,
     )
     val cornerRadius = style.cornerRadius?.dp ?: 0.0.dp
+    val border = resolveOutlineColor(style.outlineColor, enabled)?.let { BorderStroke(1.dp, it) }
     val rippleColor = style.pressColor
     // TODO: no-op on material3 1.3.0+ — MaterialTheme wires LocalIndication to its own ripple(),
     //  which reads LocalRippleConfiguration instead of LocalRippleTheme. The version that applies
@@ -94,8 +97,10 @@ internal fun GravityButton(
                     onClickCallback.invoke(element.onClick)
                 }
             },
+            enabled = enabled,
             colors = buttonColors,
             shape = RoundedCornerShape(cornerRadius),
+            border = border,
             contentPadding = paddingValues,
             modifier = Modifier
                 .conditional(margin != null) {
@@ -133,3 +138,10 @@ internal fun GravityButton(
         }
     }
 }
+
+internal fun resolveOutlineColor(outlineColor: Color?, enabled: Boolean): Color? {
+    if (outlineColor == null) return null
+    return if (enabled) outlineColor else outlineColor.copy(alpha = DISABLED_OUTLINE_ALPHA)
+}
+
+private const val DISABLED_OUTLINE_ALPHA = 0.4f
