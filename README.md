@@ -42,6 +42,37 @@ dependencies {
 }
 ```
 
+## Подключение готового релиза
+
+После публикации тега `1.1.0` скачайте соответствующую версию публичного репозитория
+`Gravity-Field/gravity-sdk-android` и скопируйте `gravity_sdk/repository`
+в проект приложения под именем `gravity-sdk-repository`.
+
+Добавьте репозиторий в `settings.gradle.kts`:
+
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("gravity-sdk-repository") }
+    }
+}
+```
+
+Подключите библиотеку в модуле приложения:
+
+```kotlin
+dependencies {
+    implementation("ai.gravityfield:gravity-sdk:1.1.0")
+}
+```
+
+Сохраняйте AAR, POM и Gradle metadata вместе, чтобы Gradle разрешал транзитивные
+зависимости. Для сценария отзывов дополнительно подключите `inAppPreparation`,
+проверку доступности отзыва и свою форму отправки; обновление зависимости само
+по себе этот сценарий не включает.
+
 ## Инициализация
 
 Для работы SDK необходимо провести базовую инициализацию, передав Context, а так же параметры `apiKey` и `section`. Их можно найти в личном кабинете.
@@ -205,7 +236,7 @@ GravitySDK.initialize(
 )
 ```
 
-[Пример ReviewPromptIntegration](app/src/main/java/ai/gravityfield/sdk/ReviewPromptIntegration.kt) включает интерфейс клиентского API eligibility, карточку с кнопкой «Оставить отзыв» и обновление локального статуса через `didSubmitReview(sku)` после успешной отправки отзыва. Карточка вызывает `dismissInApp`; SDK закрывает sheet и затем вызывает `onOpenReview` для маршрутизации приложения. Пример не включён по умолчанию: для него нужен API клиента.
+[Пример ReviewPromptIntegration](app/src/main/java/ai/gravityfield/sdk/ReviewPromptIntegration.kt) включает интерфейс клиентского API eligibility, карточку с кнопкой «Оставить отзыв» и обновление локального статуса через `didSubmitReview(sku)` после успешной отправки отзыва. Карточка вызывает `dismissInApp`; SDK закрывает sheet и затем вызывает `onOpenReview` для маршрутизации приложения. В demo-приложении пример подключён через `ReviewPromptCoordinator` после локальной настройки ключа и секции. `DemoReviewEligibilityAPI` проверяет локальный `ReviewStatusStore`; это демонстрация фильтрации, а не серверное API отзывов. В приложении клиента подключите свой API и обновляйте локальный статус только после успешной отправки отзыва.
 
 Обработчик можно написать напрямую:
 
