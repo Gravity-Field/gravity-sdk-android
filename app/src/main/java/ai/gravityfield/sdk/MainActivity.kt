@@ -60,6 +60,14 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (BuildConfig.GRAVITY_DEMO_API_KEY.isBlank() || BuildConfig.GRAVITY_DEMO_SECTION.isBlank()) {
+            setContent {
+                GravitySDKTheme {
+                    Text("Set gravity.demo.apiKey and gravity.demo.section in local.properties to start the demo.")
+                }
+            }
+            return
+        }
         val legacyProductViewBuilder = object : LegacyProductViewBuilder {
             override fun createView(
                 context: Context,
@@ -73,8 +81,8 @@ class MainActivity : ComponentActivity() {
         ReviewPromptCoordinator.initialize(this, legacyProductViewBuilder)
         GravitySDK.initialize(
             this,
-            apiKey = "your-api-key",
-            section = "your-section-id",
+            apiKey = BuildConfig.GRAVITY_DEMO_API_KEY,
+            section = BuildConfig.GRAVITY_DEMO_SECTION,
             gravityEventCallback = ::handleTrackingEvent,
             productViewBuilder = ReviewPromptCoordinator.integration.productViewBuilder,
             productFilter = ::checkSlotValid,

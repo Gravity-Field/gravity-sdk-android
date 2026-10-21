@@ -1,8 +1,21 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
     alias(libs.plugins.compose.compiler)
 }
+
+val demoProperties = Properties().apply {
+    val localFile = rootProject.file("local.properties")
+    if (localFile.isFile) localFile.inputStream().use { load(it) }
+}
+
+fun demoConfigString(value: String): String = "\"" + value
+    .replace("\\", "\\\\")
+    .replace("\"", "\\\"")
+    .replace("\n", "\\n")
+    .replace("\r", "\\r") + "\""
 
 android {
     namespace = "ai.gravityfield.sdk"
@@ -14,6 +27,11 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
+
+        buildConfigField("String", "GRAVITY_DEMO_API_KEY",
+            demoConfigString(demoProperties.getProperty("gravity.demo.apiKey", "")))
+        buildConfigField("String", "GRAVITY_DEMO_SECTION",
+            demoConfigString(demoProperties.getProperty("gravity.demo.section", "")))
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -39,6 +57,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.1"
