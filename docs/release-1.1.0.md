@@ -6,6 +6,8 @@ This branch combines EGO-247 (review preparation and targeted dismissal) and EGO
 
 - The demo app compiles with `:app:compileDebugKotlin`.
 - All 40 SDK JVM regression tests pass with `:gravity_sdk:testDebugUnitTest`.
+- An independent Android project compiles against the packaged 1.1.0 AAR, including the existing initialization call, the preparation overload, and targeted dismissal.
+- Maven artifact checksums and the embedded SDK version are verified.
 - The 1.1.0 Maven package builds successfully with `:gravity_sdk:publishReleasePublicationToLocalRepository`; the output belongs in `gravity_sdk/repository/ai/gravityfield/gravity-sdk/1.1.0`.
 
 The Maven publication contains the library only. Demo `BuildConfig` settings are not part of the SDK AAR.
