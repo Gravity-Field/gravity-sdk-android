@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+* Fix parsing of `#RRGGBB` colors; `#RRGGBBAA` keeps alpha in the last pair. Invalid colors give no color instead of a wrong one
+
 ## 1.0.4
 
 * Bump Compose BOM to 2024.09.00 to fix ModalBottomSheet crash
