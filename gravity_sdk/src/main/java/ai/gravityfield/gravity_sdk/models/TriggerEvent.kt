@@ -11,6 +11,10 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -24,7 +28,7 @@ sealed class TriggerEvent {
     /** Extra properties sent alongside the typed fields. String values only. */
     abstract val customProps: Map<String, String>?
 
-    /** When the event happened; sent in UTC. Omitted, the server uses receipt time. */
+    /** When the event happened; sent in UTC. Omitted, the time triggerEvent was called is sent. */
     abstract val eventTime: Date?
 }
 
@@ -160,6 +164,18 @@ data class CartItem(
     val quantity: Int,
     val itemPrice: Double,
 )
+
+/**
+ * Encodes [events] for the /event body. Events without their own eventTime get
+ * [raisedAt], the moment the app raised them; an explicit eventTime is kept.
+ */
+internal fun encodeEvents(json: Json, events: List<TriggerEvent>, raisedAt: Date): JsonArray {
+    val fallback = json.encodeToJsonElement(EventTimeSerializer, raisedAt)
+    return JsonArray(events.map { event ->
+        val obj = json.encodeToJsonElement(TriggerEvent.serializer(), event).jsonObject
+        if (obj.containsKey("eventTime")) obj else JsonObject(obj + ("eventTime" to fallback))
+    })
+}
 
 /** RFC 3339 timestamp in UTC with millisecond precision, e.g. `2026-08-28T11:00:00.123Z`. */
 internal object EventTimeSerializer : KSerializer<Date> {

@@ -115,6 +115,42 @@ class TriggerEventJsonTest {
     }
 
     @Test
+    fun emptyCustomPropsIsSentAsEmptyObject() {
+        val obj = wire(listOf(CustomEvent(type = "x", name = "X", customProps = emptyMap()))).single()
+        assertEquals(JsonObject(emptyMap()), obj["customProps"])
+    }
+
+    @Test
+    fun eventTimeIsSentInUtcWhateverTheDeviceTimeZone() {
+        val saved = TimeZone.getDefault()
+        try {
+            TimeZone.setDefault(TimeZone.getTimeZone("Asia/Novosibirsk"))
+            // 16:00:15.250 in Novosibirsk (UTC+7) is 09:00:15.250 UTC
+            val local = Calendar.getInstance().apply {
+                clear()
+                set(2026, Calendar.SEPTEMBER, 3, 16, 0, 15)
+                set(Calendar.MILLISECOND, 250)
+            }.time
+            val obj = wire(listOf(CustomEvent(type = "x", name = "X", eventTime = local))).single()
+            assertEquals(JsonPrimitive("2026-09-03T09:00:15.250Z"), obj["eventTime"])
+        } finally {
+            TimeZone.setDefault(saved)
+        }
+    }
+
+    @Test
+    fun eventsWithoutEventTimeGetTheRaisedAtTime() {
+        val explicit = CustomEvent(type = "a", name = "A", eventTime = time)
+        val implicit = CustomEvent(type = "b", name = "B")
+        val raisedAt = Date(time.time + 60_000)
+
+        val data = encodeEvents(json, listOf(explicit, implicit), raisedAt).map { it.jsonObject }
+
+        assertEquals(JsonPrimitive("2026-09-03T09:00:15.250Z"), data[0]["eventTime"])
+        assertEquals(JsonPrimitive("2026-09-03T09:01:15.250Z"), data[1]["eventTime"])
+    }
+
+    @Test
     fun customEventWithoutNewFieldsIsUnchangedOnTheWire() {
         val obj = wire(listOf(CustomEvent(type = "x", name = "X"))).single()
         assertEquals(buildJsonObject { put("type", "x"); put("name", "X") }, obj)

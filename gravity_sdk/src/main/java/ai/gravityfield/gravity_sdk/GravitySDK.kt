@@ -90,6 +90,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Date
 
 typealias ProductFilter = (Slot) -> Boolean
 typealias GravityEventCallback = (TrackingEvent) -> Unit
@@ -213,10 +214,12 @@ class GravitySDK private constructor(
         pageContext: PageContext,
         activityContext: Context,
     ) {
+        // The event happened now; events without their own eventTime are sent with it
+        val raisedAt = Date()
         ioScope.launch {
             try {
                 val campaignIdsResponse =
-                    repository.event(events, pageContext, options, user) ?: return@launch
+                    repository.event(events, raisedAt, pageContext, options, user) ?: return@launch
                 handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext)
             } catch (e: Throwable) {
                 Logger.e(TAG, "triggerEvent error: ${e.message}")

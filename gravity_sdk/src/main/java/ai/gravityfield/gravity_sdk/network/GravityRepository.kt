@@ -8,6 +8,7 @@ import ai.gravityfield.gravity_sdk.models.Options
 import ai.gravityfield.gravity_sdk.models.PageContext
 import ai.gravityfield.gravity_sdk.models.TriggerEvent
 import ai.gravityfield.gravity_sdk.models.User
+import ai.gravityfield.gravity_sdk.models.encodeEvents
 import ai.gravityfield.gravity_sdk.prefs.Prefs
 import ai.gravityfield.gravity_sdk.utils.DeviceUtils
 import ai.gravityfield.gravity_sdk.utils.Logger
@@ -34,6 +35,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.Date
 import io.ktor.client.plugins.logging.LogLevel as KtorLogLevel
 import io.ktor.client.plugins.logging.Logger as KtorLogger
 
@@ -135,6 +137,7 @@ internal class GravityRepository private constructor() {
 
     suspend fun event(
         events: List<TriggerEvent>,
+        raisedAt: Date,
         pageContext: PageContext,
         options: Options,
         customerUser: User?,
@@ -143,7 +146,7 @@ internal class GravityRepository private constructor() {
             val jsonBody = buildJsonObject {
                 put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
                 put("device", json.encodeToJsonElement(DeviceUtils.getDevice()))
-                put("data", json.encodeToJsonElement(events))
+                put("data", encodeEvents(json, events, raisedAt))
                 put("user", json.encodeToJsonElement(userForRequest(customerUser)))
                 put("ctx", json.encodeToJsonElement(mixPageContextAttributes(pageContext)))
                 put("options", json.encodeToJsonElement(options))
