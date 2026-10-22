@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+* Add `customProps` and `eventTime` to all trigger events; `CustomEvent` also gets `cuid`, `cuidType` and `cart`
+
 ## 1.0.4
 
 * Bump Compose BOM to 2024.09.00 to fix ModalBottomSheet crash
