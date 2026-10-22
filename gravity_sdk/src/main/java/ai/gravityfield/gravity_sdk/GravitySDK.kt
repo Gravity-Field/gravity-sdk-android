@@ -13,6 +13,7 @@ import ai.gravityfield.gravity_sdk.models.DeliveryMethod
 import ai.gravityfield.gravity_sdk.models.Event
 import ai.gravityfield.gravity_sdk.models.FollowDeeplinkEvent
 import ai.gravityfield.gravity_sdk.models.FollowUrlEvent
+import ai.gravityfield.gravity_sdk.models.InAppPreparation
 import ai.gravityfield.gravity_sdk.models.Item
 import ai.gravityfield.gravity_sdk.models.NotificationPermissionStatus
 import ai.gravityfield.gravity_sdk.models.OnClickModel
@@ -35,6 +36,7 @@ import ai.gravityfield.gravity_sdk.models.internal.ScrollProvider
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.network.CampaignIdsResponse
 import ai.gravityfield.gravity_sdk.network.ContentResponse
+import ai.gravityfield.gravity_sdk.network.EngagementTransport
 import ai.gravityfield.gravity_sdk.network.GravityRepository
 import ai.gravityfield.gravity_sdk.ui.GravityBottomSheetContent
 import ai.gravityfield.gravity_sdk.ui.GravityFullScreenContent
@@ -42,14 +44,16 @@ import ai.gravityfield.gravity_sdk.ui.GravityModalContent
 import ai.gravityfield.gravity_sdk.ui.GravitySnackbarContent1
 import ai.gravityfield.gravity_sdk.ui.GravitySnackbarContent2
 import ai.gravityfield.gravity_sdk.ui.product_view_builder.ProductViewBuilder
-import ai.gravityfield.gravity_sdk.utils.VisibleImpressionDelivery
-import ai.gravityfield.gravity_sdk.network.EngagementTransport
-import ai.gravityfield.gravity_sdk.utils.InAppPresentationGate
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import ai.gravityfield.gravity_sdk.utils.DeviceUtils
+import ai.gravityfield.gravity_sdk.utils.InAppPresentation
+import ai.gravityfield.gravity_sdk.utils.InAppPresentationGate
+import ai.gravityfield.gravity_sdk.utils.InAppPresentationRegistry
 import ai.gravityfield.gravity_sdk.utils.LogLevel
 import ai.gravityfield.gravity_sdk.utils.Logger
+import ai.gravityfield.gravity_sdk.utils.PresentationRevision
 import ai.gravityfield.gravity_sdk.utils.ProductEventService
+import ai.gravityfield.gravity_sdk.utils.VisibleImpressionDelivery
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -86,6 +90,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.core.view.children
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -94,12 +100,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import ai.gravityfield.gravity_sdk.models.InAppPreparation
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
-import ai.gravityfield.gravity_sdk.utils.PresentationRevision
-import ai.gravityfield.gravity_sdk.utils.InAppPresentation
-import ai.gravityfield.gravity_sdk.utils.InAppPresentationRegistry
 import java.lang.ref.WeakReference
 
 typealias ProductFilter = (Slot) -> Boolean
@@ -188,6 +188,8 @@ class GravitySDK private constructor(
     private val presentationRevision = PresentationRevision()
     private val inAppPresentations = InAppPresentationRegistry()
     private var requestUser: User? = null
+    // Written by setUser on the caller's thread, read by request coroutines on IO
+    @Volatile
     internal val user: User? get() = presentationGate.scoped { requestUser }
 
     private fun automaticRequest(pageContext: PageContext, newScreen: Boolean) = presentationGate.scoped {
