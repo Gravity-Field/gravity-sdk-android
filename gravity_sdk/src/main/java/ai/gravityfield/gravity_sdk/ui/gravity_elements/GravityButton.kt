@@ -57,13 +57,14 @@ internal fun GravityButton(
     val layoutWidth = style.layoutWidth
     val margin = style.margin
     val horizontalAlignment = style.contentAlignment?.toAlignment() ?: Alignment.Center
+    val isEnabled = isButtonEnabled(enabled, element.onClick)
 
     val buttonColors = ButtonDefaults.buttonColors(
         containerColor = style.backgroundColor ?: Color.Unspecified,
         contentColor = textStyle?.color ?: Color.Unspecified,
     )
-    val cornerRadius = style.cornerRadius?.dp ?: 0.0.dp
-    val border = resolveOutlineColor(style.outlineColor, enabled)?.let { BorderStroke(1.dp, it) }
+    val cornerRadius = style.cornerRadius?.dp ?: DEFAULT_CORNER_RADIUS.dp
+    val border = resolveOutlineColor(style.outlineColor, isEnabled)?.let { BorderStroke(1.dp, it) }
     val rippleColor = style.pressColor
     // TODO: no-op on material3 1.3.0+ — MaterialTheme wires LocalIndication to its own ripple(),
     //  which reads LocalRippleConfiguration instead of LocalRippleTheme. The version that applies
@@ -97,7 +98,7 @@ internal fun GravityButton(
                     onClickCallback.invoke(element.onClick)
                 }
             },
-            enabled = enabled,
+            enabled = isEnabled,
             colors = buttonColors,
             shape = RoundedCornerShape(cornerRadius),
             border = border,
@@ -128,7 +129,8 @@ internal fun GravityButton(
                 Text(
                     text = text ?: "",
                     style = TextStyle(
-                        color = textStyle?.color ?: Color.Unspecified,
+                        // Unspecified when disabled so the Button's disabledContentColor applies
+                        color = if (isEnabled) textStyle?.color ?: Color.Unspecified else Color.Unspecified,
                         fontSize = textStyle?.fontSize ?: TextUnit.Unspecified,
                         fontWeight = textStyle?.fontWeight ?: FontWeight.Normal,
                         fontFamily = LocalAppFont.current
@@ -139,9 +141,14 @@ internal fun GravityButton(
     }
 }
 
+internal fun isButtonEnabled(enabled: Boolean, onClick: OnClickModel?): Boolean {
+    return enabled && onClick != null
+}
+
 internal fun resolveOutlineColor(outlineColor: Color?, enabled: Boolean): Color? {
     if (outlineColor == null) return null
     return if (enabled) outlineColor else outlineColor.copy(alpha = DISABLED_OUTLINE_ALPHA)
 }
 
 private const val DISABLED_OUTLINE_ALPHA = 0.4f
+private const val DEFAULT_CORNER_RADIUS = 8.0
