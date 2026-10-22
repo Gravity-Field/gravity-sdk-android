@@ -37,7 +37,9 @@ class AddToCartEvent @JvmOverloads constructor(
     val value: Double,
     val productId: String,
     val quantity: Int,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val currency: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val cart: List<CartItem>? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     override val customProps: Map<String, String>? = null,
@@ -54,6 +56,7 @@ class PurchaseEvent @JvmOverloads constructor(
     val uniqueTransactionId: String,
     val value: Double,
     val cart: List<CartItem>,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val currency: String? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     override val customProps: Map<String, String>? = null,
@@ -70,7 +73,9 @@ class RemoveFromCartEvent @JvmOverloads constructor(
     val value: Double,
     val productId: String,
     val quantity: Int,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val currency: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val cart: List<CartItem>? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     override val customProps: Map<String, String>? = null,
@@ -85,7 +90,9 @@ class RemoveFromCartEvent @JvmOverloads constructor(
 @Serializable
 class SyncCartEvent @JvmOverloads constructor(
     val value: Double,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val currency: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val cart: List<CartItem>? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     override val customProps: Map<String, String>? = null,
@@ -113,8 +120,11 @@ class AddToWishlistEvent @JvmOverloads constructor(
 
 @Serializable
 class SignUpEvent @JvmOverloads constructor(
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val hashedEmail: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val cuid: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val cuidType: String? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     override val customProps: Map<String, String>? = null,
@@ -128,8 +138,11 @@ class SignUpEvent @JvmOverloads constructor(
 
 @Serializable
 class LoginEvent @JvmOverloads constructor(
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val hashedEmail: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val cuid: String? = null,
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
     val cuidType: String? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     override val customProps: Map<String, String>? = null,

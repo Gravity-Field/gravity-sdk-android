@@ -79,7 +79,6 @@ class TriggerEventJsonTest {
             put("productId", "sku-1")
             put("quantity", 2)
             put("currency", "RUB")
-            put("cart", JsonNull)
             put("customProps", json.encodeToJsonElement(props))
             put("type", "add-to-cart-v1")
             put("name", "Add to Cart")
@@ -112,6 +111,23 @@ class TriggerEventJsonTest {
             put("eventTime", "2026-09-03T09:00:15.250Z")
         }
         assertEquals(expected, obj)
+    }
+
+    @Test
+    fun unsetOptionalFieldsAreOmittedNotSentAsNull() {
+        val events = listOf(
+            AddToCartEvent(value = 1.0, productId = "p", quantity = 1),
+            RemoveFromCartEvent(value = 1.0, productId = "p", quantity = 1),
+            SyncCartEvent(value = 1.0),
+            PurchaseEvent(uniqueTransactionId = "t", value = 1.0, cart = emptyList()),
+            AddToWishlistEvent(value = 1.0, productId = "p"),
+            SignUpEvent(),
+            LoginEvent(),
+            CustomEvent(type = "x", name = "X"),
+        )
+        wire(events).zip(events).forEach { (obj, event) ->
+            assertFalse(event.type, obj.values.any { it is JsonNull })
+        }
     }
 
     @Test
