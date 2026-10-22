@@ -141,6 +141,8 @@ class GravitySDK private constructor(
 
     private var options = Options()
     private var contentSettings = ContentSettings()
+    // Written by setUser on the caller's thread, read by request coroutines on IO
+    @Volatile
     internal var user: User? = null
     internal var proxyUrl: String? = null
     internal var notificationPermissionStatus = NotificationPermissionStatus.UNKNOWN
@@ -232,6 +234,7 @@ class GravitySDK private constructor(
             selector = selector,
             options = options,
             contentSettings = contentSettings,
+            customerUser = user,
             pageContext = pageContext
         ) ?: return null
         for (campaign in response.data) {
@@ -345,6 +348,7 @@ class GravitySDK private constructor(
             campaignId = campaignId,
             options = options,
             contentSettings = contentSettings,
+            customerUser = user,
             pageContext = pageContext
         ) ?: return null
         for (campaign in response.data) {
@@ -365,6 +369,7 @@ class GravitySDK private constructor(
             group = groupSelector,
             options = options,
             contentSettings = contentSettings,
+            customerUser = user,
             pageContext = pageContext
         ) ?: return null
         for (campaign in response.data) {

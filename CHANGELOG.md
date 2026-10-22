@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+* Send content requests (`getContentBySelector`, `getContentByCampaignId`, `getContentByGroupSelector`) on behalf of the user set via `setUser`
+
 ## 1.0.4
 
 * Bump Compose BOM to 2024.09.00 to fix ModalBottomSheet crash

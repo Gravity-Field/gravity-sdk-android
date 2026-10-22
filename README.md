@@ -75,6 +75,8 @@ fun initialize(
 
 ```kotlin
 GravitySDK.instance.setUser("user-id","session-id")
+// После setUser() все последующие запросы SDK, включая запросы контента
+// (getContent*, GravityInlineView, автопоказ in-app), уходят от имени этого пользователя.
 
 GravitySDK.instance.setOptions(
   options = Options(...),
