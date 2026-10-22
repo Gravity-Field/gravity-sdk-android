@@ -90,6 +90,8 @@ dependencies {
     implementation(gravitySdk.coil.compose)
     implementation(gravitySdk.coil.network)
     testImplementation(gravitySdk.junit)
+    // Real org.json for JVM tests; android.jar only has stubs
+    testImplementation(gravitySdk.org.json)
     androidTestImplementation(gravitySdk.androidx.junit)
     androidTestImplementation(gravitySdk.androidx.espresso.core)
 }

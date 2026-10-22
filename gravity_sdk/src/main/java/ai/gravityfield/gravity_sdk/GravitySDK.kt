@@ -13,6 +13,7 @@ import ai.gravityfield.gravity_sdk.models.DeliveryMethod
 import ai.gravityfield.gravity_sdk.models.Event
 import ai.gravityfield.gravity_sdk.models.FollowDeeplinkEvent
 import ai.gravityfield.gravity_sdk.models.FollowUrlEvent
+import ai.gravityfield.gravity_sdk.models.GravityDataResponse
 import ai.gravityfield.gravity_sdk.models.Item
 import ai.gravityfield.gravity_sdk.models.NotificationPermissionStatus
 import ai.gravityfield.gravity_sdk.models.OnClickModel
@@ -228,19 +229,24 @@ class GravitySDK private constructor(
         selector: String,
         pageContext: PageContext,
     ): ContentResponse? {
-        val response = repository.chooseBySelector(
+        return getContentBySelectorWithDetails(selector, pageContext)?.data
+    }
+
+    /**
+     * Same as [getContentBySelector], plus the raw JSON of the same response,
+     * for rendering the content yourself. Does not show anything.
+     */
+    suspend fun getContentBySelectorWithDetails(
+        selector: String,
+        pageContext: PageContext,
+    ): GravityDataResponse<ContentResponse>? {
+        val response = repository.chooseBySelectorWithDetails(
             selector = selector,
             options = options,
             contentSettings = contentSettings,
             pageContext = pageContext
         ) ?: return null
-        for (campaign in response.data) {
-            for (payload in campaign.payload) {
-                for (content in payload.contents) {
-                    contentEventService.sendContentLoaded(content, campaign)
-                }
-            }
-        }
+        sendContentLoaded(response.data)
         return response
     }
 
@@ -341,19 +347,24 @@ class GravitySDK private constructor(
         campaignId: String,
         pageContext: PageContext,
     ): ContentResponse? {
-        val response = repository.chooseByCampaignId(
+        return getContentByCampaignIdWithDetails(campaignId, pageContext)?.data
+    }
+
+    /**
+     * Same as [getContentByCampaignId], plus the raw JSON of the same response,
+     * for rendering the content yourself. Does not show anything.
+     */
+    suspend fun getContentByCampaignIdWithDetails(
+        campaignId: String,
+        pageContext: PageContext,
+    ): GravityDataResponse<ContentResponse>? {
+        val response = repository.chooseByCampaignIdWithDetails(
             campaignId = campaignId,
             options = options,
             contentSettings = contentSettings,
             pageContext = pageContext
         ) ?: return null
-        for (campaign in response.data) {
-            for (payload in campaign.payload) {
-                for (content in payload.contents) {
-                    contentEventService.sendContentLoaded(content, campaign)
-                }
-            }
-        }
+        sendContentLoaded(response.data)
         return response
     }
 
@@ -367,6 +378,11 @@ class GravitySDK private constructor(
             contentSettings = contentSettings,
             pageContext = pageContext
         ) ?: return null
+        sendContentLoaded(response)
+        return response
+    }
+
+    private fun sendContentLoaded(response: ContentResponse) {
         for (campaign in response.data) {
             for (payload in campaign.payload) {
                 for (content in payload.contents) {
@@ -374,7 +390,6 @@ class GravitySDK private constructor(
                 }
             }
         }
-        return response
     }
 
     internal fun getInlineViewCache(selector: String, pageContext: PageContext): InlineViewCache? {

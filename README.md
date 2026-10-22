@@ -104,6 +104,46 @@ GravitySDK.instance.sendContentEngagement(ContentImpressionEngagement(...))
 GravitySDK.instance.sendProductEngagement(ProductClickEngagement(...))
 ```
 
+## Получение контента
+
+```kotlin
+// модель
+val response: ContentResponse? = GravitySDK.instance.getContentBySelector(
+  selector = "selector",
+  pageContext = PageContext(...),
+)
+
+// модель + сырой JSON того же ответа — для собственной отрисовки
+val details: GravityDataResponse<ContentResponse>? =
+  GravitySDK.instance.getContentBySelectorWithDetails(
+    selector = "selector",
+    pageContext = PageContext(...),
+  )
+// также getContentByCampaignIdWithDetails(campaignId, pageContext)
+```
+
+`details.json` — весь ответ сервера как `Map<String, Any?>`, включая ключи, которых нет в модели, и `null`. Методы ничего не показывают: `contentLoaded` уходит как раньше, а impression / visible impression приложение отправляет само через `sendContentEngagement`, когда действительно показало контент.
+
+### Произвольные ключи `variables`
+
+Кроме типизированных полей (`elements`, `frameUI`, …) объект `variables` кампании может содержать любые ключи, заданные в дашборде Gravity. Они доступны без разбора сырого JSON:
+
+- `content.rawVariables` — весь объект `variables` как `Map<String, Any?>` (пустой, если `variables` нет);
+- `content.variables?.get("<ключ>")` (или `variables["<ключ>"]` на ненулевом `Variables`) — значение по ключу (`Any?`; `null` и если ключа нет, и если в нём записан `null` — различить можно через `content.rawVariables.containsKey("<ключ>")`);
+- `content.variables?.valueOf<T>("<ключ>")` — то же, но вернёт значение, только если оно имеет тип `T`. Типы JSON: объекты — `Map<String, Any?>`, массивы — `List<Any?>`, числа — `Number` (целые приходят как `Int`/`Long`, дробные как `Double`), строки — `String`, флаги — `Boolean`.
+
+```kotlin
+val campaign = details.data.data.first()
+val content = campaign.payload.first().contents.first()
+
+// A/B-параметр, заданный в кампании
+val color = content.variables?.valueOf<String>("ab_button_color")
+// ...применили к своему UI, показали — сообщаем о показе
+GravitySDK.instance.sendContentEngagement(ContentImpressionEngagement(content, campaign))
+```
+
+`rawVariables` — **полный** объект `variables`, включая типизированные ключи; типизированные поля и встроенный рендеринг работают как раньше. Набор ключей определяется настройками кампании, SDK их не валидирует.
+
 ## Отображение контента
 
 Отображение контента происходит автоматически после вызова одного из методов: `trackView`
