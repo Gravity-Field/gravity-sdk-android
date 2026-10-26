@@ -21,25 +21,40 @@ internal class VisibleImpressionDelivery(
 
     private fun finish(entry: QueuedVisibleImpression, acknowledged: Boolean) {
         val queue = requireNotNull(store)
-        val remove = {
-            var removed = false
-            queue.update { entries ->
-                removed = entries.any { it.id == entry.id }
-                entries.filterNot { it.id == entry.id }
-            }
-            removed
+        var removed = false
+        queue.update(publish = { commit ->
+            val remove = { commit(); removed }
+            if (acknowledged) complete(entry, remove) else discard(entry, remove)
+        }) { entries ->
+            removed = entries.any { it.id == entry.id }
+            entries.filterNot { it.id == entry.id }
         }
-        if (acknowledged) complete(entry, remove) else discard(entry, remove)
     }
 
     fun enqueue(event: QueuedVisibleImpression) {
         require(event.urls.isNotEmpty())
         val queue = requireNotNull(store)
+        queue.load()
         if (queue.all().any { it.id == event.id }) return
-        for (old in queue.all().filter { queue.expired(it) || it.terminalUrls.isNotEmpty() }) finish(old, false)
-        while (queue.all().size >= VisibleImpressionStore.MAX_ENTRIES) finish(queue.all().first(), false)
-        queue.update { entries ->
-            if (entries.any { it.id == event.id }) entries else entries + event.copy(urls = event.urls.distinct())
+        var evicted = emptyList<QueuedVisibleImpression>()
+        queue.update(publish = { commit ->
+            commit()
+            for (old in evicted) discard(old) { true }
+        }) { entries ->
+            val retained = entries.filterNot { queue.expired(it) || it.terminalUrls.isNotEmpty() }
+                .takeLast(VisibleImpressionStore.MAX_ENTRIES - 1)
+            val retainedIds = retained.map { it.id }.toSet()
+            evicted = entries.filterNot { it.id in retainedIds }
+            retained + event.copy(urls = event.urls.distinct())
+        }
+    }
+
+    fun persistStaged() {
+        val queue = store ?: return
+        queue.load()
+        for (entry in queue.staged()) {
+            enqueue(entry)
+            queue.persisted(entry)
         }
     }
 
@@ -47,6 +62,15 @@ internal class VisibleImpressionDelivery(
     suspend fun resume() {
         val queue = store ?: return
         queue.drain.withLock {
+            persistStaged()
+            val expired = queue.all().filter { queue.expired(it) || it.terminalUrls.isNotEmpty() }
+            if (expired.isNotEmpty()) {
+                val ids = expired.map { it.id }.toSet()
+                queue.update(publish = { commit ->
+                    commit()
+                    for (entry in expired) discard(entry) { true }
+                }) { entries -> entries.filterNot { it.id in ids } }
+            }
             val processed = mutableSetOf<String>()
             while (true) {
                 val entry = queue.all().firstOrNull { it.id !in processed } ?: break
@@ -131,5 +155,27 @@ internal class VisibleImpressionDelivery(
                 }
             }
         }
+    }
+}
+
+/** Completion policy shared by GravitySDK callbacks, including a late response after initialize. */
+internal data class VisibleImpressionOwner(
+    val queueKey: String,
+    val gate: InAppPresentationGate,
+    val identity: () -> String?,
+)
+
+internal fun finishVisibleImpression(
+    entry: QueuedVisibleImpression,
+    acknowledged: Boolean,
+    source: VisibleImpressionOwner,
+    current: VisibleImpressionOwner?,
+    remove: () -> Boolean,
+) {
+    val owner = current?.takeIf { it.queueKey == source.queueKey } ?: source
+    owner.gate.scoped {
+        if (entry.identity == owner.identity()) {
+            owner.gate.finishDelivery(entry.campaignId, entry.contentId, acknowledged, entry.id, remove)
+        } else remove()
     }
 }

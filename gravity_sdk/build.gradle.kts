@@ -95,7 +95,7 @@ dependencies {
     testImplementation(gravitySdk.ktor.client.mock)
     androidTestImplementation(platform(gravitySdk.androidx.compose.bom))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    androidTestImplementation("androidx.compose.ui:ui-test-manifest")
     androidTestImplementation(gravitySdk.androidx.junit)
     androidTestImplementation(gravitySdk.androidx.espresso.core)
 }

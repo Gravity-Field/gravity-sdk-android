@@ -141,7 +141,11 @@ class ModalVisibilityWiringTest {
     private fun showSdkWindow(methodName: String, variables: Map<String, Any?>,
         impressions: AtomicInteger, closes: AtomicInteger) {
         rule.setContent { }
-        val format = if (methodName == "showBottomSheet") DeliveryMethod.BOTTOM_SHEET else DeliveryMethod.FULL_SCREEN
+        val format = when (methodName) {
+            "showBottomSheet" -> DeliveryMethod.BOTTOM_SHEET
+            "showModal" -> DeliveryMethod.MODAL
+            else -> DeliveryMethod.FULL_SCREEN
+        }
         val content = CampaignContent("close-path-test", null, format, "test", 1,
             Variables.fromJson(variables), null, null, null, null)
         val opening = ModalImpressionSession { impressions.incrementAndGet(); true }
@@ -217,6 +221,92 @@ class ModalVisibilityWiringTest {
                     rule.activity, { closes.incrementAndGet() }, ModalImpressionSession { true })
             }
             assertEquals(2, closes.get())
+        }
+    }
+
+    @Test fun sdkDialogFirstFrameAndBackCountOneOpening() {
+        val impressions = AtomicInteger()
+        val closes = AtomicInteger()
+        showSdkWindow("showModal", mapOf("elements" to listOf(mapOf("type" to "text", "text" to "Dialog content"))),
+            impressions, closes)
+        Espresso.pressBack()
+        rule.waitUntil(3000) { closes.get() == 1 }
+        assertEquals(1, impressions.get())
+    }
+
+    @Test fun sdkDialogCloseIconCountsOneOpening() {
+        val impressions = AtomicInteger()
+        val closes = AtomicInteger()
+        showSdkWindow("showModal", mapOf(
+            "elements" to listOf(mapOf("type" to "text", "text" to "Dialog content")),
+            "frameUI" to mapOf("container" to emptyMap<String, Any>(), "close" to mapOf("onClick" to mapOf("action" to "close")))
+        ), impressions, closes)
+        rule.onNode(hasClickAction()).performClick()
+        rule.waitUntil(3000) { closes.get() == 1 }
+        assertEquals(1, impressions.get())
+    }
+
+    @Test fun sdkDialogNotNowCountsOneOpening() {
+        val impressions = AtomicInteger()
+        val closes = AtomicInteger()
+        showSdkWindow("showModal", mapOf("elements" to listOf(mapOf(
+            "type" to "button", "text" to "Not now", "onClick" to mapOf("action" to "cancel")))), impressions, closes)
+        rule.onNodeWithText("Not now").performClick()
+        rule.waitUntil(3000) { closes.get() == 1 }
+        assertEquals(1, impressions.get())
+    }
+
+    @Test fun oldSdkEnqueueAfterReinitializeWakesCurrentRuntimeAndProtectsBeforeReturning() {
+        rule.setContent { }
+        val persisted = AtomicInteger()
+        val releasePersistence = java.util.concurrent.CountDownLatch(1)
+        lateinit var current: GravitySDK
+        lateinit var store: ai.gravityfield.gravity_sdk.utils.VisibleImpressionStore
+        rule.runOnUiThread {
+            GravitySDK.initialize(rule.activity, "replacement-key", "replacement-section", {})
+            val old = GravitySDK.instance
+            GravitySDK.initialize(rule.activity, "replacement-key", "replacement-section", {})
+            current = GravitySDK.instance
+            val field = GravitySDK::class.java.getDeclaredField("visibleImpressionStore").apply { isAccessible = true }
+            store = field.get(current) as ai.gravityfield.gravity_sdk.utils.VisibleImpressionStore
+            val content = CampaignContent("replacement-content", null, DeliveryMethod.MODAL, "test", 1,
+                null, null, null, null, listOf(Event(Action.VISIBLE_IMPRESSION, listOf("http://["))))
+            assertTrue(old.enqueueModalVisibleImpression(content, User(custom = "old"), "campaign") {
+                persisted.incrementAndGet()
+                check(releasePersistence.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            })
+            try { assertTrue(store.blocks("campaign", "custom:old")) }
+            finally { releasePersistence.countDown() }
+        }
+        // Invalid URL is a permanent drop. This requires the replacement runtime to wake and drain.
+        rule.waitUntil(5000) { persisted.get() == 1 && !store.hasWork() }
+    }
+
+    @Test fun sdkStopBeforeFirstFrameClosesWithoutCloseAnalyticsOrImpression() {
+        rule.setContent { }
+        val impressions = AtomicInteger()
+        val closes = AtomicInteger()
+        rule.runOnUiThread {
+            GravitySDK.initialize(rule.activity, "unshown-key", "unshown-section", {
+                if (it is ContentCloseEvent) closes.incrementAndGet()
+            })
+            val content = CampaignContent("unshown", null, DeliveryMethod.FULL_SCREEN, "test", 1,
+                Variables.fromJson(mapOf("elements" to listOf(mapOf("type" to "text", "text" to "Not drawn yet")))),
+                null, null, null, null)
+            val opening = ModalImpressionSession { impressions.incrementAndGet(); true }
+            val method = GravitySDK::class.java.getDeclaredMethod("showFullScreen", Activity::class.java,
+                CampaignContent::class.java, Campaign::class.java, Item::class.java, ModalImpressionSession::class.java)
+            method.isAccessible = true
+            method.invoke(GravitySDK.instance, rule.activity, content, Campaign(null, emptyList()), null, opening)
+            // Deliver STOP before returning control to the first traversal.
+            val lifecycle = rule.activity.lifecycle as androidx.lifecycle.LifecycleRegistry
+            lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
+            assertTrue(opening.isAbandoned)
+            lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
+        }
+        rule.runOnIdle {
+            assertEquals(0, impressions.get())
+            assertEquals(0, closes.get())
         }
     }
 

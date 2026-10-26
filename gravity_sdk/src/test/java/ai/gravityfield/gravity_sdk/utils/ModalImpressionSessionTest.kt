@@ -6,28 +6,28 @@ import org.junit.Test
 class ModalImpressionSessionTest {
     private fun fastClose(delayMillis: Long) = kotlinx.coroutines.runBlocking {
         var count = 0
-        var persistedBeforeDismiss = false
+        var acceptedBeforeDismiss = false
         val opening = ModalImpressionSession { count++; true }
         opening.attach()
         opening.frameDrawn(active = true) // Confirmed content draw; detector's posted callback is pending.
         kotlinx.coroutines.delay(delayMillis)
         val presentation = InAppPresentation(performDismiss = { complete ->
             opening.explicitClose()
-            persistedBeforeDismiss = opening.hasFired
+            acceptedBeforeDismiss = opening.hasFired
             opening.detach { fail("Visible opening must keep protection") }
             complete(true)
         }, didDismiss = {})
         presentation.close()
         opening.contentFrame(active = true) // Delayed detector / next step of this opening.
         presentation.close()
-        assertTrue(persistedBeforeDismiss)
+        assertTrue(acceptedBeforeDismiss)
         assertEquals(1, count)
     }
 
-    @Test fun explicitCloseAt100msPersistsBeforeDismissal() = fastClose(100)
-    @Test fun explicitCloseAt200msPersistsBeforeDismissal() = fastClose(200)
-    @Test fun explicitCloseAt300msPersistsBeforeDismissal() = fastClose(300)
-    @Test fun explicitCloseAt400msPersistsBeforeDismissal() = fastClose(400)
+    @Test fun explicitCloseAt100msEnqueuesBeforeDismissal() = fastClose(100)
+    @Test fun explicitCloseAt200msEnqueuesBeforeDismissal() = fastClose(200)
+    @Test fun explicitCloseAt300msEnqueuesBeforeDismissal() = fastClose(300)
+    @Test fun explicitCloseAt400msEnqueuesBeforeDismissal() = fastClose(400)
 
     @Test fun stepReplacementKeepsOneOpeningAndDoesNotAbandonItsReservation() {
         var count = 0
@@ -67,7 +67,7 @@ class ModalImpressionSessionTest {
         assertFalse(opening.hasFired)
     }
 
-    @Test fun failedPersistenceCanBeRetriedByCloseWithoutDuplicateAfterSuccess() {
+    @Test fun rejectedEnqueueCanBeRetriedByCloseWithoutDuplicateAfterSuccess() {
         var attempts = 0
         val opening = ModalImpressionSession { ++attempts > 1 }
         opening.contentFrame(active = true)

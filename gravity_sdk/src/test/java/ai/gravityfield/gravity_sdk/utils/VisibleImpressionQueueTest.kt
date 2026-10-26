@@ -138,7 +138,7 @@ class VisibleImpressionQueueTest {
         assertTrue(VisibleImpressionStore(file).all().isEmpty())
     }
 
-    @Test fun transientFailureProtectionExpiresAfterBoundedRetention() = runBlocking {
+    @Test fun protectionExpiresAtOneDayButDeliverySurvivesRestartUntilSevenDays() = runBlocking {
         var now = 0L
         val store = VisibleImpressionStore(File(temporary.root, "queue"), now = { now })
         val gate = InAppPresentationGate(now = { now }, deliveryPending = { store.blocks(it, "old") })
@@ -150,12 +150,21 @@ class VisibleImpressionQueueTest {
         delivery.enqueue(event().copy(createdAtMillis = 0))
         gate.visibleDurable("content")
         delivery.resume()
-        now = VisibleImpressionStore.RETENTION_MILLIS - 1
+        now = 24 * 60 * 60 * 1000L - 1
         assertNull(gate.reserve("campaign", request))
         now++
         delivery.resume()
-        assertTrue(store.all().isEmpty())
+        assertEquals(1, store.all().size)
+        assertFalse(store.blocks("campaign", "old"))
         assertNotNull(gate.reserve("campaign", request))
+        val reloaded = VisibleImpressionStore(File(temporary.root, "queue"), now = { now })
+        assertFalse(reloaded.blocks("campaign", "old"))
+        val sent = mutableListOf<String>()
+        VisibleImpressionDelivery(send = { sent += it }, store = reloaded).resume()
+        assertEquals(listOf("https://example.com/wrimp?uid=old"), sent)
+        now = 7 * 24 * 60 * 60 * 1000L
+        delivery.resume()
+        assertTrue(store.all().isEmpty())
     }
 
     @Test fun eventAddedDuringDrainIsSentWithoutWaitingForAnotherTimer() = runBlocking {
@@ -193,6 +202,117 @@ class VisibleImpressionQueueTest {
         assertEquals(512, store.all().size)
         assertFalse(store.blocks("campaign-0", "old"))
         assertTrue(store.blocks("new", "old"))
+    }
+
+    @Test fun lazyStoreStagesProtectionWithoutDiskAndPersistsBeforeCallbackAndSend() = runBlocking {
+        val file = File(temporary.root, "lazy")
+        val uiThread = Thread.currentThread()
+        var resolutions = 0
+        val store = VisibleImpressionStore.open(file.path, file = {
+            assertNotSame(uiThread, Thread.currentThread())
+            resolutions++
+            file
+        })
+        assertEquals(0, resolutions)
+        assertTrue(store.blocks("restored-campaign", "old")) // Until disk restore finishes.
+        var callback = false
+        val original = event()
+        store.stage(original) {
+            assertEquals(listOf(original), VisibleImpressionStore(file).all())
+            callback = true
+        }
+        assertTrue(store.blocks("campaign", "old"))
+        assertEquals(0, resolutions)
+        assertTrue(store.all().isEmpty()) // Only durable entries may be sent.
+        val replacement = VisibleImpressionStore.open(file.path, file = { error("Already open") })
+        assertSame(store, replacement)
+        var sent = false
+        val delivery = VisibleImpressionDelivery(send = {
+            assertTrue(callback)
+            assertEquals(listOf(original), VisibleImpressionStore(file).all())
+            sent = true
+        }, store = replacement)
+        withContext(Dispatchers.IO) { delivery.resume() }
+        assertTrue(sent)
+        assertEquals(1, resolutions)
+        assertFalse(store.hasWork())
+    }
+
+    @Test fun failedAsyncPersistenceKeepsMemoryProtectionAndRetriesWithoutSending() = runBlocking {
+        val parent = File(temporary.root, "blocked-parent").apply { writeText("not a directory") }
+        val file = File(parent, "queue")
+        val store = VisibleImpressionStore.open(file.path, file = { file })
+        var callbacks = 0
+        var sends = 0
+        store.stage(event()) { callbacks++ }
+        val delivery = VisibleImpressionDelivery(send = { sends++ }, store = store)
+        try { delivery.resume(); fail("Write must fail") } catch (_: IOException) { }
+        assertEquals(0, callbacks)
+        assertEquals(0, sends)
+        assertTrue(store.blocks("campaign", "old"))
+        parent.delete()
+        delivery.resume()
+        assertEquals(1, callbacks)
+        assertEquals(1, sends)
+    }
+
+    @Test fun completionUsesCurrentOwnerOnlyForSameSectionAndNeverAcknowledgesAnotherUser() {
+        for (sameSection in listOf(true, false)) for (sameUser in listOf(true, false)) {
+            val oldGate = InAppPresentationGate()
+            val newGate = InAppPresentationGate()
+            val oldRequest = oldGate.beginRequest("home", true)
+            val newRequest = newGate.beginRequest("home", true)
+            var removed = false
+            finishVisibleImpression(event(), true,
+                VisibleImpressionOwner("section", oldGate) { "old" },
+                VisibleImpressionOwner(if (sameSection) "section" else "other", newGate) { if (sameUser) "old" else "new" },
+                { removed = true; true })
+            assertTrue(removed)
+            if (sameSection && sameUser) assertNull(newGate.reserve("campaign", newRequest))
+            else assertNotNull(newGate.reserve("campaign", newRequest))
+            if (!sameSection) assertNull(oldGate.reserve("campaign", oldRequest))
+            else assertNotNull(oldGate.reserve("campaign", oldRequest))
+        }
+    }
+
+    @Test fun discardReleasesCurrentReservationWithoutAnAcknowledgementWatermark() {
+        val gate = InAppPresentationGate()
+        val request = gate.beginRequest("home", true)
+        val reservation = requireNotNull(gate.reserve("campaign", request))
+        gate.present(reservation, listOf("content")) { true }
+        val entry = event()
+        gate.visibleDurable("content", entry.id)
+        val owner = VisibleImpressionOwner("section", gate) { "old" }
+        finishVisibleImpression(entry, false, owner, owner) { true }
+        assertNotNull(gate.reserve("campaign", request))
+    }
+
+    @Test fun oldDeliveryAfterProtectionExpiryDoesNotReleaseANewerOpening() {
+        for (acknowledged in listOf(true, false)) {
+            val gate = InAppPresentationGate()
+            val request = gate.beginRequest("home", true)
+            val reservation = requireNotNull(gate.reserve("campaign", request))
+            gate.present(reservation, listOf("content")) { true }
+            val owner = VisibleImpressionOwner("section", gate) { "old" }
+            finishVisibleImpression(event(), acknowledged, owner, owner) { true }
+            assertNull(gate.reserve("campaign", gate.beginRequest("home", false)))
+        }
+    }
+
+    @Test fun sevenDayDeliveryBoundaryDropsWithoutAnotherHttpAttempt() = runBlocking {
+        var now = 0L
+        val store = VisibleImpressionStore(File(temporary.root, "queue"), now = { now })
+        var attempts = 0
+        val delivery = VisibleImpressionDelivery(send = { attempts++; throw IOException() }, pause = {}, store = store)
+        delivery.enqueue(event().copy(createdAtMillis = 0))
+        now = VisibleImpressionStore.DELIVERY_TTL_MILLIS - 1
+        delivery.resume()
+        assertEquals(3, attempts)
+        assertEquals(1, store.all().size)
+        now++
+        delivery.resume()
+        assertEquals(3, attempts)
+        assertTrue(store.all().isEmpty())
     }
 
 }

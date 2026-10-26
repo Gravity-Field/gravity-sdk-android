@@ -3,7 +3,7 @@ package ai.gravityfield.gravity_sdk.utils
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** One opening, shared by its first-frame detector, explicit dismissal and all OPEN_STEPs. */
-internal class ModalImpressionSession(private val persistImpression: () -> Boolean) {
+internal class ModalImpressionSession(private val enqueueImpression: () -> Boolean) {
     private val fired = AtomicBoolean(false)
     private var appeared = false
     private var attachments = 0
@@ -43,7 +43,7 @@ internal class ModalImpressionSession(private val persistImpression: () -> Boole
 
     private fun fire() {
         if (!fired.compareAndSet(false, true)) return
-        // A failed disk write must never masquerade as a persisted event.
-        if (!persistImpression()) fired.set(false)
+        // Acceptance stages memory protection; the SDK persists asynchronously before sending.
+        if (!enqueueImpression()) fired.set(false)
     }
 }

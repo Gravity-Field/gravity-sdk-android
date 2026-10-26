@@ -7,6 +7,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.DisposableEffect
 import android.view.Choreographer
+import android.view.ViewTreeObserver
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Rect
@@ -37,17 +38,31 @@ internal fun ModalVisibilityDetector(content: @Composable () -> Unit) {
     }
 
     // Material sheet animations can move a cached graphics layer without invoking drawWithContent.
-    // Probe after each window frame until confirmed, reading the latest placement and window focus.
+    // Bound animation probing; later real draws/focus changes still confirm delayed content.
     DisposableEffect(view, opening) {
         val choreographer = Choreographer.getInstance()
         var disposed = false
+        var framesRemaining = 120
+        fun pending() = !disposed && opening != null && !opening.hasFired && !opening.isAbandoned
         val confirm = Runnable {
-            if (!disposed && activeContent()) opening?.contentFrame(active = true)
+            if (pending() && activeContent()) opening?.contentFrame(active = true)
         }
+        fun postConfirmation(requirePreviousDraw: Boolean = true) {
+            if (!pending() || (requirePreviousDraw && !drawn[0])) return
+            view.removeCallbacks(confirm)
+            view.post(confirm)
+        }
+        val observer = view.viewTreeObserver
+        // OnDraw precedes drawing: the posted runnable checks drawn after this traversal,
+        // including a first draw that happens after the animation probe budget is exhausted.
+        val onDraw = ViewTreeObserver.OnDrawListener { postConfirmation(requirePreviousDraw = false) }
+        val onFocus = ViewTreeObserver.OnWindowFocusChangeListener { focused -> if (focused) postConfirmation() }
+        observer.addOnDrawListener(onDraw)
+        observer.addOnWindowFocusChangeListener(onFocus)
         val frame = object : Choreographer.FrameCallback {
             override fun doFrame(frameTimeNanos: Long) {
-                if (disposed || opening == null || opening.hasFired) return
-                view.post(confirm) // after this frame's layout/draw traversal
+                if (!pending() || framesRemaining-- <= 0) return
+                postConfirmation() // after this frame's layout/draw traversal
                 choreographer.postFrameCallback(this)
             }
         }
@@ -56,6 +71,10 @@ internal fun ModalVisibilityDetector(content: @Composable () -> Unit) {
             disposed = true
             choreographer.removeFrameCallback(frame)
             view.removeCallbacks(confirm)
+            if (observer.isAlive) {
+                observer.removeOnDrawListener(onDraw)
+                observer.removeOnWindowFocusChangeListener(onFocus)
+            }
         }
     }
     Box(Modifier.onGloballyPositioned { coordinates[0] = it }.drawWithContent {

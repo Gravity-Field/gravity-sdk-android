@@ -57,7 +57,9 @@ import ai.gravityfield.gravity_sdk.utils.PresentationRevision
 import ai.gravityfield.gravity_sdk.utils.ProductEventService
 import ai.gravityfield.gravity_sdk.utils.QueuedVisibleImpression
 import ai.gravityfield.gravity_sdk.utils.VisibleImpressionDelivery
+import ai.gravityfield.gravity_sdk.utils.VisibleImpressionOwner
 import ai.gravityfield.gravity_sdk.utils.VisibleImpressionStore
+import ai.gravityfield.gravity_sdk.utils.finishVisibleImpression
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -104,6 +106,8 @@ import androidx.lifecycle.LifecycleOwner
 import java.io.File
 import java.lang.ref.WeakReference
 import java.security.MessageDigest
+import java.util.concurrent.Executors
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -130,7 +134,12 @@ class GravitySDK private constructor(
 ) {
 
     companion object {
-        private var _instance: GravitySDK? = null
+        @Volatile private var _instance: GravitySDK? = null
+        private val deliveryDispatcher = Executors.newSingleThreadExecutor { task ->
+            Thread(task, "gravity-wrimp-io").apply { isDaemon = true }
+        }.asCoroutineDispatcher()
+        // Persistence submitted by an existing window survives SDK replacement and dispose().
+        private val persistenceScope = CoroutineScope(deliveryDispatcher + SupervisorJob())
 
         val instance: GravitySDK
             get() {
@@ -200,11 +209,12 @@ class GravitySDK private constructor(
     private val queueFileName = MessageDigest.getInstance("SHA-256")
         .digest((apiKey + "\u0000" + section).toByteArray()).joinToString("") { "%02x".format(it) }
     private val visibleImpressionStore = VisibleImpressionStore.open(
-        File(applicationContext.noBackupFilesDir, "gravity-wrimp/$queueFileName.json"),
+        key = applicationContext.packageName + ":" + queueFileName,
+        file = { File(applicationContext.noBackupFilesDir, "gravity-wrimp/$queueFileName.json") },
         onCorrupt = { Logger.e(TAG, "Discarding unreadable WRIMP queue: ${it.message}", it, sendToBack = false) },
     )
-    private fun currentIdentity(): String = identity(GravityRepository.instance.userForRequest(requestUser))
-    private fun identity(user: User): String = user.custom?.let { "custom:$it" } ?: "uid:${user.uid}"
+    private fun currentIdentity(): String? = identity(GravityRepository.instance.userForRequest(requestUser))
+    private fun identity(user: User): String? = user.custom?.let { "custom:$it" } ?: user.uid?.let { "uid:$it" }
     internal val presentationGate = InAppPresentationGate(
         deliveryPending = { visibleImpressionStore.blocks(it, currentIdentity()) },
     )
@@ -212,26 +222,12 @@ class GravitySDK private constructor(
         send = { GravityRepository.instance.trackEngagementEvent(listOf(it), apiKey) },
         retryable = EngagementTransport::isRetryable,
         store = visibleImpressionStore,
-        complete = { entry, remove ->
-            // A finishing HTTP response may race SDK reinitialization in the same section.
-            val owner = _instance?.takeIf { it.queueFileName == queueFileName } ?: this
-            owner.presentationGate.scoped {
-                if (entry.identity == owner.currentIdentity()) {
-                    owner.presentationGate.finishDelivery(entry.campaignId, entry.contentId, true, remove)
-                } else remove()
-            }
-        },
-        discard = { entry, remove ->
-            val owner = _instance?.takeIf { it.queueFileName == queueFileName } ?: this
-            owner.presentationGate.scoped {
-                if (entry.identity == owner.currentIdentity()) {
-                    owner.presentationGate.finishDelivery(entry.campaignId, entry.contentId, false, remove)
-                } else remove()
-            }
-        },
+        complete = { entry, remove -> finishVisibleImpression(entry, true, impressionOwner, _instance?.impressionOwner, remove) },
+        discard = { entry, remove -> finishVisibleImpression(entry, false, impressionOwner, _instance?.impressionOwner, remove) },
     )
+    private val impressionOwner get() = VisibleImpressionOwner(queueFileName, presentationGate, ::currentIdentity)
     // Deliberately independent of UI scopes and dispose(): a visible show must finish delivery.
-    private val deliveryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val deliveryScope = CoroutineScope(deliveryDispatcher + SupervisorJob())
     private val deliveryWake = Channel<Unit>(Channel.CONFLATED)
     private val connectivity = applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
@@ -247,7 +243,7 @@ class GravitySDK private constructor(
         deliveryScope.launch {
             while (true) {
                 // No periodic wakeups with an empty queue, including after dispose().
-                if (visibleImpressionStore.all().isEmpty()) deliveryWake.receive()
+                if (!visibleImpressionStore.hasWork()) deliveryWake.receive()
                 else withTimeoutOrNull(30_000) { deliveryWake.receive() }
                 try { visibleImpressionDelivery.resume() }
                 catch (e: CancellationException) { throw e }
@@ -269,29 +265,33 @@ class GravitySDK private constructor(
         }
     }
 
-    internal fun enqueueModalVisibleImpression(content: CampaignContent, originalUser: User, campaignId: String): Boolean =
-        presentationGate.scoped {
-            val event = content.events?.find { it.type == Action.VISIBLE_IMPRESSION }
-            if (event == null || event.urls.isEmpty()) {
-                Logger.e(TAG, "Visible impression has no WRIMP URL")
-                return@scoped false
-            }
-            try {
-                visibleImpressionDelivery.enqueue(QueuedVisibleImpression(
-                    campaignId = campaignId,
-                    contentId = content.contentId,
-                    identity = identity(originalUser),
-                    user = originalUser,
-                    urls = event.urls,
-                ))
-                presentationGate.visibleDurable(content.contentId)
-                resumeVisibleImpressions()
-                true
-            } catch (e: Exception) {
-                Logger.e(TAG, "Cannot persist visible impression: ${e.message}", e)
-                false
-            }
+    internal fun enqueueModalVisibleImpression(
+        content: CampaignContent, originalUser: User, campaignId: String, onPersisted: () -> Unit = {},
+    ): Boolean = presentationGate.scoped {
+        val event = content.events?.find { it.type == Action.VISIBLE_IMPRESSION }
+        if (event == null || event.urls.isEmpty()) {
+            Logger.e(TAG, "Visible impression has no WRIMP URL")
+            return@scoped false
         }
+        val originalIdentity = identity(originalUser)
+        val queued = QueuedVisibleImpression(
+            campaignId = campaignId,
+            contentId = content.contentId,
+            identity = originalIdentity ?: "unidentified",
+            user = originalUser,
+            urls = event.urls,
+        )
+        visibleImpressionStore.stage(queued, onPersisted)
+        if (originalIdentity != null) presentationGate.visibleDurable(content.contentId, queued.id)
+        persistenceScope.launch {
+            try { visibleImpressionDelivery.persistStaged() }
+            catch (e: Exception) { Logger.e(TAG, "Cannot persist visible impression: ${e.message}", e) }
+            // A still-open window can belong to a replaced SDK; wake the current store owner.
+            val owner = _instance?.takeIf { it.queueFileName == queueFileName } ?: this@GravitySDK
+            owner.resumeVisibleImpressions()
+        }
+        true
+    }
 
     private val presentationRevision = PresentationRevision()
     private val inAppPresentations = InAppPresentationRegistry()
@@ -434,6 +434,8 @@ class GravitySDK private constructor(
         revision: Long,
     ) {
         if (!presentationGate.isCurrent(request)) return
+        // Await restore off main rather than skip the first campaign response during startup.
+        withContext(deliveryDispatcher) { visibleImpressionStore.load() }
         val activity = findOwner<Activity>(activityContext) ?: return
         val sortedByPriority = response.campaigns.sortedByDescending { it.priority }
         for (campaignId in sortedByPriority) {
@@ -553,12 +555,13 @@ class GravitySDK private constructor(
     private fun registerInApp(
         content: CampaignContent,
         campaign: Campaign,
+        reportClose: () -> Boolean = { true },
         performDismiss: (complete: (Boolean) -> Unit) -> Unit,
     ): InAppPresentation {
         var registered: WeakReference<InAppPresentation>? = null
         val presentation = InAppPresentation(performDismiss) { success ->
             inAppPresentations.remove(registered?.get(), content.contentId)
-            if (success) contentEventService.sendContentClosed(content, campaign)
+            if (success && reportClose()) contentEventService.sendContentClosed(content, campaign)
         }
         registered = WeakReference(presentation)
         inAppPresentations.register(presentation, content.contentId)
@@ -705,7 +708,7 @@ class GravitySDK private constructor(
         opening: ModalImpressionSession,
     ) {
         val dismissController = DismissController()
-        val presentation = registerInApp(content, campaign) { complete ->
+        val presentation = registerInApp(content, campaign, reportClose = { !opening.isAbandoned }) { complete ->
             opening.explicitClose()
             val attached = dismissController.listener != null
             dismissController.dismiss()
@@ -757,7 +760,7 @@ class GravitySDK private constructor(
 
         val dismissController = DismissController()
         var requestClose: (((Boolean) -> Unit) -> Unit)? = null
-        val presentation = registerInApp(content, campaign) { complete ->
+        val presentation = registerInApp(content, campaign, reportClose = { !opening.isAbandoned }) { complete ->
             opening.explicitClose()
             if (dismissController.listener == null) complete(false)
             else if (opening.isAbandoned) { dismissController.dismiss(); complete(true) }
@@ -825,7 +828,7 @@ class GravitySDK private constructor(
         opening: ModalImpressionSession,
     ) {
         val dismissController = DismissController()
-        val presentation = registerInApp(content, campaign) { complete ->
+        val presentation = registerInApp(content, campaign, reportClose = { !opening.isAbandoned }) { complete ->
             opening.explicitClose()
             val attached = dismissController.listener != null
             dismissController.dismiss()

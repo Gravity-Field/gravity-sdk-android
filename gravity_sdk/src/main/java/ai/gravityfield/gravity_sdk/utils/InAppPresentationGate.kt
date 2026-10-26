@@ -12,6 +12,7 @@ internal class InAppPresentationGate(
         val reservation: Reservation,
         val contentIds: MutableSet<String> = mutableSetOf(),
         var visible: Boolean = false,
+        var deliveryId: String? = null,
         var expiresAt: Long? = null,
     )
 
@@ -88,17 +89,20 @@ internal class InAppPresentationGate(
     }
 
     @Synchronized
-    fun visibleDurable(contentId: String) {
+    fun visibleDurable(contentId: String, deliveryId: String? = null) {
         campaign(contentId)?.let { pending[it]?.apply {
             visible = true
-            expiresAt = now() + VisibleImpressionStore.RETENTION_MILLIS
+            this.deliveryId = deliveryId
+            expiresAt = now() + VisibleImpressionStore.PROTECTION_MILLIS
         } }
     }
 
     /** A discarded/expired event is not a server acknowledgement. */
     @Synchronized
-    fun deliveryAbandoned(contentId: String) {
-        campaign(contentId)?.let { pending.remove(it) }
+    fun deliveryAbandoned(contentId: String, deliveryId: String? = null) {
+        campaign(contentId)?.let {
+            if (deliveryId == null || pending[it]?.deliveryId == deliveryId) pending.remove(it)
+        }
     }
 
     @Synchronized
@@ -107,9 +111,9 @@ internal class InAppPresentationGate(
     }
 
     @Synchronized
-    fun finishDelivery(campaignId: String, contentId: String, acknowledged: Boolean, remove: () -> Boolean) {
+    fun finishDelivery(campaignId: String, contentId: String, acknowledged: Boolean, deliveryId: String? = null, remove: () -> Boolean) {
         if (!remove()) return // Already expired/evicted; a late response cannot release a newer owner.
-        if (acknowledged) acknowledgedCampaign(campaignId) else deliveryAbandoned(contentId)
+        if (acknowledged) acknowledgedCampaign(campaignId, deliveryId) else deliveryAbandoned(contentId, deliveryId)
     }
 
     @Synchronized
@@ -119,10 +123,11 @@ internal class InAppPresentationGate(
     }
 
     @Synchronized
-    fun acknowledgedCampaign(campaignId: String) {
+    fun acknowledgedCampaign(campaignId: String, deliveryId: String? = null) {
         // Also covers restored queue entries, which have no in-memory UI reservation.
         confirmedThrough[campaignId] = sequence
-        pending.remove(campaignId)
+        // A 1–7 day old response must not release a newer opening after protection expired.
+        if (deliveryId == null || pending[campaignId]?.deliveryId == deliveryId) pending.remove(campaignId)
         if (confirmedThrough.size > 512) {
             confirmedThrough.minByOrNull { it.value }?.key?.let { confirmedThrough.remove(it) }
         }

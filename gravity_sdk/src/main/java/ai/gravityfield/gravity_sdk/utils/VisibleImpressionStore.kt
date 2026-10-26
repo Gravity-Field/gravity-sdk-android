@@ -21,49 +21,80 @@ internal data class QueuedVisibleImpression(
     val createdAtMillis: Long = System.currentTimeMillis(),
 )
 
-/** SDK-private file, partitioned by API key and section. Commit precedes visibility delivery. */
-internal class VisibleImpressionStore(
-    private val file: File,
-    private val now: () -> Long = System::currentTimeMillis,
-    private val onCorrupt: (Exception) -> Unit = {},
+/** SDK-private file. Disk operations are confined to the delivery IO dispatcher by the SDK. */
+internal class VisibleImpressionStore private constructor(
+    fileProvider: () -> File,
+    private val now: () -> Long,
+    private val onCorrupt: (Exception) -> Unit,
 ) {
+    constructor(file: File, now: () -> Long = System::currentTimeMillis, onCorrupt: (Exception) -> Unit = {}) :
+        this({ file }, now, onCorrupt) { load() }
+
     companion object {
-        const val RETENTION_MILLIS = 24 * 60 * 60 * 1000L
+        const val PROTECTION_MILLIS = 24 * 60 * 60 * 1000L
+        const val DELIVERY_TTL_MILLIS = 7 * PROTECTION_MILLIS
         const val MAX_ENTRIES = 512
         private val stores = mutableMapOf<String, VisibleImpressionStore>()
-        // SDK reinitialization may overlap a cancelled HTTP response. Share the file's lock/state.
-        @Synchronized fun open(file: File, onCorrupt: (Exception) -> Unit): VisibleImpressionStore {
-            // Old API-key files cannot be replayed with new credentials; remove only expired files.
-            try {
-                file.parentFile?.listFiles()?.filter {
-                    it != file && it.isFile && System.currentTimeMillis() - it.lastModified() >= RETENTION_MILLIS
-                }?.forEach { it.delete() }
-            } catch (_: Exception) { }
-            return stores.getOrPut(file.absolutePath) { VisibleImpressionStore(file, onCorrupt = onCorrupt) }
-        }
+
+        // Do not even resolve noBackupFilesDir on main: Android may create that directory.
+        @Synchronized fun open(key: String, file: () -> File, onCorrupt: (Exception) -> Unit = {}): VisibleImpressionStore =
+            stores.getOrPut(key) { VisibleImpressionStore(file, System::currentTimeMillis, onCorrupt) }
     }
 
+    private val file by lazy(fileProvider)
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
-    // Shared across replacement SDK instances to avoid overlapping drains on reinitialization.
     val drain = Mutex()
-    private var entries: List<QueuedVisibleImpression> = try {
-        if (file.exists()) json.decodeFromString(file.readText()) else emptyList()
-    } catch (error: Exception) {
-        try { onCorrupt(error) } catch (_: Exception) { }
+    private val diskLock = Any()
+    @Volatile private var loaded = false
+    @Volatile private var entries: List<QueuedVisibleImpression> = emptyList()
+    @Volatile private var staged: List<QueuedVisibleImpression> = emptyList()
+    private val persistedCallbacks = mutableMapOf<String, () -> Unit>()
+
+    fun load() = synchronized(diskLock) {
+        if (loaded) return@synchronized
         try {
-            val quarantine = File(file.path + ".corrupt")
-            quarantine.delete()
-            if (!file.renameTo(quarantine)) file.delete()
+            file.parentFile?.listFiles()?.filter {
+                it != file && it.isFile && now() - it.lastModified() >= DELIVERY_TTL_MILLIS
+            }?.forEach { it.delete() }
         } catch (_: Exception) { }
-        emptyList()
+        entries = try {
+            if (file.exists()) json.decodeFromString(file.readText()) else emptyList()
+        } catch (error: Exception) {
+            try { onCorrupt(error) } catch (_: Exception) { }
+            try {
+                val quarantine = File(file.path + ".corrupt")
+                quarantine.delete()
+                if (!file.renameTo(quarantine)) file.delete()
+            } catch (_: Exception) { }
+            emptyList()
+        }
+        loaded = true
     }
 
-    fun expired(entry: QueuedVisibleImpression): Boolean =
-        now() - entry.createdAtMillis >= RETENTION_MILLIS
+    /** Synchronous memory protection, including across SDK replacement, before UI dismissal. */
+    @Synchronized fun stage(entry: QueuedVisibleImpression, onPersisted: () -> Unit = {}) {
+        if (staged.any { it.id == entry.id } || entries.any { it.id == entry.id }) return
+        staged = staged + entry
+        persistedCallbacks[entry.id] = onPersisted
+    }
+    fun staged(): List<QueuedVisibleImpression> = staged
+    fun hasWork(): Boolean = !loaded || staged.isNotEmpty() || entries.isNotEmpty()
+    fun persisted(entry: QueuedVisibleImpression) {
+        val callback = synchronized(this) {
+            staged = staged.filterNot { it.id == entry.id }
+            persistedCallbacks.remove(entry.id)
+        }
+        callback?.invoke()
+    }
+    fun expired(entry: QueuedVisibleImpression): Boolean = now() - entry.createdAtMillis >= DELIVERY_TTL_MILLIS
+    fun all(): List<QueuedVisibleImpression> = entries
 
-    @Synchronized fun all(): List<QueuedVisibleImpression> = entries.toList()
-
-    @Synchronized fun update(change: (List<QueuedVisibleImpression>) -> List<QueuedVisibleImpression>) {
+    /** Disk commit precedes publication; callers can atomically publish with gate acknowledgement. */
+    fun update(
+        publish: ((() -> Unit) -> Unit) = { it() },
+        change: (List<QueuedVisibleImpression>) -> List<QueuedVisibleImpression>,
+    ) = synchronized(diskLock) {
+        load()
         val next = change(entries)
         file.parentFile?.mkdirs()
         val temporary = File(file.path + ".tmp")
@@ -72,9 +103,14 @@ internal class VisibleImpressionStore(
             stream.fd.sync()
         }
         check(temporary.renameTo(file)) { "Cannot commit visible impression queue" }
-        entries = next
+        publish { entries = next }
     }
 
-    fun blocks(campaignId: String, identity: String): Boolean =
-        all().any { it.campaignId == campaignId && it.identity == identity && !expired(it) && it.terminalUrls.isEmpty() }
+    // Readers never wait for a disk lock. Startup conservatively defers automatic presentation
+    // until the persisted protection snapshot is available.
+    fun blocks(campaignId: String, identity: String?): Boolean = !loaded ||
+        identity != null &&
+        // Read staging first: publication writes entries before removing the staged copy.
+        (staged + entries).any { it.campaignId == campaignId && it.identity == identity &&
+            now() - it.createdAtMillis < PROTECTION_MILLIS && it.terminalUrls.isEmpty() }
 }

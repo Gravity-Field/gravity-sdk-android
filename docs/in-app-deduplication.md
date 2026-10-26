@@ -10,20 +10,21 @@ actually appeared on screen**, without a minimum viewing duration. A content dra
 the window while it has focus and its lifecycle is resumed. The callback runs after the draw
 traversal. Creating a component, `/choose`, content loading, zero-size/off-screen content and
 rendering only a scrim cannot count. After at least one content draw, a window-frame callback
-checks the latest bounds, lifecycle and focus after each traversal until confirmation. This also
-handles a cached graphics layer sliding into view without redrawing its text/images. `VisibilityDetector` and its existing 1-second/50% policy are unchanged for inline,
+checks the latest bounds, lifecycle and focus for at most 120 frames, stopping on confirmation or
+abandonment. Later real draws and focus changes can still confirm content without continuous
+vsync polling. This also handles a cached graphics layer sliding into view without redrawing its text/images. `VisibilityDetector` and its existing 1-second/50% policy are unchanged for inline,
 product cards and snackbar; snackbar does not use the new modal detector.
 
 Each modal opening has one `ModalImpressionSession`, including all `OPEN_STEP` transitions.
 Its detector and explicit close handlers share an atomic fired flag. Swipe, X, Back, dismiss/
-“Not now” buttons and `dismissInApp` persist WRIMP before closing if a content frame has been
+“Not now” buttons and `dismissInApp` enqueue WRIMP and set memory protection before closing if a content frame has been
 drawn, including when the detector's posted callback has not run yet. Recomposition, repeated
 signals and later steps cannot create another impression for that opening. The next step is
 prepared and mounted with the same session; the old step closes only when `closeOnClick` is true
 (including when preparation of the next step fails). Navigation-driven removal and backgrounding
 never call the explicit-close fallback. Counted windows remain open across background/resume,
-including return from system settings. Unconfirmed windows close through the common close path
-with close callbacks and reservation release, while late visibility callbacks are cancelled.
+including return from system settings. Unconfirmed windows close through the common cleanup path
+with reservation release and no close engagement or host `ContentCloseEvent`; late visibility callbacks are cancelled.
 A step replacement
 keeps the reservation while another window of the same opening remains attached.
 
@@ -33,23 +34,39 @@ Modal delivery reuses `VisibleImpressionDelivery`; there is no separate lock or 
 Before sending, it commits the original WRIMP URLs and user snapshot to an SDK-private JSON file
 under `noBackupFilesDir/gravity-wrimp`. A temporary file is flushed with `fsync` and atomically
 renamed. Files are partitioned by SHA-256 of API key and section. Campaign/user pending entries
-feed the existing gate directly, including after restart or gate reset. Durable pending protection
-has a bounded 24-hour retention from enqueue; expired entries are discarded and their reservation
-is released without claiming server acknowledgement. The queue holds at most 512 openings per
+feed the existing gate directly, including after restart or gate reset. Local protection expires
+24 hours after the persisted show timestamp, or on delivery 2xx / permanent drop, whichever is
+first. The event remains queued independently until its 7-day delivery TTL: at 24 hours the gate
+allows another opening, while the original WRIMP still retries. This also applies to “no limit” /
+“every page view” campaigns. At 7 days, the event is discarded without server acknowledgement.
+The queue holds at most 512 openings per
 API key/section; overflow discards the oldest pending opening and releases its protection.
 Unconfirmed presentations and legacy/snackbar visibility retain the original 60-second safety
 timeout. Removal before appearance releases a reservation earlier. Corrupt/schema-incompatible
 files are logged, quarantined as `.corrupt` (or deleted if renaming fails), and replaced by an
 empty queue, so queue recovery cannot crash SDK initialization. Unknown JSON fields are accepted.
-Expired old API-key/section files and quarantine files are cleaned on subsequent initialization.
+Old API-key/section files and quarantine files whose last modification is at least 7 days old
+are cleaned during background queue loading.
+
+Loading, JSON encoding, fsync, rename and eviction run on a shared serial IO dispatcher.
+Before scheduling persistence, the SDK stages the event and its protection synchronously in the
+store's memory snapshot. UI readers never wait on its disk lock. On startup, the automatic
+campaign response handler awaits snapshot loading on the IO dispatcher before reserving;
+other gate callers conservatively reject reservations until that snapshot is available. Queue removal
+is committed to disk first, then published under the gate lock together with acknowledgement;
+no disk operations hold the gate lock. Expired/capacity evictions are batched into one commit.
 
 The delivery scope is independent of Compose, window lifetime and SDK `dispose()`.
+The ConnectivityManager callback and SDK delivery runtime remain alive after `dispose()` to
+finish queued work; the next `initialize()` unregisters the old callback and replaces that runtime.
+Pending persistence is process-scoped and survives both operations.
 The original tracking URL encodes the original backend event/user context; replay sends this
 URL unchanged with the API key of its section. The explicit `User` snapshot is also persisted.
 A later `setUser` never rewrites or reattributes an older event: queued events continue with
 their original URLs, including for users no longer active. Local campaign protection is keyed
 by explicit custom user ID or anonymous backend UID, independently of the current session.
-Other users and other sections can present independently. Reinitializing the SDK transfers
+If neither is known, the original URL is still queued, but no shared unidentified-user delivery
+protection is installed. Other users and other sections can present independently. Reinitializing the SDK transfers
 work through the same store; returning to a section reloads/resumes its queue.
 
 Each URL gets up to three immediate attempts (250 ms and 1 s pauses). Network failures and
@@ -67,7 +84,8 @@ in the same pass, and SDK instances sharing a file also share its drain lock. Cr
 if the process died between HTTP success and the durable update; exactly-once server analytics
 cannot be guaranteed by the SDK.
 
-Acknowledgement and queue removal occur under the gate's lock. Responses to requests started
+Acknowledgement and publication of queue removal occur under the gate's lock, after disk commit.
+The queued event ID prevents an old ACK/drop from releasing a newer opening after 24-hour expiry. Responses to requests started
 before acknowledgement cannot reopen the campaign, including when the event was restored from
 disk without a UI reservation. Fresh requests afterward use server frequency caps, preserving
 “no limit” and “every page view”; there is no session-long local ban after success. Every new
@@ -78,13 +96,11 @@ The SDK emits the existing `ContentVisibleImpressionEvent` callback after persis
 the existing backend `VISIBLE_IMPRESSION` event. Modal formats deliberately select the WRIMP
 URLs regardless of a custom `variables.onVisibleImpression.action`: a different action cannot
 establish the frequency cap required for a shown modal. Legacy/nonmodal action selection stays
-unchanged. Missing WRIMP URLs and disk failures are logged;
-failed persistence can be retried by a later detector or explicit-close signal. The SDK cannot
-guarantee delivery when the application cannot write its private storage. Persistence and initial
-file loading are synchronous, including `fsync` under the gate lock, to enforce persistence
-before send/close and protection before requests. This can cause main-thread I/O/jank and triggers
-strict disk-I/O policies such as StrictMode `penaltyDeath`; integrators using those debug policies
-must account for the SDK's documented synchronous queue operations.
+unchanged. Missing WRIMP URLs and disk failures are logged. A failed asynchronous write keeps
+the staged event and memory protection for subsequent runtime retries; no HTTP request or
+visible-impression callback occurs until persistence succeeds. The SDK cannot guarantee delivery
+when private storage remains unwritable, or if the process dies during the brief handoff before
+the first durable commit. Closing the UI does not cancel that commit or delivery.
 
 ## Verification
 
@@ -98,7 +114,10 @@ The JVM close tests exercise the common controller contract; they do not simulat
 `ModalVisibilityWiringTest` adds device Compose checks for cached-layer movement, the text-only
 Material sheet opening animation, zero-size content, SDK fullscreen stop/resume, actual X/Back/
 Not-now/swipe dismissal routes and `OPEN_STEP.closeOnClick` when preparation or the target step
-is skipped/missing.
+is skipped/missing. Dialog-specific cases cover first appearance and Back/X/Not-now; additional
+cases cover an unshown window stopping and enqueue through an old SDK after reinitialization.
+JVM tests also cover 24-hour protection vs 7-day delivery, async staging and write failure,
+identity/section selection on completion, and late ACK/drop isolation from newer openings.
 Run with `./gradlew :gravity_sdk:connectedDebugAndroidTest
 -Pandroid.testInstrumentationRunnerArguments.class=ai.gravityfield.gravity_sdk.ModalVisibilityWiringTest`
 on a connected emulator/device. Test compilation alone does not establish device test success.

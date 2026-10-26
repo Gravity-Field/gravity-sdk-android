@@ -61,9 +61,9 @@ internal class ContentEventService private constructor() {
         originalUser: User,
         campaignId: String,
     ): Boolean {
-        if (!sdk.enqueueModalVisibleImpression(content, originalUser, campaignId)) return false
-        sdk.callbackTrackingEvent(ContentVisibleImpressionEvent(content, campaign))
-        return true
+        return sdk.enqueueModalVisibleImpression(content, originalUser, campaignId) {
+            sdk.callbackTrackingEvent(ContentVisibleImpressionEvent(content, campaign))
+        }
     }
 
     fun sendContentVisibleImpression(
