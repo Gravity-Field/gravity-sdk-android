@@ -188,8 +188,6 @@ class GravitySDK private constructor(
     private val presentationRevision = PresentationRevision()
     private val inAppPresentations = InAppPresentationRegistry()
     private var requestUser: User? = null
-    // Written by setUser on the caller's thread, read by request coroutines on IO
-    @Volatile
     internal val user: User? get() = presentationGate.scoped { requestUser }
 
     private fun automaticRequest(pageContext: PageContext, newScreen: Boolean) = presentationGate.scoped {
