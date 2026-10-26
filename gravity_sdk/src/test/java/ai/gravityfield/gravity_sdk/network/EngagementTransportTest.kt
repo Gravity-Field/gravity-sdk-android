@@ -54,4 +54,20 @@ class EngagementTransportTest {
             assertFalse(delivery.deliver(listOf("relative-path")))
         } finally { client.close() }
     }
+    @Test fun requestTimeoutRetriesTheOriginalTrackingUrlAndCapturedApiKey() = runBlocking {
+        var count = 0
+        val client = HttpClient(MockEngine { request ->
+            assertEquals("https://tracking.test/engagement?event=WRIMP&uid=original", request.url.toString())
+            assertEquals("Bearer original-key", request.headers["Authorization"])
+            respond("", if (++count == 1) HttpStatusCode.RequestTimeout else HttpStatusCode.NoContent)
+        })
+        try {
+            val transport = EngagementTransport(client)
+            val delivery = VisibleImpressionDelivery(send = { transport.send(it, "original-key") },
+                retryable = EngagementTransport::isRetryable, pause = {})
+            assertTrue(delivery.deliver(listOf("https://tracking.test/engagement?event=WRIMP&uid=original")))
+            assertEquals(2, count)
+        } finally { client.close() }
+    }
+
 }

@@ -85,6 +85,18 @@ class InAppPresentationGateTest {
         assertNotNull(gate.reserve("c", request))
     }
 
+    @Test fun visiblePendingDeliveryDoesNotExpireAfterOneMinute() {
+        var now = 0L
+        val gate = InAppPresentationGate(now = { now })
+        val request = gate.beginRequest("home", true)
+        val reservation = requireNotNull(gate.reserve("c", request))
+        gate.present(reservation, listOf("event")) { true }
+        gate.visible("event")
+        gate.closed("event")
+        now = 120_000
+        assertNull(gate.reserve("c", gate.beginRequest("next", true)))
+    }
+
     @Test fun throwingUiReleasesReservation() {
         val gate = InAppPresentationGate()
         val request = gate.beginRequest("home", true)

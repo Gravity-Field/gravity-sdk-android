@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Track modal, bottom sheet and fullscreen visible impressions on the first drawn content frame while the app is active, without a minimum viewing duration; explicit fast dismissal and step transitions share one impression per opening.
+- Persist modal WRIMP URLs and original user context before sending, retain campaign protection until HTTP 2xx, and resume transient failures after connectivity returns or SDK restart. Inline, product and snackbar visibility thresholds are unchanged.
+
 ## 1.1.0
 
 - Send content requests (`getContentBySelector`, `getContentByCampaignId`, `getContentByGroupSelector`) on behalf of the user set via `setUser`
