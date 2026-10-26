@@ -24,10 +24,10 @@ class ModalImpressionSessionTest {
         assertEquals(1, count)
     }
 
-    @Test fun swipeAt100msPersistsBeforeDismissal() = fastClose(100)
-    @Test fun closeXAt200msPersistsBeforeDismissal() = fastClose(200)
-    @Test fun backAt300msPersistsBeforeDismissal() = fastClose(300)
-    @Test fun dismissButtonAt400msPersistsBeforeDismissal() = fastClose(400)
+    @Test fun explicitCloseAt100msPersistsBeforeDismissal() = fastClose(100)
+    @Test fun explicitCloseAt200msPersistsBeforeDismissal() = fastClose(200)
+    @Test fun explicitCloseAt300msPersistsBeforeDismissal() = fastClose(300)
+    @Test fun explicitCloseAt400msPersistsBeforeDismissal() = fastClose(400)
 
     @Test fun stepReplacementKeepsOneOpeningAndDoesNotAbandonItsReservation() {
         var count = 0
@@ -87,6 +87,39 @@ class ModalImpressionSessionTest {
         opening.contentFrame(active = true) // Stale posted callback after disposal.
         opening.explicitClose() // Stale registry callback after disposal.
         assertEquals(0, count)
+        assertEquals(1, released)
+    }
+
+    @Test fun countedOpeningSurvivesBackgroundAndStillClosesOnceExplicitly() {
+        var impressions = 0
+        var closes = 0
+        val opening = ModalImpressionSession { impressions++; true }
+        opening.attach()
+        opening.contentFrame(active = true)
+        opening.background { closes++ }
+        assertEquals(0, closes)
+        assertFalse(opening.isAbandoned)
+        opening.contentFrame(active = true)
+        opening.explicitClose()
+        assertEquals(1, impressions)
+    }
+
+    @Test fun unconfirmedBackgroundCloseRunsCloseSemanticsWithoutCreatingAnImpression() {
+        var impressions = 0
+        var closes = 0
+        var released = 0
+        val opening = ModalImpressionSession { impressions++; true }
+        opening.attach()
+        opening.frameDrawn(active = true)
+        opening.background {
+            opening.explicitClose() // Same production dismissal handler; the fallback must be disabled.
+            opening.detach { released++ }
+            closes++
+        }
+        opening.background { closes++ }
+        opening.contentFrame(active = true)
+        assertEquals(0, impressions)
+        assertEquals(1, closes)
         assertEquals(1, released)
     }
 

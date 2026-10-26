@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Add the normal `android.permission.ACCESS_NETWORK_STATE` manifest permission for automatic WRIMP delivery resume; no runtime permission prompt is needed.
+- Recover unreadable WRIMP queue files without crashing initialization, accept future JSON fields, and bound pending queues to 24 hours / 512 openings per API key and section.
+- Drop permanent WRIMP delivery failures and release their local protection without acknowledging a view; retain the original 60-second expiry for legacy/snackbar delivery.
+- Preserve counted modals across background/resume; close unconfirmed windows through normal close callbacks without creating an impression. Check sheet placement after window frames even when its cached content does not redraw.
+- Honor `OPEN_STEP.closeOnClick` on both successful and skipped preparation. Modal tracking deliberately uses `VISIBLE_IMPRESSION` URLs even when `onVisibleImpression.action` names a different action; legacy/nonmodal selection is unchanged.
+- Durable queue loading and commits use synchronous private-storage I/O to guarantee persistence before send/close; applications with strict main-thread disk policies must account for this.
+
 - Track modal, bottom sheet and fullscreen visible impressions on the first drawn content frame while the app is active, without a minimum viewing duration; explicit fast dismissal and step transitions share one impression per opening.
 - Persist modal WRIMP URLs and original user context before sending, retain campaign protection until HTTP 2xx, and resume transient failures after connectivity returns or SDK restart. Inline, product and snackbar visibility thresholds are unchanged.
 

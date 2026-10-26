@@ -83,13 +83,33 @@ internal class InAppPresentationGate(
     @Synchronized
     fun visible(contentId: String) {
         campaign(contentId)?.let {
-            pending[it]?.apply { visible = true; expiresAt = null }
+            pending[it]?.visible = true
         }
+    }
+
+    @Synchronized
+    fun visibleDurable(contentId: String) {
+        campaign(contentId)?.let { pending[it]?.apply {
+            visible = true
+            expiresAt = now() + VisibleImpressionStore.RETENTION_MILLIS
+        } }
+    }
+
+    /** A discarded/expired event is not a server acknowledgement. */
+    @Synchronized
+    fun deliveryAbandoned(contentId: String) {
+        campaign(contentId)?.let { pending.remove(it) }
     }
 
     @Synchronized
     fun closed(contentId: String) {
         campaign(contentId)?.let { if (pending[it]?.visible == false) pending.remove(it) }
+    }
+
+    @Synchronized
+    fun finishDelivery(campaignId: String, contentId: String, acknowledged: Boolean, remove: () -> Boolean) {
+        if (!remove()) return // Already expired/evicted; a late response cannot release a newer owner.
+        if (acknowledged) acknowledgedCampaign(campaignId) else deliveryAbandoned(contentId)
     }
 
     @Synchronized

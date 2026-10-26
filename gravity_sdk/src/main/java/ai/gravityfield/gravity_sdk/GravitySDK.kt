@@ -109,9 +109,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 typealias ProductFilter = (Slot) -> Boolean
 typealias GravityEventCallback = (TrackingEvent) -> Unit
@@ -198,7 +200,8 @@ class GravitySDK private constructor(
     private val queueFileName = MessageDigest.getInstance("SHA-256")
         .digest((apiKey + "\u0000" + section).toByteArray()).joinToString("") { "%02x".format(it) }
     private val visibleImpressionStore = VisibleImpressionStore.open(
-        File(applicationContext.noBackupFilesDir, "gravity-wrimp/$queueFileName.json")
+        File(applicationContext.noBackupFilesDir, "gravity-wrimp/$queueFileName.json"),
+        onCorrupt = { Logger.e(TAG, "Discarding unreadable WRIMP queue: ${it.message}", it, sendToBack = false) },
     )
     private fun currentIdentity(): String = identity(GravityRepository.instance.userForRequest(requestUser))
     private fun identity(user: User): String = user.custom?.let { "custom:$it" } ?: "uid:${user.uid}"
@@ -213,33 +216,42 @@ class GravitySDK private constructor(
             // A finishing HTTP response may race SDK reinitialization in the same section.
             val owner = _instance?.takeIf { it.queueFileName == queueFileName } ?: this
             owner.presentationGate.scoped {
-                remove()
                 if (entry.identity == owner.currentIdentity()) {
-                    owner.presentationGate.acknowledgedCampaign(entry.campaignId)
-                }
+                    owner.presentationGate.finishDelivery(entry.campaignId, entry.contentId, true, remove)
+                } else remove()
+            }
+        },
+        discard = { entry, remove ->
+            val owner = _instance?.takeIf { it.queueFileName == queueFileName } ?: this
+            owner.presentationGate.scoped {
+                if (entry.identity == owner.currentIdentity()) {
+                    owner.presentationGate.finishDelivery(entry.campaignId, entry.contentId, false, remove)
+                } else remove()
             }
         },
     )
     // Deliberately independent of UI scopes and dispose(): a visible show must finish delivery.
     private val deliveryScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val deliveryWake = Channel<Unit>(Channel.CONFLATED)
     private val connectivity = applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) { resumeVisibleImpressions() }
     }
     private fun resumeVisibleImpressions() {
-        deliveryScope.launch {
-            try { visibleImpressionDelivery.resume() }
-            catch (e: CancellationException) { throw e }
-            catch (e: Exception) { Logger.e(TAG, "Visible impression queue: ${e.message}", e) }
-        }
+        deliveryWake.trySend(Unit)
     }
     private fun startDeliveryRuntime() {
         try { connectivity.registerNetworkCallback(NetworkRequest.Builder().build(), networkCallback) }
         catch (e: RuntimeException) { Logger.e(TAG, "Connectivity observer unavailable: ${e.message}") }
+        resumeVisibleImpressions()
         deliveryScope.launch {
             while (true) {
-                resumeVisibleImpressions()
-                delay(30_000)
+                // No periodic wakeups with an empty queue, including after dispose().
+                if (visibleImpressionStore.all().isEmpty()) deliveryWake.receive()
+                else withTimeoutOrNull(30_000) { deliveryWake.receive() }
+                try { visibleImpressionDelivery.resume() }
+                catch (e: CancellationException) { throw e }
+                catch (e: Exception) { Logger.e(TAG, "Visible impression queue: ${e.message}", e) }
             }
         }
     }
@@ -250,7 +262,8 @@ class GravitySDK private constructor(
 
     private fun modalImpression(content: CampaignContent, campaign: Campaign): ModalImpressionSession {
         val originalUser = GravityRepository.instance.userForRequest(user)
-        val campaignId = presentationGate.campaignId(content.contentId) ?: content.contentId
+        val campaignId = presentationGate.campaignId(content.contentId)
+            ?: campaign.payload.firstOrNull()?.campaignId ?: content.contentId
         return ModalImpressionSession {
             contentEventService.sendModalVisibleImpression(this, content, campaign, originalUser, campaignId)
         }
@@ -271,7 +284,7 @@ class GravitySDK private constructor(
                     user = originalUser,
                     urls = event.urls,
                 ))
-                presentationGate.visible(content.contentId)
+                presentationGate.visibleDurable(content.contentId)
                 resumeVisibleImpressions()
                 true
             } catch (e: Exception) {
@@ -708,6 +721,7 @@ class GravitySDK private constructor(
             onBack = ::dismiss,
             opening = opening,
             onAbandoned = { presentationGate.closed(content.contentId) },
+            onBackground = { opening.background { presentation.close() } },
         ) {
             Dialog(onDismissRequest = ::dismiss) {
                 GravityModalContent(
@@ -746,6 +760,7 @@ class GravitySDK private constructor(
         val presentation = registerInApp(content, campaign) { complete ->
             opening.explicitClose()
             if (dismissController.listener == null) complete(false)
+            else if (opening.isAbandoned) { dismissController.dismiss(); complete(true) }
             else {
                 val close = requestClose
                 if (close != null) close(complete)
@@ -762,6 +777,7 @@ class GravitySDK private constructor(
             onBack = ::dismiss,
             opening = opening,
             onAbandoned = { presentationGate.closed(content.contentId) },
+            onBackground = { opening.background { presentation.close() } },
         ) {
             val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
             val scope = rememberCoroutineScope()
@@ -825,6 +841,7 @@ class GravitySDK private constructor(
             onBack = ::dismiss,
             opening = opening,
             onAbandoned = { presentationGate.closed(content.contentId) },
+            onBackground = { opening.background { presentation.close() } },
         ) {
             GravityFullScreenContent(
                 content,
@@ -987,18 +1004,27 @@ class GravitySDK private constructor(
             }
 
             Action.OPEN_STEP -> {
-                val nextStep = onClickModel.step ?: return
+                fun closeOldStep() {
+                    if (opening != null && onClickModel.closeOnClick) dismissCallback?.invoke()
+                }
+                val nextStep = onClickModel.step ?: run { closeOldStep(); return }
                 val itemId = onClickModel.itemId
                 val item = if (itemId != null) content.items?.find { it.id == itemId } else null
                 val targetContent =
-                    campaign.payload.firstOrNull()?.contents?.find { it.step == nextStep } ?: return
+                    campaign.payload.firstOrNull()?.contents?.find { it.step == nextStep }
+                        ?: run { closeOldStep(); return }
 
-                val activity = findOwner<Activity>(context) ?: return
+                val activity = findOwner<Activity>(context) ?: run { closeOldStep(); return }
 
                 val revision = presentationRevision.current
                 ioScope.launch {
-                    val shown = prepareAndShowBackendContent(activity, targetContent, campaign, revision, item, opening = opening)
-                    if (shown && opening != null) withContext(Dispatchers.Main) { dismissCallback?.invoke() }
+                    try {
+                        prepareAndShowBackendContent(activity, targetContent, campaign, revision, item, opening = opening)
+                    } finally {
+                        if (opening != null && onClickModel.closeOnClick) {
+                            withContext(kotlinx.coroutines.NonCancellable + Dispatchers.Main) { closeOldStep() }
+                        }
+                    }
                 }
             }
 
@@ -1018,6 +1044,7 @@ class GravitySDK private constructor(
         onBack: () -> Unit,
         opening: ModalImpressionSession? = null,
         onAbandoned: () -> Unit = {},
+        onBackground: () -> Unit = {},
         content: @Composable () -> Unit,
     ) {
         val decorView = activity.window?.decorView as ViewGroup
@@ -1039,9 +1066,7 @@ class GravitySDK private constructor(
             opening.attach()
             val owner = activity as? LifecycleOwner
             val observer = LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_STOP) {
-                    dismissController.dismiss()
-                }
+                if (event == Lifecycle.Event.ON_STOP) onBackground()
             }
             owner?.lifecycle?.addObserver(observer)
             view.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {

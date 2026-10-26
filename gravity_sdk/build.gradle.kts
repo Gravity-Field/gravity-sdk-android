@@ -19,6 +19,8 @@ android {
         resValue("string", "gravity_sdk_version", project.property("SDK_VERSION").toString())
     }
 
+    testOptions { targetSdk = 35 }
+
     buildFeatures {
         compose = true
     }
@@ -91,6 +93,9 @@ dependencies {
     implementation(gravitySdk.coil.network)
     testImplementation(gravitySdk.junit)
     testImplementation(gravitySdk.ktor.client.mock)
+    androidTestImplementation(platform(gravitySdk.androidx.compose.bom))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
     androidTestImplementation(gravitySdk.androidx.junit)
     androidTestImplementation(gravitySdk.androidx.espresso.core)
 }

@@ -7,8 +7,8 @@ import ai.gravityfield.gravity_sdk.models.ContentActionModel
 import ai.gravityfield.gravity_sdk.models.ContentCloseEvent
 import ai.gravityfield.gravity_sdk.models.ContentImpressionEvent
 import ai.gravityfield.gravity_sdk.models.ContentLoadEvent
-import ai.gravityfield.gravity_sdk.models.User
 import ai.gravityfield.gravity_sdk.models.ContentVisibleImpressionEvent
+import ai.gravityfield.gravity_sdk.models.User
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.network.GravityRepository
 import kotlinx.coroutines.CancellationException

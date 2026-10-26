@@ -22,6 +22,14 @@ internal class ModalImpressionSession(private val persistImpression: () -> Boole
         if (active && !abandoned) appeared = true
     }
     val hasFired: Boolean get() = fired.get()
+    val isAbandoned: Boolean get() = synchronized(this) { abandoned }
+
+    /** Keep counted windows across backgrounding. Cancel unconfirmed windows without a view fallback. */
+    @Synchronized fun background(closeUnconfirmed: () -> Unit) {
+        if (hasFired || abandoned) return
+        abandoned = true
+        closeUnconfirmed()
+    }
 
     @Synchronized fun contentFrame(active: Boolean) {
         if (!active || abandoned) return

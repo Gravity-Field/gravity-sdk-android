@@ -76,7 +76,7 @@ class VisibleImpressionQueueTest {
         assertNotNull(gate.reserve("campaign", gate.beginRequest("next", false)))
     }
 
-    @Test fun permanentFailureIsRetainedWithoutRetry() = runBlocking {
+    @Test fun permanentFailureReleasesProtectionWithoutRetry() = runBlocking {
         val store = VisibleImpressionStore(File(temporary.root, "queue"))
         var count = 0
         val delivery = VisibleImpressionDelivery(send = { count++; throw IllegalArgumentException() },
@@ -85,8 +85,8 @@ class VisibleImpressionQueueTest {
         delivery.resume()
         delivery.resume()
         assertEquals(1, count)
-        assertTrue(store.blocks("campaign", "old"))
-        assertEquals(event().urls, store.all().single().terminalUrls)
+        assertFalse(store.blocks("campaign", "old"))
+        assertTrue(store.all().isEmpty())
     }
 
     @Test fun sectionsHaveIndependentStores() {
@@ -96,21 +96,21 @@ class VisibleImpressionQueueTest {
         assertFalse(second.blocks("campaign", "old"))
     }
 
-    @Test fun permanentFailureOfOneUrlDoesNotStopRetryingOtherUrls() = runBlocking {
+    @Test fun permanentFailureDropsTheOpeningAndReleasesTheGateWithoutAcknowledgement() = runBlocking {
         val store = VisibleImpressionStore(File(temporary.root, "queue"))
-        var online = false
-        val attempts = mutableListOf<String>()
-        val delivery = VisibleImpressionDelivery(send = {
-            attempts += it
-            if (it == "permanent") throw IllegalArgumentException()
-            if (!online) throw IOException()
-        }, retryable = { it is IOException }, pause = {}, store = store)
-        delivery.enqueue(event().copy(urls = listOf("permanent", "transient")))
+        val gate = InAppPresentationGate(deliveryPending = { store.blocks(it, "old") })
+        val request = gate.beginRequest("home", true)
+        val reservation = requireNotNull(gate.reserve("campaign", request))
+        gate.present(reservation, listOf("content")) { true }
+        val delivery = VisibleImpressionDelivery(send = { throw IllegalArgumentException() },
+            retryable = { false }, store = store,
+            complete = { _, _ -> fail("Permanent error is not an acknowledgement") },
+            discard = { entry, remove -> gate.scoped { remove(); gate.deliveryAbandoned(entry.contentId) } })
+        delivery.enqueue(event())
+        gate.visibleDurable("content")
         delivery.resume()
-        online = true
-        delivery.resume()
-        assertEquals(listOf("permanent", "transient", "transient", "transient", "transient"), attempts)
-        assertEquals(listOf("permanent"), store.all().single().urls)
+        assertFalse(store.blocks("campaign", "old"))
+        assertNotNull(gate.reserve("campaign", request)) // No acknowledged watermark.
     }
 
     @Test fun parallelResumeSharesSendAndCancellationLeavesDurableWorkForNextStart() = runBlocking {
@@ -127,14 +127,72 @@ class VisibleImpressionQueueTest {
         delivery.enqueue(event())
         val owner = launch { delivery.resume() }
         started.await()
-        List(20) { async { delivery.resume() } }.awaitAll()
+        val waiters = List(20) { launch { delivery.resume() } }
         assertEquals(1, count)
+        waiters.forEach { it.cancelAndJoin() }
         owner.cancelAndJoin()
         assertTrue(VisibleImpressionStore(file).blocks("campaign", "old"))
         val restarted = VisibleImpressionDelivery(send = { count++ }, store = VisibleImpressionStore(file))
         restarted.resume()
         assertEquals(2, count)
         assertTrue(VisibleImpressionStore(file).all().isEmpty())
+    }
+
+    @Test fun transientFailureProtectionExpiresAfterBoundedRetention() = runBlocking {
+        var now = 0L
+        val store = VisibleImpressionStore(File(temporary.root, "queue"), now = { now })
+        val gate = InAppPresentationGate(now = { now }, deliveryPending = { store.blocks(it, "old") })
+        val request = gate.beginRequest("home", true)
+        val reservation = requireNotNull(gate.reserve("campaign", request))
+        gate.present(reservation, listOf("content")) { true }
+        val delivery = VisibleImpressionDelivery(send = { throw IOException() }, pause = {}, store = store,
+            discard = { entry, remove -> gate.scoped { remove(); gate.deliveryAbandoned(entry.contentId) } })
+        delivery.enqueue(event().copy(createdAtMillis = 0))
+        gate.visibleDurable("content")
+        delivery.resume()
+        now = VisibleImpressionStore.RETENTION_MILLIS - 1
+        assertNull(gate.reserve("campaign", request))
+        now++
+        delivery.resume()
+        assertTrue(store.all().isEmpty())
+        assertNotNull(gate.reserve("campaign", request))
+    }
+
+    @Test fun eventAddedDuringDrainIsSentWithoutWaitingForAnotherTimer() = runBlocking {
+        val store = VisibleImpressionStore(File(temporary.root, "queue"))
+        val started = CompletableDeferred<Unit>()
+        val proceed = CompletableDeferred<Unit>()
+        val sent = mutableListOf<String>()
+        val first = VisibleImpressionDelivery(send = {
+            sent += it
+            if (it == "first") { started.complete(Unit); proceed.await() }
+        }, store = store)
+        first.enqueue(event().copy(urls = listOf("first")))
+        val running = launch { first.resume() }
+        started.await()
+        val replacement = VisibleImpressionDelivery(send = { sent += it }, store = store)
+        replacement.enqueue(event().copy(urls = listOf("second")))
+        val another = launch { replacement.resume() }
+        proceed.complete(Unit)
+        running.join()
+        another.join()
+        assertEquals(listOf("first", "second"), sent)
+    }
+
+    @Test fun queueCapacityEvictsOldestOpeningAndReleasesItsProtection() {
+        val store = VisibleImpressionStore(File(temporary.root, "queue"))
+        val original = List(VisibleImpressionStore.MAX_ENTRIES) { event().copy(campaignId = "campaign-$it") }
+        store.update { original }
+        val discarded = mutableListOf<String>()
+        val delivery = VisibleImpressionDelivery(send = {}, store = store, discard = { entry, remove ->
+            discarded += entry.campaignId
+            remove()
+        })
+        delivery.enqueue(event().copy(campaignId = "new"))
+        assertEquals(listOf("campaign-0"), discarded)
+        assertEquals(512, store.all().size)
+        assertFalse(store.blocks("campaign-0", "old"))
+        assertTrue(store.blocks("new", "old"))
     }
 
 }
