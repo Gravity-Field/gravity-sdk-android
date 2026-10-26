@@ -3,9 +3,10 @@
 ## Unreleased
 
 - Track modal, bottom sheet and fullscreen visible impressions on the first drawn content frame while the app is active, without a minimum viewing duration; explicit fast dismissal and step transitions share one impression per opening. Inline, product and snackbar visibility thresholds are unchanged.
-- Set local protection immediately in memory, then persist modal WRIMP URLs and original user context on a serial IO dispatcher before sending. Queue loading, fsync, atomic rename and batched eviction run off the main thread.
+- Set local protection immediately in memory, then persist modal WRIMP URLs and campaign/user protection identity on a serial IO dispatcher before sending. Queue loading, fsync, atomic rename and batched eviction run off the main thread.
 - Protect a shown campaign until HTTP 2xx or permanent drop, for at most 24 hours from the show across restarts. Retain and retry the event independently for up to 7 days; reaching 24 hours does not drop it. Queues hold at most 512 openings per API key and section.
 - Resume transient failures on connectivity restoration and SDK restart; reinitialization transfers pending work and wakeups. Late responses cannot release a newer opening after the old protection expires. Permanent 4xx/invalid URLs release protection without acknowledging a view; legacy/snackbar retain their 60-second safety expiry.
+- Persist only WRIMP delivery metadata and protection identity; omit unused User snapshots and host attributes, and scrub the legacy user field on queue load.
 - Recover unreadable WRIMP files without crashing initialization, accept future JSON fields, and clean sibling files only after the 7-day delivery TTL. Users without either custom ID or backend UID do not share anonymous pending protection.
 - Preserve counted modals across background/resume; abandon unconfirmed windows without impression or close analytics. Bound the cached-layer animation probe to 120 frames; subsequent real draws or focus changes can still confirm visibility.
 - Honor `OPEN_STEP.closeOnClick` on both successful and skipped preparation. Modal tracking deliberately uses `VISIBLE_IMPRESSION` URLs even when `onVisibleImpression.action` names a different action; legacy/nonmodal selection is unchanged.

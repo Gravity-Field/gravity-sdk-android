@@ -239,7 +239,10 @@ class ModalVisibilityWiringTest {
         val closes = AtomicInteger()
         showSdkWindow("showModal", mapOf(
             "elements" to listOf(mapOf("type" to "text", "text" to "Dialog content")),
-            "frameUI" to mapOf("container" to emptyMap<String, Any>(), "close" to mapOf("onClick" to mapOf("action" to "close")))
+            "frameUI" to mapOf("container" to emptyMap<String, Any>(), "close" to mapOf(
+                "style" to mapOf("positioned" to mapOf("top" to 0, "right" to 0),
+                    "size" to mapOf("width" to 24, "height" to 24)),
+                "onClick" to mapOf("action" to "close")))
         ), impressions, closes)
         rule.onNode(hasClickAction()).performClick()
         rule.waitUntil(3000) { closes.get() == 1 }

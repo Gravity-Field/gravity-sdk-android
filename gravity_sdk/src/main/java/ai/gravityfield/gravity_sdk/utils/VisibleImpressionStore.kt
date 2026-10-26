@@ -1,6 +1,5 @@
 package ai.gravityfield.gravity_sdk.utils
 
-import ai.gravityfield.gravity_sdk.models.User
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
@@ -8,6 +7,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 
 @Serializable
 internal data class QueuedVisibleImpression(
@@ -15,7 +17,6 @@ internal data class QueuedVisibleImpression(
     val campaignId: String,
     val contentId: String,
     val identity: String,
-    val user: User,
     val urls: List<String>,
     val terminalUrls: List<String> = emptyList(),
     val createdAtMillis: Long = System.currentTimeMillis(),
@@ -57,8 +58,14 @@ internal class VisibleImpressionStore private constructor(
                 it != file && it.isFile && now() - it.lastModified() >= DELIVERY_TTL_MILLIS
             }?.forEach { it.delete() }
         } catch (_: Exception) { }
-        entries = try {
-            if (file.exists()) json.decodeFromString(file.readText()) else emptyList()
+        var containsLegacyUser = false
+        val restored: List<QueuedVisibleImpression> = try {
+            if (file.exists()) {
+                val document = json.parseToJsonElement(file.readText())
+                val decoded = json.decodeFromJsonElement<List<QueuedVisibleImpression>>(document)
+                containsLegacyUser = document.jsonArray.any { "user" in it.jsonObject }
+                decoded
+            } else emptyList()
         } catch (error: Exception) {
             try { onCorrupt(error) } catch (_: Exception) { }
             try {
@@ -68,6 +75,11 @@ internal class VisibleImpressionStore private constructor(
             } catch (_: Exception) { }
             emptyList()
         }
+        // Older queues included an unused User snapshot. Scrub it on the same IO path before
+        // replay, even while offline, rather than retaining host attributes until delivery.
+        // A write failure leaves loading incomplete so the runtime retries this migration.
+        if (containsLegacyUser) write(restored)
+        entries = restored
         loaded = true
     }
 
@@ -96,6 +108,11 @@ internal class VisibleImpressionStore private constructor(
     ) = synchronized(diskLock) {
         load()
         val next = change(entries)
+        write(next)
+        publish { entries = next }
+    }
+
+    private fun write(next: List<QueuedVisibleImpression>) {
         file.parentFile?.mkdirs()
         val temporary = File(file.path + ".tmp")
         FileOutputStream(temporary).use { stream ->
@@ -103,7 +120,6 @@ internal class VisibleImpressionStore private constructor(
             stream.fd.sync()
         }
         check(temporary.renameTo(file)) { "Cannot commit visible impression queue" }
-        publish { entries = next }
     }
 
     // Readers never wait for a disk lock. Startup conservatively defers automatic presentation

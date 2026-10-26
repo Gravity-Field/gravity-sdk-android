@@ -1,6 +1,5 @@
 package ai.gravityfield.gravity_sdk.utils
 
-import ai.gravityfield.gravity_sdk.models.User
 import java.io.File
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -26,7 +25,7 @@ class VisibleImpressionStoreTest {
 
     @Test fun newerSchemaFieldsDoNotDiscardValidEvents() {
         val file = File(temporary.root, "queue")
-        val event = QueuedVisibleImpression(campaignId = "c", contentId = "content", identity = "u", user = User(custom = "u"), urls = listOf("url"))
+        val event = QueuedVisibleImpression(campaignId = "c", contentId = "content", identity = "u", urls = listOf("url"))
         file.writeText(Json { encodeDefaults = true }.encodeToString(listOf(event)).replaceFirst("{", "{\"futureField\":true,"))
         assertEquals(listOf(event), VisibleImpressionStore(file).all())
     }
@@ -67,9 +66,39 @@ class VisibleImpressionStoreTest {
     @Test fun unknownIdentityDoesNotShareProtectionWithOtherUnknownUsers() {
         val store = VisibleImpressionStore(File(temporary.root, "queue"))
         store.update { listOf(QueuedVisibleImpression(campaignId = "c", contentId = "content",
-            identity = "unidentified", user = User(), urls = listOf("url"))) }
+            identity = "unidentified", urls = listOf("url"))) }
         assertFalse(store.blocks("c", null))
         assertEquals(1, store.all().size) // Delivery still retains the original URL.
+    }
+
+    private fun legacyPayload() = """[{
+        "id":"legacy-event","campaignId":"c","contentId":"content","identity":"custom:old",
+        "user":{"uid":"unused-uid","custom":"old","ses":"unused-session",
+            "attributes":{"email":"private@example.invalid","name":"Private Name"}},
+        "urls":["https://example.com/wrimp?uid=old"],"createdAtMillis":${System.currentTimeMillis()}
+    }]"""
+
+    @Test fun durableWritesContainOnlyDeliveryMetadataWithoutUserAttributes() {
+        val event = Json { ignoreUnknownKeys = true }.decodeFromString<List<QueuedVisibleImpression>>(legacyPayload()).single()
+        val file = File(temporary.root, "queue")
+        VisibleImpressionStore(file).update { listOf(event) }
+        val persisted = file.readText()
+        for (unused in listOf("user", "attributes", "unused-uid", "unused-session", "private@example.invalid", "Private Name")) {
+            assertFalse("Unexpected persisted field/value: $unused", persisted.contains("\"$unused\""))
+        }
+        assertTrue(persisted.contains("custom:old"))
+        assertTrue(persisted.contains("https://example.com/wrimp?uid=old"))
+    }
+
+    @Test fun legacyUserSnapshotIsIgnoredAndScrubbedDuringLoad() {
+        val file = File(temporary.root, "queue").apply { writeText(legacyPayload()) }
+        val store = VisibleImpressionStore(file)
+        assertEquals("legacy-event", store.all().single().id)
+        assertEquals(listOf("https://example.com/wrimp?uid=old"), store.all().single().urls)
+        assertTrue(store.blocks("c", "custom:old"))
+        assertFalse(file.readText().contains("attributes"))
+        assertFalse(file.readText().contains("unused-session"))
+        assertEquals(store.all(), VisibleImpressionStore(file).all())
     }
 
 }

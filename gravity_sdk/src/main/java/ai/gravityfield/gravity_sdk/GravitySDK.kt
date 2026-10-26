@@ -278,7 +278,6 @@ class GravitySDK private constructor(
             campaignId = campaignId,
             contentId = content.contentId,
             identity = originalIdentity ?: "unidentified",
-            user = originalUser,
             urls = event.urls,
         )
         visibleImpressionStore.stage(queued, onPersisted)

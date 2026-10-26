@@ -31,7 +31,7 @@ keeps the reservation while another window of the same opening remains attached.
 ## Durable delivery
 
 Modal delivery reuses `VisibleImpressionDelivery`; there is no separate lock or delivery engine.
-Before sending, it commits the original WRIMP URLs and user snapshot to an SDK-private JSON file
+Before sending, it commits the original WRIMP URLs and campaign/user identity to an SDK-private JSON file
 under `noBackupFilesDir/gravity-wrimp`. A temporary file is flushed with `fsync` and atomically
 renamed. Files are partitioned by SHA-256 of API key and section. Campaign/user pending entries
 feed the existing gate directly, including after restart or gate reset. Local protection expires
@@ -61,7 +61,11 @@ The ConnectivityManager callback and SDK delivery runtime remain alive after `di
 finish queued work; the next `initialize()` unregisters the old callback and replaces that runtime.
 Pending persistence is process-scoped and survives both operations.
 The original tracking URL encodes the original backend event/user context; replay sends this
-URL unchanged with the API key of its section. The explicit `User` snapshot is also persisted.
+URL unchanged with the API key of its section. The queue stores only event/campaign/content IDs,
+protection identity, original URLs, legacy terminal status and the show timestamp. It does not
+persist a `User` object, host attributes, or a separate session/UID/custom snapshot. Existing
+queues with the old `user` field decode with unknown-key tolerance and are atomically rewritten
+without that field during IO loading, before replay, even when offline.
 A later `setUser` never rewrites or reattributes an older event: queued events continue with
 their original URLs, including for users no longer active. Local campaign protection is keyed
 by explicit custom user ID or anonymous backend UID, independently of the current session.
@@ -108,7 +112,7 @@ the first durable commit. Closing the UI does not cancel that commit or delivery
 and builds the AAR. Set `ANDROID_HOME` to the local Android SDK if not configured in Gradle.
 Tests cover 100–400 ms close-controller signals, duplicate signals, no appearance/background,
 step sharing, reservation races, offline recovery, partial success, real store reload, original
-user/URL preservation, user and section isolation, and fresh requests after acknowledgement.
+identity/URL preservation, user and section isolation, and fresh requests after acknowledgement.
 Ktor MockEngine tests cover HTTP 2xx, 408/429/5xx and permanent-error transport classification.
 The JVM close tests exercise the common controller contract; they do not simulate Android gestures.
 `ModalVisibilityWiringTest` adds device Compose checks for cached-layer movement, the text-only

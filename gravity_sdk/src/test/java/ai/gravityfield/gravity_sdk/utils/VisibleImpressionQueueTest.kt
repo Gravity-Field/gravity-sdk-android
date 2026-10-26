@@ -1,6 +1,5 @@
 package ai.gravityfield.gravity_sdk.utils
 
-import ai.gravityfield.gravity_sdk.models.User
 import java.io.File
 import java.io.IOException
 import kotlinx.coroutines.*
@@ -11,9 +10,9 @@ import org.junit.rules.TemporaryFolder
 
 class VisibleImpressionQueueTest {
     @get:Rule val temporary = TemporaryFolder()
-    private fun event() = QueuedVisibleImpression(campaignId = "campaign", contentId = "content", identity = "old", user = User(custom = "old", ses = "original"), urls = listOf("https://example.com/wrimp?uid=old"))
+    private fun event() = QueuedVisibleImpression(campaignId = "campaign", contentId = "content", identity = "old", urls = listOf("https://example.com/wrimp?uid=old"))
 
-    @Test fun offlineCloseAndRestartKeepProtectionThenRestoreDeliversOriginalUrlAndUser() = runBlocking {
+    @Test fun offlineCloseAndRestartKeepProtectionThenRestoreDeliversOriginalUrlAndIdentity() = runBlocking {
         val file = File(temporary.root, "queue")
         val store = VisibleImpressionStore(file)
         val original = event()
@@ -28,7 +27,6 @@ class VisibleImpressionQueueTest {
         val online = VisibleImpressionDelivery(send = { sent += it }, store = reloaded)
         online.resume()
         assertEquals(listOf("https://example.com/wrimp?uid=old"), sent)
-        assertEquals(User(custom = "old", ses = "original"), original.user)
         assertFalse(reloaded.blocks("campaign", "old"))
         assertTrue(VisibleImpressionStore(file).all().isEmpty())
     }
