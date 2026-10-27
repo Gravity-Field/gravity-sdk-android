@@ -49,11 +49,7 @@ internal fun GravityModalContent(
         ContentEventService.instance.sendContentImpression(content, campaign)
     }
 
-    VisibilityDetector(
-        onVisible = { ContentEventService.instance.sendContentVisibleImpression(content, campaign) },
-        once = true,
-        visibilityKey = content.contentId,
-    ) {
+    ModalVisibilityDetector {
         Surface(
             shape = RoundedCornerShape(cornerRadius),
             color = backgroundColor,

@@ -4,6 +4,7 @@ package ai.gravityfield.gravity_sdk.utils
 internal class InAppPresentationGate(
     private val acknowledgementTimeoutMillis: Long = 60_000,
     private val now: () -> Long = { System.nanoTime() / 1_000_000 },
+    private val deliveryPending: (String) -> Boolean = { false },
 ) {
     data class Request(val sequence: Long, val generation: Long, val screen: Long)
     data class Reservation(val id: Long, val campaignId: String, val generation: Long, val screen: Long)
@@ -11,6 +12,7 @@ internal class InAppPresentationGate(
         val reservation: Reservation,
         val contentIds: MutableSet<String> = mutableSetOf(),
         var visible: Boolean = false,
+        var deliveryId: String? = null,
         var expiresAt: Long? = null,
     )
 
@@ -30,7 +32,7 @@ internal class InAppPresentationGate(
         if (newScreen || this.location != location) {
             screen++
             this.location = location
-            pending.entries.removeAll { it.value.expiresAt == null }
+            pending.entries.removeAll { !it.value.visible && it.value.expiresAt == null }
         }
         return Request(sequence, generation, screen)
     }
@@ -50,7 +52,7 @@ internal class InAppPresentationGate(
     fun reserve(campaignId: String, request: Request): Reservation? {
         val time = now()
         pending.entries.removeAll { it.value.expiresAt?.let { expiry -> expiry <= time } == true }
-        if (!isCurrent(request) || pending.containsKey(campaignId) ||
+        if (!isCurrent(request) || pending.containsKey(campaignId) || deliveryPending(campaignId) ||
             request.sequence <= (confirmedThrough[campaignId] ?: 0L)) return null
         val reservation = Reservation(++sequence, campaignId, generation, screen)
         pending[campaignId] = Pending(reservation)
@@ -81,7 +83,26 @@ internal class InAppPresentationGate(
 
     @Synchronized
     fun visible(contentId: String) {
-        campaign(contentId)?.let { pending[it]?.visible = true }
+        campaign(contentId)?.let {
+            pending[it]?.visible = true
+        }
+    }
+
+    @Synchronized
+    fun visibleDurable(contentId: String, deliveryId: String? = null) {
+        campaign(contentId)?.let { pending[it]?.apply {
+            visible = true
+            this.deliveryId = deliveryId
+            expiresAt = now() + VisibleImpressionStore.PROTECTION_MILLIS
+        } }
+    }
+
+    /** A discarded/expired event is not a server acknowledgement. */
+    @Synchronized
+    fun deliveryAbandoned(contentId: String, deliveryId: String? = null) {
+        campaign(contentId)?.let {
+            if (deliveryId == null || pending[it]?.deliveryId == deliveryId) pending.remove(it)
+        }
     }
 
     @Synchronized
@@ -90,15 +111,30 @@ internal class InAppPresentationGate(
     }
 
     @Synchronized
+    fun finishDelivery(campaignId: String, contentId: String, acknowledged: Boolean, deliveryId: String? = null, remove: () -> Boolean) {
+        if (!remove()) return // Already expired/evicted; a late response cannot release a newer owner.
+        if (acknowledged) acknowledgedCampaign(campaignId, deliveryId) else deliveryAbandoned(contentId, deliveryId)
+    }
+
+    @Synchronized
     fun acknowledged(contentId: String) {
         val campaignId = campaign(contentId) ?: return
-        // Reject responses already in flight before this acknowledgement.
+        acknowledgedCampaign(campaignId)
+    }
+
+    @Synchronized
+    fun acknowledgedCampaign(campaignId: String, deliveryId: String? = null) {
+        // Also covers restored queue entries, which have no in-memory UI reservation.
         confirmedThrough[campaignId] = sequence
-        pending.remove(campaignId)
+        // A 1–7 day old response must not release a newer opening after protection expired.
+        if (deliveryId == null || pending[campaignId]?.deliveryId == deliveryId) pending.remove(campaignId)
         if (confirmedThrough.size > 512) {
             confirmedThrough.minByOrNull { it.value }?.key?.let { confirmedThrough.remove(it) }
         }
     }
+
+    @Synchronized
+    fun campaignId(contentId: String): String? = campaign(contentId)
 
     private fun campaign(contentId: String) = pending.entries.firstOrNull {
         contentId in it.value.contentIds

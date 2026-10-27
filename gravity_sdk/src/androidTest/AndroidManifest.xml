@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- RecordingServer is loopback-only; this policy is packaged only in the test APK. -->
+    <application android:networkSecurityConfig="@xml/gravity_test_network_security_config" />
+</manifest>
