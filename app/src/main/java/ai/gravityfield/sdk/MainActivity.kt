@@ -10,6 +10,7 @@ import ai.gravityfield.gravity_sdk.models.ContentLoadEvent
 import ai.gravityfield.gravity_sdk.models.ContentVisibleImpressionEvent
 import ai.gravityfield.gravity_sdk.models.ContextType
 import ai.gravityfield.gravity_sdk.models.CopyEvent
+import ai.gravityfield.gravity_sdk.models.AddToCartEvent
 import ai.gravityfield.gravity_sdk.models.CustomEvent
 import ai.gravityfield.gravity_sdk.models.FollowDeeplinkEvent
 import ai.gravityfield.gravity_sdk.models.FollowUrlEvent
@@ -63,6 +64,7 @@ import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
+import java.util.Date
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -142,6 +144,30 @@ class MainActivity : ComponentActivity() {
                                 },
                             ) {
                                 Text(text = "Trigger event")
+                            }
+
+                            ShowContentButton(
+                                onClick = {
+                                    GravitySDK.instance.triggerEvent(
+                                        events = listOf(
+                                            AddToCartEvent(
+                                                value = 99.99,
+                                                productId = "sku-123",
+                                                quantity = 1,
+                                                customProps = mapOf("list" to "search"),
+                                                eventTime = Date(),
+                                            )
+                                        ),
+                                        pageContext = PageContext(
+                                            type = ContextType.HOMEPAGE,
+                                            data = emptyList(),
+                                            location = "homepage"
+                                        ),
+                                        activityContext = context
+                                    )
+                                },
+                            ) {
+                                Text(text = "Trigger event with customProps")
                             }
 
                             ShowContentButton(

@@ -102,6 +102,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
+import java.util.Date
 
 typealias ProductFilter = (Slot) -> Boolean
 typealias GravityEventCallback = (TrackingEvent) -> Unit
@@ -276,11 +277,13 @@ class GravitySDK private constructor(
         pageContext: PageContext,
         activityContext: Context,
     ) {
+        // The event happened now; events without their own eventTime are sent with it
+        val raisedAt = Date()
         val (request, currentUser, revision) = automaticRequest(pageContext, false)
         ioScope.launch {
             try {
                 val campaignIdsResponse =
-                    repository.event(events, pageContext, options, currentUser) ?: return@launch
+                    repository.event(events, raisedAt, pageContext, options, currentUser) ?: return@launch
                 handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext, request, currentUser, revision)
             } catch (e: CancellationException) {
                 throw e
