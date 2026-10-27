@@ -2,6 +2,7 @@ package ai.gravityfield.gravity_sdk.network
 
 import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.models.ContentSettings
+import ai.gravityfield.gravity_sdk.models.GravityDataResponse
 import ai.gravityfield.gravity_sdk.models.internal.LogMessage
 import ai.gravityfield.gravity_sdk.models.internal.LogMessageLevel
 import ai.gravityfield.gravity_sdk.models.Options
@@ -166,13 +167,13 @@ internal class GravityRepository private constructor() {
         }
     }
 
-    suspend fun chooseByCampaignId(
+    suspend fun chooseByCampaignIdWithDetails(
         campaignId: String,
         options: Options,
         contentSettings: ContentSettings,
         customerUser: User? = null,
         pageContext: PageContext,
-    ): ContentResponse? {
+    ): GravityDataResponse<ContentResponse>? {
         return try {
             val data = buildJsonObject {
                 put("campaignId", Json.parseToJsonElement(campaignId))
@@ -191,23 +192,22 @@ internal class GravityRepository private constructor() {
                 setBody(jsonBody)
             }.body<String>()
 
-            val json = JSONObject(stringData).toMap()
-            val response = ContentResponse.fromJson(json)
-            saveUserIfNeeded(customerUser, response.user)
+            val response = parseContentResponse(stringData)
+            saveUserIfNeeded(customerUser, response.data.user)
             response
         } catch (e: Exception) {
-            Logger.e(TAG, "chooseByCampaignId failed: ${e.message}", e)
+            Logger.e(TAG, "chooseByCampaignIdWithDetails failed: ${e.message}", e)
             null
         }
     }
 
-    suspend fun chooseBySelector(
+    suspend fun chooseBySelectorWithDetails(
         selector: String,
         options: Options,
         contentSettings: ContentSettings,
         customerUser: User? = null,
         pageContext: PageContext,
-    ): ContentResponse? {
+    ): GravityDataResponse<ContentResponse>? {
         return try {
             val data = buildJsonObject {
                 put("selector", Json.parseToJsonElement(selector))
@@ -226,12 +226,11 @@ internal class GravityRepository private constructor() {
                 setBody(jsonBody)
             }.body<String>()
 
-            val json = JSONObject(stringData).toMap()
-            val response = ContentResponse.fromJson(json)
-            saveUserIfNeeded(customerUser, response.user)
+            val response = parseContentResponse(stringData)
+            saveUserIfNeeded(customerUser, response.data.user)
             response
         } catch (e: Exception) {
-            Logger.e(TAG, "chooseBySelector failed: ${e.message}", e)
+            Logger.e(TAG, "chooseBySelectorWithDetails failed: ${e.message}", e)
             null
         }
     }
@@ -261,10 +260,9 @@ internal class GravityRepository private constructor() {
                 setBody(jsonBody)
             }.body<String>()
 
-            val json = JSONObject(stringData).toMap()
-            val response = ContentResponse.fromJson(json)
-            saveUserIfNeeded(customerUser, response.user)
-            response
+            val response = parseContentResponse(stringData)
+            saveUserIfNeeded(customerUser, response.data.user)
+            response.data
         } catch (e: Exception) {
             Logger.e(TAG, "chooseByGroup failed: ${e.message}", e)
             null
@@ -368,7 +366,8 @@ fun JSONObject.toMap(): Map<String, Any> {
         var value: Any = rawValue
         when (value) {
             is JSONArray -> value = value.toList()
-            is JSONObject -> value = value.toMap()
+            // variables keep nulls and unknown keys for Variables.raw
+            is JSONObject -> value = if (key == VARIABLES_KEY) value.toRawMap() else value.toMap()
         }
         map[key] = value
     }
@@ -388,4 +387,54 @@ fun JSONArray.toList(): List<Any> {
         list.add(value)
     }
     return list
+}
+
+private const val VARIABLES_KEY = "variables"
+
+/** Converts to plain Kotlin values keeping JSON nulls, unlike [toMap]. */
+internal fun JSONObject.toRawMap(): Map<String, Any?> {
+    val map = linkedMapOf<String, Any?>()
+    val keysItr: Iterator<String> = this.keys()
+    while (keysItr.hasNext()) {
+        val key = keysItr.next()
+        map[key] = this.get(key).toRawValue()
+    }
+    return map
+}
+
+internal fun JSONArray.toRawList(): List<Any?> {
+    return (0 until this.length()).map { this[it].toRawValue() }
+}
+
+private fun Any.toRawValue(): Any? = when (this) {
+    JSONObject.NULL -> null
+    is JSONObject -> toRawMap()
+    is JSONArray -> toRawList()
+    else -> this
+}
+
+/** Drops JSON nulls at every level, the shape typed fromJson parsers expect. */
+@Suppress("UNCHECKED_CAST")
+internal fun Map<String, Any?>.withoutNulls(): Map<String, Any> {
+    val map = linkedMapOf<String, Any>()
+    for ((key, value) in this) {
+        map[key] = value?.withoutNulls() ?: continue
+    }
+    return map
+}
+
+@Suppress("UNCHECKED_CAST")
+private fun Any.withoutNulls(): Any = when (this) {
+    is Map<*, *> -> (this as Map<String, Any?>).withoutNulls()
+    is List<*> -> mapNotNull { it?.withoutNulls() }
+    else -> this
+}
+
+/** Parses a /choose answer into the model and the raw JSON of the same body. */
+internal fun parseContentResponse(body: String): GravityDataResponse<ContentResponse> {
+    val jsonObject = JSONObject(body)
+    return GravityDataResponse(
+        data = ContentResponse.fromJson(jsonObject.toMap()),
+        json = jsonObject.toRawMap(),
+    )
 }
