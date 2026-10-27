@@ -3,6 +3,7 @@ package ai.gravityfield.sdk
 import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.CancelEvent
+import ai.gravityfield.gravity_sdk.models.ContentImpressionEngagement
 import ai.gravityfield.gravity_sdk.models.ContentCloseEvent
 import ai.gravityfield.gravity_sdk.models.ContentImpressionEvent
 import ai.gravityfield.gravity_sdk.models.ContentLoadEvent
@@ -48,11 +49,17 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.toColorInt
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
@@ -154,6 +161,8 @@ class MainActivity : ComponentActivity() {
                             ) {
                                 Text(text = "Get content by selector")
                             }
+
+                            AbVariantButton()
 
                             ShowContentButton(
                                 onClick = {
@@ -318,5 +327,47 @@ fun ShowContentButton(
         ),
     ) {
         content()
+    }
+}
+
+/**
+ * Own rendering with an A/B parameter: reads an arbitrary key of the campaign
+ * variables (here "ab_button_color") from rawVariables, applies it to this
+ * button and reports the impression, since the SDK shows nothing itself.
+ */
+@Composable
+fun AbVariantButton() {
+    val scope = rememberCoroutineScope()
+    var color by remember { mutableStateOf<Color?>(null) }
+
+    ShowContentButton(
+        onClick = {
+            scope.launch {
+                val response = GravitySDK.instance.getContentBySelectorWithDetails(
+                    selector = "homepage_inline_banner",
+                    pageContext = PageContext(
+                        type = ContextType.HOMEPAGE,
+                        data = emptyList(),
+                        location = "homepage"
+                    ),
+                ) ?: return@launch
+                Log.d("GravitySDK", "raw response: ${response.json}")
+                val campaign = response.data.data.firstOrNull() ?: return@launch
+                val content = campaign.payload.firstOrNull()?.contents?.firstOrNull() ?: return@launch
+
+                val hex = content.variables?.valueOf<String>("ab_button_color") ?: return@launch
+                color = runCatching { Color(hex.toColorInt()) }.getOrNull() ?: return@launch
+                GravitySDK.instance.sendContentEngagement(ContentImpressionEngagement(content, campaign))
+            }
+        },
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(end = 8.dp)
+                .height(16.dp)
+                .fillMaxWidth(0.1f)
+                .background(color ?: Color.White)
+        )
+        Text(text = "A/B parameter from rawVariables")
     }
 }

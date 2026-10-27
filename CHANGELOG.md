@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+* Add `getContentBySelectorWithDetails` and `getContentByCampaignIdWithDetails`: the model plus the raw JSON of the same response
+* Add `CampaignContent.rawVariables` and key access on `Variables` for keys with no typed counterpart
+
 ## 1.1.0
 
 - Send content requests (`getContentBySelector`, `getContentByCampaignId`, `getContentByGroupSelector`) on behalf of the user set via `setUser`
