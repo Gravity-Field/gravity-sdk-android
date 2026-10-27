@@ -45,7 +45,9 @@ internal fun GravityBottomSheetContent(
     }
 
     VisibilityDetector(
-        onVisible = { ContentEventService.instance.sendContentVisibleImpression(content, campaign) }
+        onVisible = { ContentEventService.instance.sendContentVisibleImpression(content, campaign) },
+        once = true,
+        visibilityKey = content.contentId,
     ) {
         Box(
             modifier = Modifier

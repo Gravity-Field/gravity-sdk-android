@@ -5,25 +5,26 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
-import androidx.core.graphics.toColorInt
 
 internal object ParseUtils {
 
+    /** Parses `#RRGGBB` (opaque) and `#RRGGBBAA` (alpha last), same as the Flutter SDK. Anything else gives null. */
     fun parseColor(color: Any?): Color? {
         if (color == null) return null
 
         if (color is String && color.startsWith("#")) {
-            try {
-                val hex = color.substring(1)
-                if (hex.length == 6) {
-                    Color("#ff$hex".toColorInt())
-                } else if (hex.length == 8) {
+            val hex = color.substring(1)
+            if (!hex.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }) return null
+
+            return when (hex.length) {
+                6 -> Color(("ff$hex").toLong(16))
+                8 -> {
                     val rrggbb = hex.substring(0, 6)
                     val aa = hex.substring(6, 8)
-                    return Color("#$aa$rrggbb".toColorInt())
+                    Color(("$aa$rrggbb").toLong(16))
                 }
-            } catch (_: Throwable) {
-                return null
+
+                else -> null
             }
         }
 

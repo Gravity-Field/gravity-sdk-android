@@ -1,0 +1,223 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "ai.gravityfield",
+    "module": "gravity-sdk",
+    "version": "1.1.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "8.10.2"
+    }
+  },
+  "variants": [
+    {
+      "name": "releaseApiElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.0.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "gravity-sdk-1.1.0.aar",
+          "url": "gravity-sdk-1.1.0.aar",
+          "size": 1577931,
+          "sha512": "e249b5eb587f1910005a0b14db1ac383a3feacebdde8cbd2533ff4759d269d78300c60d6b3555cea269ba0dd9d1aef8c4a2a0d8d837979edba20736d41092803",
+          "sha256": "deb12ea53593efbc70858b5b430dcac97268341990f413a950a27373cfcc7c8f",
+          "sha1": "bd489a7ec5eb96a69ba2b36f04d9096364339a83",
+          "md5": "9d0b98c0498f77b26f6f23e63bf0f3d1"
+        }
+      ]
+    },
+    {
+      "name": "releaseRuntimeElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "dependencies": [
+        {
+          "group": "androidx.activity",
+          "module": "activity-compose",
+          "version": {
+            "requires": "1.9.2"
+          }
+        },
+        {
+          "group": "androidx.core",
+          "module": "core-ktx",
+          "version": {
+            "requires": "1.13.1"
+          }
+        },
+        {
+          "group": "androidx.appcompat",
+          "module": "appcompat",
+          "version": {
+            "requires": "1.7.0"
+          }
+        },
+        {
+          "group": "com.google.android.material",
+          "module": "material",
+          "version": {
+            "requires": "1.12.0"
+          }
+        },
+        {
+          "group": "androidx.compose",
+          "module": "compose-bom",
+          "version": {
+            "requires": "2024.09.00"
+          },
+          "attributes": {
+            "org.gradle.category": "platform"
+          }
+        },
+        {
+          "group": "androidx.compose.ui",
+          "module": "ui"
+        },
+        {
+          "group": "androidx.compose.ui",
+          "module": "ui-graphics"
+        },
+        {
+          "group": "androidx.compose.ui",
+          "module": "ui-tooling-preview"
+        },
+        {
+          "group": "androidx.compose.material3",
+          "module": "material3"
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-core",
+          "version": {
+            "requires": "3.1.0"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-android",
+          "version": {
+            "requires": "3.1.0"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-logging",
+          "version": {
+            "requires": "3.1.0"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-client-content-negotiation",
+          "version": {
+            "requires": "3.1.0"
+          }
+        },
+        {
+          "group": "io.ktor",
+          "module": "ktor-serialization-kotlinx-json",
+          "version": {
+            "requires": "3.1.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-serialization-json",
+          "version": {
+            "requires": "1.8.1"
+          }
+        },
+        {
+          "group": "com.russhwolf",
+          "module": "multiplatform-settings",
+          "version": {
+            "requires": "1.3.0"
+          }
+        },
+        {
+          "group": "com.russhwolf",
+          "module": "multiplatform-settings-no-arg",
+          "version": {
+            "requires": "1.3.0"
+          }
+        },
+        {
+          "group": "io.coil-kt.coil3",
+          "module": "coil-compose",
+          "version": {
+            "requires": "3.1.0"
+          }
+        },
+        {
+          "group": "io.coil-kt.coil3",
+          "module": "coil-network-okhttp",
+          "version": {
+            "requires": "3.1.0"
+          }
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.0.0"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "gravity-sdk-1.1.0.aar",
+          "url": "gravity-sdk-1.1.0.aar",
+          "size": 1577931,
+          "sha512": "e249b5eb587f1910005a0b14db1ac383a3feacebdde8cbd2533ff4759d269d78300c60d6b3555cea269ba0dd9d1aef8c4a2a0d8d837979edba20736d41092803",
+          "sha256": "deb12ea53593efbc70858b5b430dcac97268341990f413a950a27373cfcc7c8f",
+          "sha1": "bd489a7ec5eb96a69ba2b36f04d9096364339a83",
+          "md5": "9d0b98c0498f77b26f6f23e63bf0f3d1"
+        }
+      ]
+    },
+    {
+      "name": "releaseSourcesElements-published",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "files": [
+        {
+          "name": "gravity-sdk-1.1.0-sources.jar",
+          "url": "gravity-sdk-1.1.0-sources.jar",
+          "size": 134157,
+          "sha512": "57daeef4bd5edfe3d39dbb5ecc8c9b2dbce60701b9c83f2003c6134f3dc3b78705572369faf8f1505e941fe6f3fee85e5f0747cc19b9481441179c75da28086a",
+          "sha256": "cf5133e3d62ea0f58c84d663a72996edaf6e5d1e51de1137c449afe4b77bde62",
+          "sha1": "aca26b3b2a0bd5d6ebcc77c72e026bacbb7f648f",
+          "md5": "877b423be650514c91f5627c82e8d3ba"
+        }
+      ]
+    }
+  ]
+}
