@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -18,17 +17,20 @@ import kotlinx.coroutines.delay
 @Composable
 internal fun VisibilityDetector(
     onVisible: () -> Unit,
+    once: Boolean = false,
+    visibilityKey: Any? = null,
     content: @Composable () -> Unit
 ) {
     val view = LocalView.current
-    var isVisible by remember { mutableStateOf(false) }
-    var lastVisibilityChangeTime by remember { mutableLongStateOf(0L) }
+    var isVisible by remember(visibilityKey) { mutableStateOf(false) }
+    var hasBeenVisible by remember(visibilityKey) { mutableStateOf(false) }
 
-    LaunchedEffect(isVisible) {
-        if (!isVisible) return@LaunchedEffect
+    LaunchedEffect(isVisible, visibilityKey, once) {
+        if (!isVisible || (once && hasBeenVisible)) return@LaunchedEffect
         delay(1000)
 
-        if (isVisible) {
+        if (isVisible && (!once || !hasBeenVisible)) {
+            hasBeenVisible = true
             onVisible()
         }
     }
@@ -42,7 +44,7 @@ internal fun VisibilityDetector(
         val visibleArea = intersection.width * intersection.height
         val fullWidgetArea = widgetSize.width * widgetSize.height
 
-        val nowVisible = visibleArea >= fullWidgetArea * 0.5f
+        val nowVisible = fullWidgetArea > 0 && visibleArea >= fullWidgetArea * 0.5f
         if (isVisible != nowVisible) {
             isVisible = nowVisible
         }

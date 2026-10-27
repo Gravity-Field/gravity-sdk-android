@@ -7,5 +7,6 @@
 /captures
 .externalNativeBuild
 .cxx
+.context
 local.properties
 CONTEXT.md

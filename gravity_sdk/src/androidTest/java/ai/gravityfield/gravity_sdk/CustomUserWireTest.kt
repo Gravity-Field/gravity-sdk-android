@@ -35,6 +35,10 @@ class CustomUserWireTest {
     fun setUp() {
         savedUserId = settings.getStringOrNull(USER_ID_KEY)
         server = RecordingServer().also { it.start() }
+        initializeAnonymousSdk()
+    }
+
+    private fun initializeAnonymousSdk() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         GravitySDK.initialize(
             context = context,
@@ -47,8 +51,8 @@ class CustomUserWireTest {
 
     @After
     fun tearDown() {
+        initializeAnonymousSdk()
         GravitySDK.instance.setOptions(options = null, contentSettings = null, proxyUrl = null)
-        GravitySDK.instance.user = null
         server.stop()
         savedUserId?.let { settings.putString(USER_ID_KEY, it) } ?: settings.remove(USER_ID_KEY)
     }
@@ -126,7 +130,7 @@ class CustomUserWireTest {
 
         // Back to anonymous: the earlier session is still the one in use
         server.reset()
-        GravitySDK.instance.user = null
+        initializeAnonymousSdk()
         GravitySDK.instance.getContentBySelector("anon-3", pageContext)
         val back = user(chooseRequests().last())
         assertEquals("anon-uid", back.str("uid"))

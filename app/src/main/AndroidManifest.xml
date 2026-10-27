@@ -39,6 +39,11 @@
             android:exported="false"
             android:theme="@style/Theme.AppCompat.Light" />
         <activity
+            android:name=".ReviewPromptTestConsoleActivity"
+            android:exported="false"
+            android:label="Review Prompt Test Console"
+            android:theme="@style/Theme.GravitySDK" />
+        <activity
             android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.GravitySDK">

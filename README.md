@@ -42,6 +42,37 @@ dependencies {
 }
 ```
 
+## Подключение готового релиза
+
+После публикации тега `1.1.0` скачайте соответствующую версию публичного репозитория
+`Gravity-Field/gravity-sdk-android` и скопируйте `gravity_sdk/repository`
+в проект приложения под именем `gravity-sdk-repository`.
+
+Добавьте репозиторий в `settings.gradle.kts`:
+
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("gravity-sdk-repository") }
+    }
+}
+```
+
+Подключите библиотеку в модуле приложения:
+
+```kotlin
+dependencies {
+    implementation("ai.gravityfield:gravity-sdk:1.1.0")
+}
+```
+
+Сохраняйте AAR, POM и Gradle metadata вместе, чтобы Gradle разрешал транзитивные
+зависимости. Для сценария отзывов дополнительно подключите `inAppPreparation`,
+проверку доступности отзыва и свою форму отправки; обновление зависимости само
+по себе этот сценарий не включает.
+
 ## Инициализация
 
 Для работы SDK необходимо провести базовую инициализацию, передав Context, а так же параметры `apiKey` и `section`. Их можно найти в личном кабинете.
@@ -53,6 +84,25 @@ GravitySDK.initialize(
   section = "your-section-id",
 )
 ```
+
+## Настройка демоприложения
+
+Добавьте настройки в корневой `local.properties` (этот файл исключён из Git):
+
+```properties
+gravity.demo.apiKey=your-demo-api-key
+gravity.demo.section=your-demo-section-id
+```
+
+Пересоберите приложение после изменения настроек. Без значений оно покажет
+инструкцию настройки и не будет отправлять запросы в SDK. Не коммитьте
+`local.properties`, сгенерированный `BuildConfig` или APK с действующим ключом.
+
+Используйте отдельный демонстрационный проект и ключ с минимально необходимыми
+правами. Ключ включается в APK и может быть извлечён; локальная настройка
+защищает репозиторий, но не делает ключ серверным секретом.
+Если ключ уже был закоммичен, замените его: переписывание истории не удаляет
+чужие клоны и сохранённые версии diff в GitLab.
 
 ## Дополнительные параметры initialize
 
@@ -172,4 +222,66 @@ override fun onDestroy() {
 ```
 GravitySDK has not been initialized
 ```
+
+## Подготовка in-app перед показом
+
+`initialize` принимает необязательный `inAppPreparation`. Обработчик получает контент и кампанию, асинхронно проверяет товары и возвращает контент для показа либо `null`, чтобы пропустить этот in-app и перейти к следующей кампании.
+
+```kotlin
+GravitySDK.initialize(
+    context,
+    apiKey = "your-api-key",
+    section = "your-section-id",
+    gravityEventCallback = ::handleTrackingEvent,
+    productViewBuilder = reviewIntegration.productViewBuilder,
+    inAppPreparation = reviewIntegration.preparation(),
+)
+```
+
+[Пример ReviewPromptIntegration](app/src/main/java/ai/gravityfield/sdk/ReviewPromptIntegration.kt) включает интерфейс клиентского API eligibility, карточку с кнопкой «Оставить отзыв» и обновление локального статуса через `didSubmitReview(sku)` после успешной отправки отзыва. Карточка вызывает `dismissInApp`; SDK закрывает sheet и затем вызывает `onOpenReview` для маршрутизации приложения. В demo-приложении пример подключён через `ReviewPromptCoordinator` после локальной настройки ключа и секции. `DemoReviewEligibilityAPI` проверяет локальный `ReviewStatusStore`; это демонстрация фильтрации, а не серверное API отзывов. В приложении клиента подключите свой API и обновляйте локальный статус только после успешной отправки отзыва.
+
+Обработчик можно написать напрямую:
+
+В примере задайте `selector` кампании отзывов и `fallbackProductViewBuilder` для остальных кампаний. Если у кампании нет selector, ограничьте обработку по `campaign.payload.firstOrNull()?.campaignId`.
+
+```kotlin
+import ai.gravityfield.gravity_sdk.models.InAppPreparation
+import ai.gravityfield.gravity_sdk.models.filteringProducts
+
+val preparation = InAppPreparation(timeoutMillis = 5_000) { content, campaign ->
+    if (campaign.selector != "purchase-reviews") return@InAppPreparation content
+    val skus = content.products?.slots.orEmpty()
+        .mapNotNull { it.item["sku"] as? String }.distinct()
+    if (skus.isEmpty()) return@InAppPreparation null
+    val eligible = reviewAPI.eligibleSkus(skus)
+    content.filteringProducts { it.item["sku"] in eligible }
+}
+```
+
+Порядок: `/choose` → существующий синхронный `productFilter` → content-loaded tracking → задержка кампании → `inAppPreparation` → повторная проверка возможности показа → UI и impression-события. Обработчик применяется к автоматическому показу после `trackView`/`triggerEvent`, а также при `open_step`. Получение через `getContentBy*` и inline-виджеты сохраняют прежнее поведение.
+
+- Без обработчика нет ожидания API. Для других кампаний верните исходный `content`.
+- `filteringProducts` сохраняет исходные слоты, порядок, tracking-данные и метаданные; пустой результат возвращает `null`. Пустые блоки в других кампаниях не запрещены.
+- Таймаут по умолчанию — 5 секунд. Ошибка, таймаут или некорректный timeout (не положительный либо больше часа) пропускают in-app. Используйте отменяемый suspending API; не блокируйте поток. Отмена родительской coroutine распространяется дальше, например при `dispose`.
+- После ожидания проверяются активность Activity, presentation lock и ревизия пользователя. `setUser` и `lockPresentation` инвалидируют ожидающий показ, даже если затем восстановлено прежнее состояние. При навигации внутри одного Activity блокируйте показ через `lockPresentation`. После разблокировки нужен новый view/trigger.
+- Пропущенный in-app не отправляет impression/visible impression; content-loaded сохраняет семантику загрузки. Удалённые слоты не монтируются. В своём builder отправляйте клик через `sendProductEngagement`.
+- Используйте recently purchased без fallback на непокупавшиеся товары. Правила доставки/отмены/возврата проверяет API eligibility. Запрашивайте кандидатов с запасом: SDK не восполняет удалённые товары.
+- Перед запуском проверьте пользователя в `/choose` (отдельное исправление EGO-246). Клиентский статус отзывов должен принадлежать текущему аккаунту.
+
+## Закрытие in-app из обычного ProductViewBuilder
+
+Публичный `dismissInApp(contentId, completion)` закрывает только показанный SDK in-app с указанным `contentId`: modal, bottom sheet, full screen или snackbar. Inline-реквиджеты не закрываются. Тип и сигнатура `ProductViewBuilder` не меняются.
+
+В обработчике кнопки сначала отправьте product click, затем запросите закрытие:
+
+```kotlin
+GravitySDK.instance.sendProductEngagement(ProductClickEngagement(slot, content, campaign))
+GravitySDK.instance.dismissInApp(content.contentId) { dismissed ->
+    if (dismissed) onOpenReview(sku)
+}
+```
+
+При успешном закрытии completion вызывается на UI-потоке после анимации и удаления in-app с результатом `true`. Если контент не показан, уже закрывается/закрыт или отсутствует, completion получает `false` без ожидания закрытия. При повторном клике пока идёт закрытие возвращается `false`, чтобы не открывать форму дважды. Close-событие отправляет SDK один раз; вручную отправлять его не нужно. Если нужен переход и при отсутствии in-app, обработайте `false` в своей навигации. Вызывайте метод до `dispose()` SDK.
+
+Метод сам не отправляет product click. Кнопку отзывов по-прежнему выбирайте по кампании и используйте текущий builder для обычных рекомендаций.
 

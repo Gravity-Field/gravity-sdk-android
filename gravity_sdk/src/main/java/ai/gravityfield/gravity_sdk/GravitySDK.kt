@@ -13,6 +13,7 @@ import ai.gravityfield.gravity_sdk.models.DeliveryMethod
 import ai.gravityfield.gravity_sdk.models.Event
 import ai.gravityfield.gravity_sdk.models.FollowDeeplinkEvent
 import ai.gravityfield.gravity_sdk.models.FollowUrlEvent
+import ai.gravityfield.gravity_sdk.models.InAppPreparation
 import ai.gravityfield.gravity_sdk.models.Item
 import ai.gravityfield.gravity_sdk.models.NotificationPermissionStatus
 import ai.gravityfield.gravity_sdk.models.OnClickModel
@@ -35,6 +36,7 @@ import ai.gravityfield.gravity_sdk.models.internal.ScrollProvider
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.network.CampaignIdsResponse
 import ai.gravityfield.gravity_sdk.network.ContentResponse
+import ai.gravityfield.gravity_sdk.network.EngagementTransport
 import ai.gravityfield.gravity_sdk.network.GravityRepository
 import ai.gravityfield.gravity_sdk.ui.GravityBottomSheetContent
 import ai.gravityfield.gravity_sdk.ui.GravityFullScreenContent
@@ -44,9 +46,14 @@ import ai.gravityfield.gravity_sdk.ui.GravitySnackbarContent2
 import ai.gravityfield.gravity_sdk.ui.product_view_builder.ProductViewBuilder
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import ai.gravityfield.gravity_sdk.utils.DeviceUtils
+import ai.gravityfield.gravity_sdk.utils.InAppPresentation
+import ai.gravityfield.gravity_sdk.utils.InAppPresentationGate
+import ai.gravityfield.gravity_sdk.utils.InAppPresentationRegistry
 import ai.gravityfield.gravity_sdk.utils.LogLevel
 import ai.gravityfield.gravity_sdk.utils.Logger
+import ai.gravityfield.gravity_sdk.utils.PresentationRevision
 import ai.gravityfield.gravity_sdk.utils.ProductEventService
+import ai.gravityfield.gravity_sdk.utils.VisibleImpressionDelivery
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -83,6 +90,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.core.view.children
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -90,6 +100,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.lang.ref.WeakReference
 
 typealias ProductFilter = (Slot) -> Boolean
 typealias GravityEventCallback = (TrackingEvent) -> Unit
@@ -101,6 +112,7 @@ class GravitySDK private constructor(
     internal val productViewBuilder: ProductViewBuilder?,
     internal val productFilter: ProductFilter?,
     internal val uiSettings: UISettings?,
+    private val inAppPreparation: InAppPreparation?,
 ) {
 
     companion object {
@@ -126,8 +138,24 @@ class GravitySDK private constructor(
             uiSettings: UISettings? = null,
             logLevel: LogLevel = LogLevel.NONE,
         ) {
+            initialize(context, apiKey, section, gravityEventCallback, productViewBuilder,
+                productFilter, uiSettings, logLevel, inAppPreparation = null)
+        }
+
+        fun initialize(
+            context: Context,
+            apiKey: String,
+            section: String,
+            gravityEventCallback: GravityEventCallback,
+            productViewBuilder: ProductViewBuilder? = null,
+            productFilter: ProductFilter? = null,
+            uiSettings: UISettings? = null,
+            logLevel: LogLevel = LogLevel.NONE,
+            inAppPreparation: InAppPreparation?,
+        ) {
             Logger.configure(logLevel)
             DeviceUtils.initialize(context)
+            _instance?.presentationGate?.reset()
             _instance = GravitySDK(
                 apiKey,
                 section,
@@ -135,15 +163,37 @@ class GravitySDK private constructor(
                 productViewBuilder,
                 productFilter,
                 uiSettings,
+                inAppPreparation,
             )
+        }
+
+        /** No preparation configured passes the content through unchanged; otherwise delegates to it. */
+        internal suspend fun resolvedContent(
+            content: CampaignContent,
+            campaign: Campaign,
+            preparation: InAppPreparation?,
+        ): CampaignContent? {
+            if (preparation == null) return content
+            return preparation.prepare(content, campaign)
         }
     }
 
     private var options = Options()
     private var contentSettings = ContentSettings()
-    // Written by setUser on the caller's thread, read by request coroutines on IO
-    @Volatile
-    internal var user: User? = null
+    internal val presentationGate = InAppPresentationGate()
+    internal val visibleImpressionDelivery = VisibleImpressionDelivery(
+        send = { GravityRepository.instance.trackEngagementEvent(listOf(it), apiKey) },
+        retryable = EngagementTransport::isRetryable,
+    )
+    private val presentationRevision = PresentationRevision()
+    private val inAppPresentations = InAppPresentationRegistry()
+    private var requestUser: User? = null
+    internal val user: User? get() = presentationGate.scoped { requestUser }
+
+    private fun automaticRequest(pageContext: PageContext, newScreen: Boolean) = presentationGate.scoped {
+        if (newScreen) presentationRevision.invalidate()
+        Triple(presentationGate.beginRequest(pageContext.location, newScreen), requestUser, presentationRevision.current)
+    }
     internal var proxyUrl: String? = null
     internal var notificationPermissionStatus = NotificationPermissionStatus.UNKNOWN
 
@@ -172,7 +222,13 @@ class GravitySDK private constructor(
     }
 
     fun setUser(userId: String, sessionId: String) {
-        user = User(custom = userId, ses = sessionId)
+        presentationGate.scoped {
+            if (requestUser?.custom != userId || requestUser?.ses != sessionId) {
+                presentationGate.reset()
+                presentationRevision.invalidate()
+            }
+            requestUser = User(custom = userId, ses = sessionId)
+        }
     }
 
     fun setNotificationPermissionStatus(status: NotificationPermissionStatus) {
@@ -185,6 +241,7 @@ class GravitySDK private constructor(
 
     fun lockPresentation() {
         isPresentationLocked = true
+        presentationRevision.invalidate()
         Logger.i(TAG, "Presentation lock called, presentation is now locked")
         presentationLockListener?.invoke(true)
     }
@@ -199,12 +256,15 @@ class GravitySDK private constructor(
         pageContext: PageContext,
         activityContext: Context,
     ) {
+        val (request, currentUser, revision) = automaticRequest(pageContext, true)
         ioScope.launch {
             try {
                 val campaignIdsResponse =
-                    repository.visit(pageContext, options, user) ?: return@launch
-                handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext)
-            } catch (e: Throwable) {
+                    repository.visit(pageContext, options, currentUser) ?: return@launch
+                handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext, request, currentUser, revision)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
                 Logger.e(TAG, "trackView error: ${e.message}")
             }
         }
@@ -215,12 +275,15 @@ class GravitySDK private constructor(
         pageContext: PageContext,
         activityContext: Context,
     ) {
+        val (request, currentUser, revision) = automaticRequest(pageContext, false)
         ioScope.launch {
             try {
                 val campaignIdsResponse =
-                    repository.event(events, pageContext, options, user) ?: return@launch
-                handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext)
-            } catch (e: Throwable) {
+                    repository.event(events, pageContext, options, currentUser) ?: return@launch
+                handleCampaignIdsResponse(campaignIdsResponse, pageContext, activityContext, request, currentUser, revision)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
                 Logger.e(TAG, "triggerEvent error: ${e.message}")
             }
         }
@@ -248,6 +311,7 @@ class GravitySDK private constructor(
     }
 
     fun dispose() {
+        presentationGate.reset()
         ioScope.cancel()
         mainScope.cancel()
         presentationLockListener = null
@@ -257,42 +321,73 @@ class GravitySDK private constructor(
         response: CampaignIdsResponse,
         pageContext: PageContext,
         activityContext: Context,
+        request: InAppPresentationGate.Request,
+        currentUser: User?,
+        revision: Long,
     ) {
+        if (!presentationGate.isCurrent(request)) return
         val activity = findOwner<Activity>(activityContext) ?: return
-
         val sortedByPriority = response.campaigns.sortedByDescending { it.priority }
         for (campaignId in sortedByPriority) {
-            val result = getContentByCampaignId(campaignId.campaignId, pageContext) ?: continue
-
-            val campaign = result.data.firstOrNull() ?: continue
-            val payload = campaign.payload.firstOrNull() ?: continue
-            val content = payload.contents.sortedBy { it.step }.firstOrNull() ?: continue
-
-            val elements = content.variables?.elements
-            if (elements == null || elements.isEmpty()) {
-                return
-            }
-
-            val delayTime = campaignId.delayTime
-            if (delayTime != null) {
-                delay(delayTime.toLong())
-            }
-
-            if (activity.isFinishing || activity.isDestroyed) {
-                return
-            }
-
-            if (isPresentationLocked) {
-                Logger.i(
-                    TAG,
-                    "Presentation is locked, skipped content for campaign ${campaignId.campaignId}"
+            if (!presentationGate.isCurrent(request)) return
+            val reservation = presentationGate.reserve(campaignId.campaignId, request) ?: continue
+            var shown = false
+            try {
+                val result = getContentByCampaignId(campaignId.campaignId, pageContext, currentUser) ?: continue
+                val campaign = result.data.firstOrNull() ?: continue
+                val payload = campaign.payload.firstOrNull() ?: continue
+                val content = payload.contents.sortedBy { it.step }.firstOrNull() ?: continue
+                if (content.variables?.elements.isNullOrEmpty()) return
+                campaignId.delayTime?.let { delay(it.toLong()) }
+                shown = prepareAndShowBackendContent(
+                    activity, content, campaign, revision,
+                    reservation = reservation, contentIds = payload.contents.map { it.contentId },
                 )
-                return
+                if (shown) return
+            } finally {
+                if (!shown) presentationGate.cancel(reservation)
             }
+        }
+    }
 
-            withContext(Dispatchers.Main) {
-                showBackendContent(activity, content, campaign)
+    private suspend fun prepareAndShowBackendContent(
+        activity: Activity,
+        content: CampaignContent,
+        campaign: Campaign,
+        revision: Long,
+        item: Item? = null,
+        reservation: InAppPresentationGate.Reservation? = null,
+        contentIds: List<String> = emptyList(),
+    ): Boolean {
+        fun canPresent() = GravitySDK.instance === this@GravitySDK &&
+            presentationRevision.canPresent(revision, isActivityActive(activity), isPresentationLocked)
+        if (!withContext(Dispatchers.Main) { canPresent() }) return false
+
+        val prepared = resolvedContent(content, campaign, inAppPreparation) ?: run {
+            Logger.i(TAG, "In-app preparation skipped content ${content.contentId}")
+            return false
+        }
+
+        return withContext(Dispatchers.Main) {
+            if (!canPresent()) return@withContext false
+            if (reservation != null) {
+                if (activity.window?.decorView?.isShown != true) return@withContext false
+                presentationGate.present(reservation, contentIds) {
+                    showBackendContent(activity, prepared, campaign, item)
+                }
+            } else {
+                showBackendContent(activity, prepared, campaign, item)
             }
+        }
+    }
+
+    private fun isActivityActive(activity: Activity): Boolean {
+        if (activity.isFinishing || activity.isDestroyed) return false
+        if (inAppPreparation == null) return true
+        return if (activity is LifecycleOwner) {
+            activity.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+        } else {
+            activity.hasWindowFocus()
         }
     }
 
@@ -340,15 +435,42 @@ class GravitySDK private constructor(
         }
     }
 
+    /** Closes the visible SDK in-app with this contentId. Completion runs on the UI thread
+     * after dismissal; false means no matching presentation. Inline widgets are unaffected. */
+    fun dismissInApp(contentId: String, completion: (Boolean) -> Unit = {}) {
+        mainScope.launch { inAppPresentations.dismiss(contentId, completion) }
+    }
+
+    private fun registerInApp(
+        content: CampaignContent,
+        campaign: Campaign,
+        performDismiss: (complete: (Boolean) -> Unit) -> Unit,
+    ): InAppPresentation {
+        var registered: WeakReference<InAppPresentation>? = null
+        val presentation = InAppPresentation(performDismiss) { success ->
+            inAppPresentations.remove(registered?.get(), content.contentId)
+            if (success) contentEventService.sendContentClosed(content, campaign)
+        }
+        registered = WeakReference(presentation)
+        inAppPresentations.register(presentation, content.contentId)
+        return presentation
+    }
+
     suspend fun getContentByCampaignId(
         campaignId: String,
         pageContext: PageContext,
+    ): ContentResponse? = getContentByCampaignId(campaignId, pageContext, user)
+
+    private suspend fun getContentByCampaignId(
+        campaignId: String,
+        pageContext: PageContext,
+        currentUser: User?,
     ): ContentResponse? {
         val response = repository.chooseByCampaignId(
             campaignId = campaignId,
             options = options,
             contentSettings = contentSettings,
-            customerUser = user,
+            customerUser = currentUser,
             pageContext = pageContext
         ) ?: return null
         for (campaign in response.data) {
@@ -449,17 +571,20 @@ class GravitySDK private constructor(
         content: CampaignContent,
         campaign: Campaign,
         item: Item? = null,
-    ) {
+    ): Boolean {
+        if (activity.isFinishing || activity.isDestroyed || activity.window?.decorView !is ViewGroup) return false
         when (content.deliveryMethod) {
             DeliveryMethod.MODAL -> showModal(activity, content, campaign, item)
             DeliveryMethod.BOTTOM_SHEET -> showBottomSheet(activity, content, campaign, item)
             DeliveryMethod.FULL_SCREEN -> showFullScreen(activity, content, campaign, item)
-            DeliveryMethod.SNACK_BAR -> showSnackbar(activity, content, campaign)
-            DeliveryMethod.INLINE -> {}
-            DeliveryMethod.UNKNOWN -> {}
+            DeliveryMethod.SNACK_BAR -> {
+                if (content.templateSystemName == null || content.templateSystemName == TemplateSystemName.UNKNOWN) return false
+                showSnackbar(activity, content, campaign)
+            }
+            DeliveryMethod.INLINE, DeliveryMethod.UNKNOWN -> return false
         }
+        return true
     }
-
 
     private fun showModal(
         activity: Activity,
@@ -468,9 +593,13 @@ class GravitySDK private constructor(
         item: Item?,
     ) {
         val dismissController = DismissController()
-        fun dismiss() {
-            contentEventService.sendContentClosed(content, campaign)
+        val presentation = registerInApp(content, campaign) { complete ->
+            val attached = dismissController.listener != null
             dismissController.dismiss()
+            complete(attached)
+        }
+        fun dismiss() {
+            presentation.close()
         }
 
         showOverlay(
@@ -509,9 +638,17 @@ class GravitySDK private constructor(
         val cornerRadius = container?.style?.cornerRadius ?: 0.0
 
         val dismissController = DismissController()
+        var requestClose: (((Boolean) -> Unit) -> Unit)? = null
+        val presentation = registerInApp(content, campaign) { complete ->
+            if (dismissController.listener == null) complete(false)
+            else {
+                val close = requestClose
+                if (close != null) close(complete)
+                else { dismissController.dismiss(); complete(true) }
+            }
+        }
         fun dismiss() {
-            contentEventService.sendContentClosed(content, campaign)
-            dismissController.dismiss()
+            presentation.close()
         }
 
         showOverlay(
@@ -521,6 +658,13 @@ class GravitySDK private constructor(
         ) {
             val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
             val scope = rememberCoroutineScope()
+            requestClose = { complete ->
+                scope.launch { state.hide() }.invokeOnCompletion {
+                    val attached = dismissController.listener != null
+                    dismissController.dismiss()
+                    complete(attached)
+                }
+            }
             ModalBottomSheet(
                 onDismissRequest = ::dismiss,
                 shape = RoundedCornerShape(
@@ -540,10 +684,7 @@ class GravitySDK private constructor(
                             content,
                             campaign,
                             activity,
-                            dismissCallback = {
-                                scope.launch { state.hide() }
-                                    .invokeOnCompletion { dismiss() }
-                            }
+                            dismissCallback = ::dismiss
                         )
                     },
                     item,
@@ -559,9 +700,13 @@ class GravitySDK private constructor(
         item: Item?,
     ) {
         val dismissController = DismissController()
-        fun dismiss() {
-            contentEventService.sendContentClosed(content, campaign)
+        val presentation = registerInApp(content, campaign) { complete ->
+            val attached = dismissController.listener != null
             dismissController.dismiss()
+            complete(attached)
+        }
+        fun dismiss() {
+            presentation.close()
         }
 
         showOverlay(
@@ -595,9 +740,13 @@ class GravitySDK private constructor(
         if (template == null || template == TemplateSystemName.UNKNOWN) return
 
         val dismissController = DismissController()
-        fun dismiss() {
-            contentEventService.sendContentClosed(content, campaign)
+        val presentation = registerInApp(content, campaign) { complete ->
+            val attached = dismissController.listener != null
             dismissController.dismiss()
+            complete(attached)
+        }
+        fun dismiss() {
+            presentation.close()
         }
 
         val onClickCallback = { onClickModel: OnClickModel ->
@@ -732,7 +881,10 @@ class GravitySDK private constructor(
 
                 val activity = findOwner<Activity>(context) ?: return
 
-                showBackendContent(activity, targetContent, campaign, item)
+                val revision = presentationRevision.current
+                ioScope.launch {
+                    prepareAndShowBackendContent(activity, targetContent, campaign, revision, item)
+                }
             }
 
             else -> {}
@@ -764,7 +916,7 @@ class GravitySDK private constructor(
                     content()
                 }
             }
-            z = decorView.children.maxOf { it.z } + 1
+            z = (decorView.children.maxOfOrNull { it.z } ?: 0f) + 1
         }
         dismissController.listener = {
             decorView.removeView(view)

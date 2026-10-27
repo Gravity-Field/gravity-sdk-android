@@ -90,6 +90,7 @@ dependencies {
     implementation(gravitySdk.coil.compose)
     implementation(gravitySdk.coil.network)
     testImplementation(gravitySdk.junit)
+    testImplementation(gravitySdk.ktor.client.mock)
     androidTestImplementation(gravitySdk.androidx.junit)
     androidTestImplementation(gravitySdk.androidx.espresso.core)
 }

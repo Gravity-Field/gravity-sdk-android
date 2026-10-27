@@ -60,23 +60,34 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (BuildConfig.GRAVITY_DEMO_API_KEY.isBlank() || BuildConfig.GRAVITY_DEMO_SECTION.isBlank()) {
+            setContent {
+                GravitySDKTheme {
+                    Text("Set gravity.demo.apiKey and gravity.demo.section in local.properties to start the demo.")
+                }
+            }
+            return
+        }
+        val legacyProductViewBuilder = object : LegacyProductViewBuilder {
+            override fun createView(
+                context: Context,
+                slot: Slot,
+                content: CampaignContent,
+                campaign: Campaign,
+            ): View {
+                return ProductView(context, slot)
+            }
+        }
+        ReviewPromptCoordinator.initialize(this, legacyProductViewBuilder)
         GravitySDK.initialize(
             this,
-            apiKey = "api_key",
-            section = "section",
+            apiKey = BuildConfig.GRAVITY_DEMO_API_KEY,
+            section = BuildConfig.GRAVITY_DEMO_SECTION,
             gravityEventCallback = ::handleTrackingEvent,
-            productViewBuilder = object : LegacyProductViewBuilder {
-                override fun createView(
-                    context: Context,
-                    slot: Slot,
-                    content: CampaignContent,
-                    campaign: Campaign,
-                ): View {
-                    return ProductView(context, slot)
-                }
-            },
+            productViewBuilder = ReviewPromptCoordinator.integration.productViewBuilder,
             productFilter = ::checkSlotValid,
             logLevel = LogLevel.DEBUG,
+            inAppPreparation = ReviewPromptCoordinator.integration.preparation(),
         )
 
         enableEdgeToEdge()
@@ -94,9 +105,9 @@ class MainActivity : ComponentActivity() {
                                 onClick = {
                                     GravitySDK.instance.trackView(
                                         pageContext = PageContext(
-                                            type = ContextType.HOMEPAGE,
-                                            data = emptyList(),
-                                            location = "homepage"
+                                            type = ContextType.SEARCH,
+                                            data = listOf("prodcutId"),
+                                            location = "search"
                                         ),
                                         activityContext = context,
                                     )
@@ -170,6 +181,19 @@ class MainActivity : ComponentActivity() {
                                 Text(text = "Show RecyclerView with InlineListView")
                             }
 
+                            ShowContentButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            context,
+                                            ReviewPromptTestConsoleActivity::class.java,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Text(text = "Review Prompt Test Console")
+                            }
+
                             GravityInlineCompose(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -185,6 +209,20 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     }
+                }
+
+                // Renders the review form opened by the real, automatic in-app pipeline
+                // (ReviewPromptCoordinator.integration.productViewBuilder's "Оставить отзыв"
+                // button), not only the one opened from the test console.
+                ReviewPromptCoordinator.reviewFormSku?.let { sku ->
+                    ReviewFormDialog(
+                        sku = sku,
+                        onDismiss = { ReviewPromptCoordinator.reviewFormSku = null },
+                        onSubmit = { rating, comment ->
+                            ReviewPromptCoordinator.didSubmitReview(sku, rating, comment)
+                            ReviewPromptCoordinator.reviewFormSku = null
+                        },
+                    )
                 }
             }
         }

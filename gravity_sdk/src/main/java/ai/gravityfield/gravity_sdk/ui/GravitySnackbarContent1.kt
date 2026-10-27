@@ -52,7 +52,9 @@ internal fun GravitySnackbarContent1(
     }
 
     VisibilityDetector(
-        onVisible = { ContentEventService.instance.sendContentVisibleImpression(content, campaign) }
+        onVisible = { ContentEventService.instance.sendContentVisibleImpression(content, campaign) },
+        once = true,
+        visibilityKey = content.contentId,
     ) {
         Surface(
             modifier = Modifier

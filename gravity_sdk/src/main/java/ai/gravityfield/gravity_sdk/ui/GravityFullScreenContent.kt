@@ -48,7 +48,9 @@ internal fun GravityFullScreenContent(
     }
 
     VisibilityDetector(
-        onVisible = { ContentEventService.instance.sendContentVisibleImpression(content, campaign) }
+        onVisible = { ContentEventService.instance.sendContentVisibleImpression(content, campaign) },
+        once = true,
+        visibilityKey = content.contentId,
     ) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
