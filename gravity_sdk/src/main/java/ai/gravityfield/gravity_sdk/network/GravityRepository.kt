@@ -27,6 +27,7 @@ import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
@@ -56,7 +57,9 @@ internal class GravityRepository private constructor() {
 
         private fun createAuthInterceptor() = createClientPlugin("AuthInterceptor") {
             onRequest { request, _ ->
-                request.header("Authorization", "Bearer ${GravitySDK.instance.apiKey}")
+                if (!request.headers.contains("Authorization")) {
+                    request.header("Authorization", "Bearer ${GravitySDK.instance.apiKey}")
+                }
             }
         }
 
@@ -271,14 +274,18 @@ internal class GravityRepository private constructor() {
         }
     }
 
-    internal suspend fun trackEngagementEvent(urls: List<String>) {
-        urls.forEach {
+    internal suspend fun trackEngagementEvent(urls: List<String>, apiKey: String? = null) {
+        var failure: Exception? = null
+        for (url in urls) {
             try {
-                client.get(it)
-            } catch (e: Exception) {
-                Logger.e(TAG, "trackEngagementEvent failed: ${e.message}", e)
+                EngagementTransport(client).send(url, apiKey)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                if (failure == null) failure = error
             }
         }
+        failure?.let { throw it }
     }
 
     internal suspend fun sendErrorMessage(
