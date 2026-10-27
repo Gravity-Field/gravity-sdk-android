@@ -12,6 +12,13 @@ data class CampaignContent(
     val custom: CustomModel?,
     val events: List<Event>?,
 ) {
+    /**
+     * Raw `variables` object of this content, including keys with no typed
+     * counterpart in [Variables]. Empty when the content has no variables.
+     */
+    val rawVariables: Map<String, Any?>
+        get() = variables?.raw ?: emptyMap()
+
     companion object {
         @Suppress("UNCHECKED_CAST")
         fun fromJson(json: Map<String, Any?>): CampaignContent {
