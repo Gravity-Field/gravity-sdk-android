@@ -322,7 +322,7 @@ internal class GravityRepository private constructor() {
         }
     }
 
-    private fun userForRequest(customerUser: User?): User {
+    internal fun userForRequest(customerUser: User?): User {
         if (customerUser != null) {
             return customerUser
         } else if (userIdCache != null && sessionIdCache != null) {

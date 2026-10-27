@@ -85,6 +85,18 @@ class InAppPresentationGateTest {
         assertNotNull(gate.reserve("c", request))
     }
 
+    @Test fun visiblePendingDeliveryDoesNotExpireAfterOneMinute() {
+        var now = 0L
+        val gate = InAppPresentationGate(now = { now })
+        val request = gate.beginRequest("home", true)
+        val reservation = requireNotNull(gate.reserve("c", request))
+        gate.present(reservation, listOf("event")) { true }
+        gate.visibleDurable("event")
+        gate.closed("event")
+        now = 120_000
+        assertNull(gate.reserve("c", gate.beginRequest("next", true)))
+    }
+
     @Test fun throwingUiReleasesReservation() {
         val gate = InAppPresentationGate()
         val request = gate.beginRequest("home", true)
@@ -95,4 +107,31 @@ class InAppPresentationGateTest {
         } catch (_: IllegalStateException) { }
         assertNotNull(gate.reserve("c", request))
     }
+    @Test fun failedLegacyDeliveryKeepsItsOriginalSixtySecondExpiry() {
+        var now = 0L
+        val gate = InAppPresentationGate(now = { now })
+        val request = gate.beginRequest("home", true)
+        val reservation = requireNotNull(gate.reserve("c", request))
+        gate.present(reservation, listOf("legacy")) { true }
+        gate.visible("legacy")
+        gate.closed("legacy")
+        now = 60_000
+        assertNotNull(gate.reserve("c", request))
+    }
+
+    @Test fun lateCompletionAfterQueueEvictionCannotAcknowledgeOrReleaseNewReservation() {
+        val gate = InAppPresentationGate()
+        val request = gate.beginRequest("home", true)
+        val original = requireNotNull(gate.reserve("c", request))
+        gate.present(original, listOf("old")) { true }
+        gate.visibleDurable("old")
+        gate.finishDelivery("c", "old", acknowledged = false) { true }
+        val newer = requireNotNull(gate.reserve("c", request))
+        gate.present(newer, listOf("new")) { true }
+        gate.finishDelivery("c", "old", acknowledged = true) { false }
+        assertNull(gate.reserve("c", request))
+        gate.closed("new")
+        assertNotNull(gate.reserve("c", request)) // No false acknowledgement watermark.
+    }
+
 }

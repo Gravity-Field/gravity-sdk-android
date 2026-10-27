@@ -19,6 +19,8 @@ android {
         resValue("string", "gravity_sdk_version", project.property("SDK_VERSION").toString())
     }
 
+    testOptions { targetSdk = 35 }
+
     buildFeatures {
         compose = true
     }
@@ -93,6 +95,9 @@ dependencies {
     // Real org.json for JVM tests; android.jar only has stubs
     testImplementation(gravitySdk.org.json)
     testImplementation(gravitySdk.ktor.client.mock)
+    androidTestImplementation(platform(gravitySdk.androidx.compose.bom))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.compose.ui:ui-test-manifest")
     androidTestImplementation(gravitySdk.androidx.junit)
     androidTestImplementation(gravitySdk.androidx.espresso.core)
 }

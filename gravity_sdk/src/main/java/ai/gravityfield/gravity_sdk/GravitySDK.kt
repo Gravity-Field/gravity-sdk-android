@@ -44,6 +44,7 @@ import ai.gravityfield.gravity_sdk.ui.GravityFullScreenContent
 import ai.gravityfield.gravity_sdk.ui.GravityModalContent
 import ai.gravityfield.gravity_sdk.ui.GravitySnackbarContent1
 import ai.gravityfield.gravity_sdk.ui.GravitySnackbarContent2
+import ai.gravityfield.gravity_sdk.ui.LocalModalImpression
 import ai.gravityfield.gravity_sdk.ui.product_view_builder.ProductViewBuilder
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import ai.gravityfield.gravity_sdk.utils.DeviceUtils
@@ -52,18 +53,27 @@ import ai.gravityfield.gravity_sdk.utils.InAppPresentationGate
 import ai.gravityfield.gravity_sdk.utils.InAppPresentationRegistry
 import ai.gravityfield.gravity_sdk.utils.LogLevel
 import ai.gravityfield.gravity_sdk.utils.Logger
+import ai.gravityfield.gravity_sdk.utils.ModalImpressionSession
 import ai.gravityfield.gravity_sdk.utils.PresentationRevision
 import ai.gravityfield.gravity_sdk.utils.ProductEventService
+import ai.gravityfield.gravity_sdk.utils.QueuedVisibleImpression
 import ai.gravityfield.gravity_sdk.utils.VisibleImpressionDelivery
+import ai.gravityfield.gravity_sdk.utils.VisibleImpressionOwner
+import ai.gravityfield.gravity_sdk.utils.VisibleImpressionStore
+import ai.gravityfield.gravity_sdk.utils.finishVisibleImpression
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkRequest
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
 import android.view.ViewGroup.MarginLayoutParams
@@ -92,17 +102,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.core.view.children
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
+import java.io.File
+import java.lang.ref.WeakReference
+import java.security.MessageDigest
+import java.util.Date
+import java.util.concurrent.Executors
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.lang.ref.WeakReference
-import java.util.Date
+import kotlinx.coroutines.withTimeoutOrNull
 
 typealias ProductFilter = (Slot) -> Boolean
 typealias GravityEventCallback = (TrackingEvent) -> Unit
@@ -115,10 +132,16 @@ class GravitySDK private constructor(
     internal val productFilter: ProductFilter?,
     internal val uiSettings: UISettings?,
     private val inAppPreparation: InAppPreparation?,
+    private val applicationContext: Context,
 ) {
 
     companion object {
-        private var _instance: GravitySDK? = null
+        @Volatile private var _instance: GravitySDK? = null
+        private val deliveryDispatcher = Executors.newSingleThreadExecutor { task ->
+            Thread(task, "gravity-wrimp-io").apply { isDaemon = true }
+        }.asCoroutineDispatcher()
+        // Persistence submitted by an existing window survives SDK replacement and dispose().
+        private val persistenceScope = CoroutineScope(deliveryDispatcher + SupervisorJob())
 
         val instance: GravitySDK
             get() {
@@ -158,6 +181,7 @@ class GravitySDK private constructor(
             Logger.configure(logLevel)
             DeviceUtils.initialize(context)
             _instance?.presentationGate?.reset()
+            _instance?.stopDeliveryRuntime()
             _instance = GravitySDK(
                 apiKey,
                 section,
@@ -166,7 +190,9 @@ class GravitySDK private constructor(
                 productFilter,
                 uiSettings,
                 inAppPreparation,
+                context.applicationContext,
             )
+            _instance?.startDeliveryRuntime()
         }
 
         /** No preparation configured passes the content through unchanged; otherwise delegates to it. */
@@ -182,11 +208,92 @@ class GravitySDK private constructor(
 
     private var options = Options()
     private var contentSettings = ContentSettings()
-    internal val presentationGate = InAppPresentationGate()
+    private val queueFileName = MessageDigest.getInstance("SHA-256")
+        .digest((apiKey + "\u0000" + section).toByteArray()).joinToString("") { "%02x".format(it) }
+    private val visibleImpressionStore = VisibleImpressionStore.open(
+        key = applicationContext.packageName + ":" + queueFileName,
+        file = { File(applicationContext.noBackupFilesDir, "gravity-wrimp/$queueFileName.json") },
+        onCorrupt = { Logger.e(TAG, "Discarding unreadable WRIMP queue: ${it.message}", it, sendToBack = false) },
+    )
+    private fun currentIdentity(): String? = identity(GravityRepository.instance.userForRequest(requestUser))
+    private fun identity(user: User): String? = user.custom?.let { "custom:$it" } ?: user.uid?.let { "uid:$it" }
+    internal val presentationGate = InAppPresentationGate(
+        deliveryPending = { visibleImpressionStore.blocks(it, currentIdentity()) },
+    )
     internal val visibleImpressionDelivery = VisibleImpressionDelivery(
         send = { GravityRepository.instance.trackEngagementEvent(listOf(it), apiKey) },
         retryable = EngagementTransport::isRetryable,
+        store = visibleImpressionStore,
+        complete = { entry, remove -> finishVisibleImpression(entry, true, impressionOwner, _instance?.impressionOwner, remove) },
+        discard = { entry, remove -> finishVisibleImpression(entry, false, impressionOwner, _instance?.impressionOwner, remove) },
     )
+    private val impressionOwner get() = VisibleImpressionOwner(queueFileName, presentationGate, ::currentIdentity)
+    // Deliberately independent of UI scopes and dispose(): a visible show must finish delivery.
+    private val deliveryScope = CoroutineScope(deliveryDispatcher + SupervisorJob())
+    private val deliveryWake = Channel<Unit>(Channel.CONFLATED)
+    private val connectivity = applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) { resumeVisibleImpressions() }
+    }
+    private fun resumeVisibleImpressions() {
+        deliveryWake.trySend(Unit)
+    }
+    private fun startDeliveryRuntime() {
+        try { connectivity.registerNetworkCallback(NetworkRequest.Builder().build(), networkCallback) }
+        catch (e: RuntimeException) { Logger.e(TAG, "Connectivity observer unavailable: ${e.message}") }
+        resumeVisibleImpressions()
+        deliveryScope.launch {
+            while (true) {
+                // No periodic wakeups with an empty queue, including after dispose().
+                if (!visibleImpressionStore.hasWork()) deliveryWake.receive()
+                else withTimeoutOrNull(30_000) { deliveryWake.receive() }
+                try { visibleImpressionDelivery.resume() }
+                catch (e: CancellationException) { throw e }
+                catch (e: Exception) { Logger.e(TAG, "Visible impression queue: ${e.message}", e) }
+            }
+        }
+    }
+    private fun stopDeliveryRuntime() {
+        try { connectivity.unregisterNetworkCallback(networkCallback) } catch (_: RuntimeException) { }
+        deliveryScope.cancel()
+    }
+
+    private fun modalImpression(content: CampaignContent, campaign: Campaign): ModalImpressionSession {
+        val originalUser = GravityRepository.instance.userForRequest(user)
+        val campaignId = presentationGate.campaignId(content.contentId)
+            ?: campaign.payload.firstOrNull()?.campaignId ?: content.contentId
+        return ModalImpressionSession {
+            contentEventService.sendModalVisibleImpression(this, content, campaign, originalUser, campaignId)
+        }
+    }
+
+    internal fun enqueueModalVisibleImpression(
+        content: CampaignContent, originalUser: User, campaignId: String, onPersisted: () -> Unit = {},
+    ): Boolean = presentationGate.scoped {
+        val event = content.events?.find { it.type == Action.VISIBLE_IMPRESSION }
+        if (event == null || event.urls.isEmpty()) {
+            Logger.e(TAG, "Visible impression has no WRIMP URL")
+            return@scoped false
+        }
+        val originalIdentity = identity(originalUser)
+        val queued = QueuedVisibleImpression(
+            campaignId = campaignId,
+            contentId = content.contentId,
+            identity = originalIdentity ?: "unidentified",
+            urls = event.urls,
+        )
+        visibleImpressionStore.stage(queued, onPersisted)
+        if (originalIdentity != null) presentationGate.visibleDurable(content.contentId, queued.id)
+        persistenceScope.launch {
+            try { visibleImpressionDelivery.persistStaged() }
+            catch (e: Exception) { Logger.e(TAG, "Cannot persist visible impression: ${e.message}", e) }
+            // A still-open window can belong to a replaced SDK; wake the current store owner.
+            val owner = _instance?.takeIf { it.queueFileName == queueFileName } ?: this@GravitySDK
+            owner.resumeVisibleImpressions()
+        }
+        true
+    }
+
     private val presentationRevision = PresentationRevision()
     private val inAppPresentations = InAppPresentationRegistry()
     private var requestUser: User? = null
@@ -335,6 +442,8 @@ class GravitySDK private constructor(
         revision: Long,
     ) {
         if (!presentationGate.isCurrent(request)) return
+        // Await restore off main rather than skip the first campaign response during startup.
+        withContext(deliveryDispatcher) { visibleImpressionStore.load() }
         val activity = findOwner<Activity>(activityContext) ?: return
         val sortedByPriority = response.campaigns.sortedByDescending { it.priority }
         for (campaignId in sortedByPriority) {
@@ -367,6 +476,7 @@ class GravitySDK private constructor(
         item: Item? = null,
         reservation: InAppPresentationGate.Reservation? = null,
         contentIds: List<String> = emptyList(),
+        opening: ModalImpressionSession? = null,
     ): Boolean {
         fun canPresent() = GravitySDK.instance === this@GravitySDK &&
             presentationRevision.canPresent(revision, isActivityActive(activity), isPresentationLocked)
@@ -382,10 +492,10 @@ class GravitySDK private constructor(
             if (reservation != null) {
                 if (activity.window?.decorView?.isShown != true) return@withContext false
                 presentationGate.present(reservation, contentIds) {
-                    showBackendContent(activity, prepared, campaign, item)
+                    showBackendContent(activity, prepared, campaign, item, opening)
                 }
             } else {
-                showBackendContent(activity, prepared, campaign, item)
+                showBackendContent(activity, prepared, campaign, item, opening)
             }
         }
     }
@@ -453,12 +563,13 @@ class GravitySDK private constructor(
     private fun registerInApp(
         content: CampaignContent,
         campaign: Campaign,
+        reportClose: () -> Boolean = { true },
         performDismiss: (complete: (Boolean) -> Unit) -> Unit,
     ): InAppPresentation {
         var registered: WeakReference<InAppPresentation>? = null
         val presentation = InAppPresentation(performDismiss) { success ->
             inAppPresentations.remove(registered?.get(), content.contentId)
-            if (success) contentEventService.sendContentClosed(content, campaign)
+            if (success && reportClose()) contentEventService.sendContentClosed(content, campaign)
         }
         registered = WeakReference(presentation)
         inAppPresentations.register(presentation, content.contentId)
@@ -596,12 +707,14 @@ class GravitySDK private constructor(
         content: CampaignContent,
         campaign: Campaign,
         item: Item? = null,
+        opening: ModalImpressionSession? = null,
     ): Boolean {
         if (activity.isFinishing || activity.isDestroyed || activity.window?.decorView !is ViewGroup) return false
+        val impression = opening ?: modalImpression(content, campaign)
         when (content.deliveryMethod) {
-            DeliveryMethod.MODAL -> showModal(activity, content, campaign, item)
-            DeliveryMethod.BOTTOM_SHEET -> showBottomSheet(activity, content, campaign, item)
-            DeliveryMethod.FULL_SCREEN -> showFullScreen(activity, content, campaign, item)
+            DeliveryMethod.MODAL -> showModal(activity, content, campaign, item, impression)
+            DeliveryMethod.BOTTOM_SHEET -> showBottomSheet(activity, content, campaign, item, impression)
+            DeliveryMethod.FULL_SCREEN -> showFullScreen(activity, content, campaign, item, impression)
             DeliveryMethod.SNACK_BAR -> {
                 if (content.templateSystemName == null || content.templateSystemName == TemplateSystemName.UNKNOWN) return false
                 showSnackbar(activity, content, campaign)
@@ -616,9 +729,11 @@ class GravitySDK private constructor(
         content: CampaignContent,
         campaign: Campaign,
         item: Item?,
+        opening: ModalImpressionSession,
     ) {
         val dismissController = DismissController()
-        val presentation = registerInApp(content, campaign) { complete ->
+        val presentation = registerInApp(content, campaign, reportClose = { !opening.isAbandoned }) { complete ->
+            opening.explicitClose()
             val attached = dismissController.listener != null
             dismissController.dismiss()
             complete(attached)
@@ -630,7 +745,10 @@ class GravitySDK private constructor(
         showOverlay(
             activity = activity,
             dismissController = dismissController,
-            onBack = ::dismiss
+            onBack = ::dismiss,
+            opening = opening,
+            onAbandoned = { presentationGate.closed(content.contentId) },
+            onBackground = { opening.background { presentation.close() } },
         ) {
             Dialog(onDismissRequest = ::dismiss) {
                 GravityModalContent(
@@ -642,7 +760,8 @@ class GravitySDK private constructor(
                             content,
                             campaign,
                             activity,
-                            ::dismiss
+                            ::dismiss,
+                            opening
                         )
                     },
                     item,
@@ -657,6 +776,7 @@ class GravitySDK private constructor(
         content: CampaignContent,
         campaign: Campaign,
         item: Item? = null,
+        opening: ModalImpressionSession,
     ) {
         val frameUI = content.variables?.frameUI
         val container = frameUI?.container
@@ -664,8 +784,10 @@ class GravitySDK private constructor(
 
         val dismissController = DismissController()
         var requestClose: (((Boolean) -> Unit) -> Unit)? = null
-        val presentation = registerInApp(content, campaign) { complete ->
+        val presentation = registerInApp(content, campaign, reportClose = { !opening.isAbandoned }) { complete ->
+            opening.explicitClose()
             if (dismissController.listener == null) complete(false)
+            else if (opening.isAbandoned) { dismissController.dismiss(); complete(true) }
             else {
                 val close = requestClose
                 if (close != null) close(complete)
@@ -679,7 +801,10 @@ class GravitySDK private constructor(
         showOverlay(
             activity = activity,
             dismissController = dismissController,
-            onBack = ::dismiss
+            onBack = ::dismiss,
+            opening = opening,
+            onAbandoned = { presentationGate.closed(content.contentId) },
+            onBackground = { opening.background { presentation.close() } },
         ) {
             val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
             val scope = rememberCoroutineScope()
@@ -709,7 +834,8 @@ class GravitySDK private constructor(
                             content,
                             campaign,
                             activity,
-                            dismissCallback = ::dismiss
+                            dismissCallback = ::dismiss,
+                            opening = opening
                         )
                     },
                     item,
@@ -723,9 +849,11 @@ class GravitySDK private constructor(
         content: CampaignContent,
         campaign: Campaign,
         item: Item?,
+        opening: ModalImpressionSession,
     ) {
         val dismissController = DismissController()
-        val presentation = registerInApp(content, campaign) { complete ->
+        val presentation = registerInApp(content, campaign, reportClose = { !opening.isAbandoned }) { complete ->
+            opening.explicitClose()
             val attached = dismissController.listener != null
             dismissController.dismiss()
             complete(attached)
@@ -737,7 +865,10 @@ class GravitySDK private constructor(
         showOverlay(
             activity = activity,
             dismissController = dismissController,
-            onBack = ::dismiss
+            onBack = ::dismiss,
+            opening = opening,
+            onAbandoned = { presentationGate.closed(content.contentId) },
+            onBackground = { opening.background { presentation.close() } },
         ) {
             GravityFullScreenContent(
                 content,
@@ -748,7 +879,8 @@ class GravitySDK private constructor(
                         content,
                         campaign,
                         activity,
-                        ::dismiss
+                        ::dismiss,
+                        opening
                     )
                 },
                 item,
@@ -830,12 +962,13 @@ class GravitySDK private constructor(
         campaign: Campaign,
         context: Context,
         dismissCallback: (() -> Unit)? = null,
+        opening: ModalImpressionSession? = null,
     ) {
         val action = onClickModel.action
 
         trackEngagementEvent(action, content.events)
 
-        if (action != Action.CLOSE && onClickModel.closeOnClick) {
+        if (action != Action.CLOSE && (action != Action.OPEN_STEP || opening == null) && onClickModel.closeOnClick) {
             dismissCallback?.invoke()
         }
 
@@ -898,17 +1031,27 @@ class GravitySDK private constructor(
             }
 
             Action.OPEN_STEP -> {
-                val nextStep = onClickModel.step ?: return
+                fun closeOldStep() {
+                    if (opening != null && onClickModel.closeOnClick) dismissCallback?.invoke()
+                }
+                val nextStep = onClickModel.step ?: run { closeOldStep(); return }
                 val itemId = onClickModel.itemId
                 val item = if (itemId != null) content.items?.find { it.id == itemId } else null
                 val targetContent =
-                    campaign.payload.firstOrNull()?.contents?.find { it.step == nextStep } ?: return
+                    campaign.payload.firstOrNull()?.contents?.find { it.step == nextStep }
+                        ?: run { closeOldStep(); return }
 
-                val activity = findOwner<Activity>(context) ?: return
+                val activity = findOwner<Activity>(context) ?: run { closeOldStep(); return }
 
                 val revision = presentationRevision.current
                 ioScope.launch {
-                    prepareAndShowBackendContent(activity, targetContent, campaign, revision, item)
+                    try {
+                        prepareAndShowBackendContent(activity, targetContent, campaign, revision, item, opening = opening)
+                    } finally {
+                        if (opening != null && onClickModel.closeOnClick) {
+                            withContext(kotlinx.coroutines.NonCancellable + Dispatchers.Main) { closeOldStep() }
+                        }
+                    }
                 }
             }
 
@@ -926,6 +1069,9 @@ class GravitySDK private constructor(
         activity: Activity,
         dismissController: DismissController = DismissController(),
         onBack: () -> Unit,
+        opening: ModalImpressionSession? = null,
+        onAbandoned: () -> Unit = {},
+        onBackground: () -> Unit = {},
         content: @Composable () -> Unit,
     ) {
         val decorView = activity.window?.decorView as ViewGroup
@@ -937,11 +1083,26 @@ class GravitySDK private constructor(
                     if (fontResId != null) FontFamily(Font(fontResId)) else FontFamily.Default
                 }
                 BackHandler { onBack.invoke() }
-                CompositionLocalProvider(LocalAppFont provides font) {
+                CompositionLocalProvider(LocalAppFont provides font, LocalModalImpression provides opening) {
                     content()
                 }
             }
             z = (decorView.children.maxOfOrNull { it.z } ?: 0f) + 1
+        }
+        if (opening != null) {
+            opening.attach()
+            val owner = activity as? LifecycleOwner
+            val observer = LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_STOP) onBackground()
+            }
+            owner?.lifecycle?.addObserver(observer)
+            view.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+                override fun onViewAttachedToWindow(v: View) = Unit
+                override fun onViewDetachedFromWindow(v: View) {
+                    owner?.lifecycle?.removeObserver(observer)
+                    opening.detach(onAbandoned)
+                }
+            })
         }
         dismissController.listener = {
             decorView.removeView(view)

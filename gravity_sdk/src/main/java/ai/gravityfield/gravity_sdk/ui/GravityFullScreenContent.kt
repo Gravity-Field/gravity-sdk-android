@@ -47,11 +47,7 @@ internal fun GravityFullScreenContent(
         ContentEventService.instance.sendContentImpression(content, campaign)
     }
 
-    VisibilityDetector(
-        onVisible = { ContentEventService.instance.sendContentVisibleImpression(content, campaign) },
-        once = true,
-        visibilityKey = content.contentId,
-    ) {
+    ModalVisibilityDetector {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             containerColor = backgroundColor

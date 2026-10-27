@@ -8,6 +8,7 @@ import ai.gravityfield.gravity_sdk.models.ContentCloseEvent
 import ai.gravityfield.gravity_sdk.models.ContentImpressionEvent
 import ai.gravityfield.gravity_sdk.models.ContentLoadEvent
 import ai.gravityfield.gravity_sdk.models.ContentVisibleImpressionEvent
+import ai.gravityfield.gravity_sdk.models.User
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.network.GravityRepository
 import kotlinx.coroutines.CancellationException
@@ -50,6 +51,19 @@ internal class ContentEventService private constructor() {
         }
         val onImpression = content.variables?.onImpression ?: return
         trackEngagement(onImpression, content)
+    }
+
+    /** Modal openings call this once after a content frame, before any close destroys the UI. */
+    fun sendModalVisibleImpression(
+        sdk: GravitySDK,
+        content: CampaignContent,
+        campaign: Campaign,
+        originalUser: User,
+        campaignId: String,
+    ): Boolean {
+        return sdk.enqueueModalVisibleImpression(content, originalUser, campaignId) {
+            sdk.callbackTrackingEvent(ContentVisibleImpressionEvent(content, campaign))
+        }
     }
 
     fun sendContentVisibleImpression(
