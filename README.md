@@ -149,6 +149,23 @@ GravitySDK.instance.triggerEvent(
 )
 ```
 
+У всех событий есть два необязательных поля:
+
+- `customProps` — дополнительные свойства `Map<String, String>` (только строковые значения: числа передавайте строкой, вложенные объекты и списки сервер не принимает);
+- `eventTime` — когда событие произошло (`java.util.Date`). SDK отправляет его в UTC; если не задано, подставляется время вызова `triggerEvent`.
+
+```kotlin
+AddToCartEvent(
+  value = 99.99,
+  productId = "sku-123",
+  quantity = 1,
+  customProps = mapOf("list" to "search"),
+  eventTime = Date(),
+)
+```
+
+У `CustomEvent` дополнительно есть `cuid` / `cuidType` (идентификатор пользователя, как у `LoginEvent`) и `cart` (список `CartItem`).
+
 ## Взаимодействие
 
 ```kotlin
