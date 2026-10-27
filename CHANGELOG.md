@@ -2,11 +2,13 @@
 
 ## Unreleased
 
-* Add `getContentBySelectorWithDetails` and `getContentByCampaignIdWithDetails`: the model plus the raw JSON of the same response
-* Add `CampaignContent.rawVariables` and key access on `Variables` for keys with no typed counterpart
-* Add `customProps` and `eventTime` to all trigger events; `CustomEvent` also gets `cuid`, `cuidType` and `cart`
-* Events without `eventTime` are sent with the time `triggerEvent` was called
-* Unset optional fields of standard events (`currency`, `cart`, `hashedEmail`, `cuid`, `cuidType`) are omitted instead of sent as `null`
+## 1.2.0
+
+- Add `getContentBySelectorWithDetails` and `getContentByCampaignIdWithDetails`: the model plus the raw JSON of the same response
+- Add `CampaignContent.rawVariables` and key access on `Variables` for keys with no typed counterpart
+- Add `customProps` and `eventTime` to all trigger events; `CustomEvent` also gets `cuid`, `cuidType` and `cart`
+- Events without `eventTime` are sent with the time `triggerEvent` was called
+- Unset optional fields of standard events (`currency`, `cart`, `hashedEmail`, `cuid`, `cuidType`) are omitted instead of sent as `null`
 - Track modal, bottom sheet and fullscreen visible impressions on the first drawn content frame while the app is active, without a minimum viewing duration; explicit fast dismissal and step transitions share one impression per opening. Inline, product and snackbar visibility thresholds are unchanged.
 - Set local protection immediately in memory, then persist modal WRIMP URLs and campaign/user protection identity on a serial IO dispatcher before sending. Queue loading, fsync, atomic rename and batched eviction run off the main thread.
 - Protect a shown campaign until HTTP 2xx or permanent drop, for at most 24 hours from the show across restarts. Retain and retry the event independently for up to 7 days; reaching 24 hours does not drop it. Queues hold at most 512 openings per API key and section.

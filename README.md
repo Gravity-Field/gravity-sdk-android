@@ -44,8 +44,8 @@ dependencies {
 
 ## Подключение готового релиза
 
-После публикации тега `1.1.0` скачайте соответствующую версию публичного репозитория
-`Gravity-Field/gravity-sdk-android` и скопируйте `gravity_sdk/repository`
+Скачайте актуальную ветку `main` публичного репозитория
+`Gravity-Field/gravity-sdk-android` (релиз 1.2.0 — коммит `Release 1.2.0`) и скопируйте `gravity_sdk/repository`
 в проект приложения под именем `gravity-sdk-repository`.
 
 Добавьте репозиторий в `settings.gradle.kts`:
@@ -64,7 +64,7 @@ dependencyResolutionManagement {
 
 ```kotlin
 dependencies {
-    implementation("ai.gravityfield:gravity-sdk:1.1.0")
+    implementation("ai.gravityfield:gravity-sdk:1.2.0")
 }
 ```
 
