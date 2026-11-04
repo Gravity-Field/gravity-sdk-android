@@ -19,7 +19,10 @@ android {
         resValue("string", "gravity_sdk_version", project.property("SDK_VERSION").toString())
     }
 
-    testOptions { targetSdk = 35 }
+    testOptions {
+        targetSdk = 35
+        unitTests.isIncludeAndroidResources = true
+    }
 
     buildFeatures {
         compose = true
@@ -88,10 +91,10 @@ dependencies {
     implementation(gravitySdk.ktor.client.serialization.kotlinx)
     implementation(gravitySdk.kotlinx.serialization.json)
     implementation(gravitySdk.multiplatform.settings)
-    implementation(gravitySdk.multiplatform.settings.no.arg)
     implementation(gravitySdk.coil.compose)
     implementation(gravitySdk.coil.network)
     testImplementation(gravitySdk.junit)
+    testImplementation(gravitySdk.robolectric)
     // Real org.json for JVM tests; android.jar only has stubs
     testImplementation(gravitySdk.org.json)
     testImplementation(gravitySdk.ktor.client.mock)

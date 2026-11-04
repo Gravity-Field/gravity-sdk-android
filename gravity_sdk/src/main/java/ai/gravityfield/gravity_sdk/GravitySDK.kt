@@ -1,5 +1,7 @@
 package ai.gravityfield.gravity_sdk
 
+import ai.gravityfield.gravity_sdk.session.SessionManager
+import ai.gravityfield.gravity_sdk.prefs.Prefs
 import ai.gravityfield.gravity_sdk.models.Action
 import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.CancelEvent
@@ -117,6 +119,9 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -132,24 +137,33 @@ class GravitySDK private constructor(
     internal val productFilter: ProductFilter?,
     internal val uiSettings: UISettings?,
     private val inAppPreparation: InAppPreparation?,
-    private val applicationContext: Context,
+    private val context: Context?,
 ) {
 
     companion object {
         @Volatile private var _instance: GravitySDK? = null
+        private val initializedInstances = MutableStateFlow<GravitySDK?>(null)
+        private val uninitializedInstance by lazy {
+            GravitySDK("", "", {}, null, null, null, null, null)
+        }
         private val deliveryDispatcher = Executors.newSingleThreadExecutor { task ->
             Thread(task, "gravity-wrimp-io").apply { isDaemon = true }
         }.asCoroutineDispatcher()
         // Persistence submitted by an existing window survives SDK replacement and dispose().
         private val persistenceScope = CoroutineScope(deliveryDispatcher + SupervisorJob())
+        private val userIdListenerScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
+        /** UID methods are available before [initialize]; storage calls await its Context. */
         val instance: GravitySDK
-            get() {
-                if (_instance == null) {
-                    throw Exception("GravitySDK has not been initialized")
-                }
-                return _instance!!
-            }
+            get() = _instance ?: uninitializedInstance
+
+        /** Whether [initialize] has configured the SDK; a user-ID-only placeholder is not initialized. */
+        val isInitialized: Boolean
+            get() = _instance != null
+
+        // Inline placements can be composed before the host has configured the SDK.
+        internal suspend fun awaitInitializedInstance(): GravitySDK =
+            _instance ?: initializedInstances.filterNotNull().first { it === _instance }
 
         private const val TAG = "SDK"
 
@@ -179,7 +193,9 @@ class GravitySDK private constructor(
             inAppPreparation: InAppPreparation?,
         ) {
             Logger.configure(logLevel)
+            Prefs.initialize(context)
             DeviceUtils.initialize(context)
+            GravityRepository.sessionManager.initialize()
             _instance?.presentationGate?.reset()
             _instance?.stopDeliveryRuntime()
             _instance = GravitySDK(
@@ -193,6 +209,7 @@ class GravitySDK private constructor(
                 context.applicationContext,
             )
             _instance?.startDeliveryRuntime()
+            initializedInstances.value = _instance
         }
 
         /** No preparation configured passes the content through unchanged; otherwise delegates to it. */
@@ -206,32 +223,45 @@ class GravitySDK private constructor(
         }
     }
 
+    private val applicationContext: Context
+        get() = context ?: throw Exception("GravitySDK has not been initialized")
+
+    private fun requireInitialized() {
+        if (context == null) throw Exception("GravitySDK has not been initialized")
+    }
+
     private var options = Options()
     private var contentSettings = ContentSettings()
     private val queueFileName = MessageDigest.getInstance("SHA-256")
         .digest((apiKey + "\u0000" + section).toByteArray()).joinToString("") { "%02x".format(it) }
-    private val visibleImpressionStore = VisibleImpressionStore.open(
-        key = applicationContext.packageName + ":" + queueFileName,
-        file = { File(applicationContext.noBackupFilesDir, "gravity-wrimp/$queueFileName.json") },
-        onCorrupt = { Logger.e(TAG, "Discarding unreadable WRIMP queue: ${it.message}", it, sendToBack = false) },
-    )
-    private fun currentIdentity(): String? = identity(GravityRepository.instance.userForRequest(requestUser))
+    private val visibleImpressionStore by lazy {
+        VisibleImpressionStore.open(
+            key = applicationContext.packageName + ":" + queueFileName,
+            file = { File(applicationContext.noBackupFilesDir, "gravity-wrimp/$queueFileName.json") },
+            onCorrupt = { Logger.e(TAG, "Discarding unreadable WRIMP queue: ${it.message}", it, sendToBack = false) },
+        )
+    }
+    private fun currentIdentity(): String? = identity(GravityRepository.instance.userForRequest(user))
     private fun identity(user: User): String? = user.custom?.let { "custom:$it" } ?: user.uid?.let { "uid:$it" }
     internal val presentationGate = InAppPresentationGate(
         deliveryPending = { visibleImpressionStore.blocks(it, currentIdentity()) },
     )
-    internal val visibleImpressionDelivery = VisibleImpressionDelivery(
-        send = { GravityRepository.instance.trackEngagementEvent(listOf(it), apiKey) },
-        retryable = EngagementTransport::isRetryable,
-        store = visibleImpressionStore,
-        complete = { entry, remove -> finishVisibleImpression(entry, true, impressionOwner, _instance?.impressionOwner, remove) },
-        discard = { entry, remove -> finishVisibleImpression(entry, false, impressionOwner, _instance?.impressionOwner, remove) },
-    )
+    internal val visibleImpressionDelivery by lazy {
+        VisibleImpressionDelivery(
+            send = { GravityRepository.instance.trackEngagementEvent(listOf(it), apiKey) },
+            retryable = EngagementTransport::isRetryable,
+            store = visibleImpressionStore,
+            complete = { entry, remove -> finishVisibleImpression(entry, true, impressionOwner, _instance?.impressionOwner, remove) },
+            discard = { entry, remove -> finishVisibleImpression(entry, false, impressionOwner, _instance?.impressionOwner, remove) },
+        )
+    }
     private val impressionOwner get() = VisibleImpressionOwner(queueFileName, presentationGate, ::currentIdentity)
     // Deliberately independent of UI scopes and dispose(): a visible show must finish delivery.
     private val deliveryScope = CoroutineScope(deliveryDispatcher + SupervisorJob())
     private val deliveryWake = Channel<Unit>(Channel.CONFLATED)
-    private val connectivity = applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    private val connectivity by lazy {
+        applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    }
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) { resumeVisibleImpressions() }
     }
@@ -296,12 +326,12 @@ class GravitySDK private constructor(
 
     private val presentationRevision = PresentationRevision()
     private val inAppPresentations = InAppPresentationRegistry()
-    private var requestUser: User? = null
-    internal val user: User? get() = presentationGate.scoped { requestUser }
+    private val sessions get() = GravityRepository.sessionManager
+    internal val user: User? get() = sessions.customUser
 
     private fun automaticRequest(pageContext: PageContext, newScreen: Boolean) = presentationGate.scoped {
         if (newScreen) presentationRevision.invalidate()
-        Triple(presentationGate.beginRequest(pageContext.location, newScreen), requestUser, presentationRevision.current)
+        Triple(presentationGate.beginRequest(pageContext.location, newScreen), sessions.snapshot(), presentationRevision.current)
     }
     internal var proxyUrl: String? = null
     internal var notificationPermissionStatus = NotificationPermissionStatus.UNKNOWN
@@ -310,9 +340,9 @@ class GravitySDK private constructor(
     private var isPresentationLocked = false
     private var presentationLockListener: ((Boolean) -> Unit)? = null
 
-    private val repository = GravityRepository.instance
-    private val contentEventService = ContentEventService.instance
-    private val productEventService = ProductEventService.instance
+    private val repository by lazy { GravityRepository.instance }
+    private val contentEventService by lazy { ContentEventService.instance }
+    private val productEventService by lazy { ProductEventService.instance }
 
     private val inlineViewCache = InlineViewCacheStore()
     private val inlineListViewCache = InlineViewCacheStore()
@@ -325,30 +355,114 @@ class GravitySDK private constructor(
         contentSettings: ContentSettings?,
         proxyUrl: String?,
     ) {
+        requireInitialized()
         this.options = options ?: Options()
         this.contentSettings = contentSettings ?: ContentSettings()
         this.proxyUrl = proxyUrl
     }
 
     fun setUser(userId: String, sessionId: String) {
+        requireInitialized()
         presentationGate.scoped {
-            if (requestUser?.custom != userId || requestUser?.ses != sessionId) {
-                presentationGate.reset()
-                presentationRevision.invalidate()
-            }
-            requestUser = User(custom = userId, ses = sessionId)
+            if (user?.custom != userId || user?.ses != sessionId) invalidateUserContent()
+            sessions.setUser(userId, sessionId)
         }
     }
 
+    private fun invalidateUserContent() {
+        presentationGate.reset()
+        presentationRevision.invalidate()
+        inlineViewCache.clear()
+        inlineListViewCache.clear()
+    }
+
+    /**
+     * Returns the stored server UID, waiting for any in-flight session.
+     * Before the first [initialize], suspends until its Context is available, then reads storage.
+     */
+    suspend fun getUserId(): String? {
+        awaitInitializedInstance()
+        return withContext(Dispatchers.IO) { sessions.getUserId() }
+    }
+
+    /**
+     * Sets the process-wide server user ID listener, delivered asynchronously on the main thread.
+     * It survives [dispose] and repeated [initialize] calls; pass null to remove it.
+     * Available before [initialize].
+     */
+    fun setUserIdListener(listener: ((String?) -> Unit)?) {
+        sessions.setUserIdListener(listener?.let { callback ->
+            { uid ->
+                userIdListenerScope.launch {
+                    try { callback(uid) }
+                    catch (e: Exception) { Logger.e(TAG, "User ID listener failed: ${e.message}", e) }
+                }
+                Unit
+            }
+        })
+    }
+
+    internal fun userIdentitySnapshot(): SessionManager.Request = sessions.snapshot()
+    internal fun withCurrentUser(
+        identity: SessionManager.Request,
+        stale: () -> Unit,
+        update: () -> Unit,
+    ) = presentationGate.scoped {
+        if (sessions.isCurrent(identity)) update() else stale()
+    }
+
+    /**
+     * Drops the session and any custom user set via [setUser], and removes the stored server UID.
+     * Throws if the device refuses to remove it: the session and custom user are already dropped,
+     * but the UID may still be on disk. The in-memory UID and listener are null even on failure;
+     * the app decides whether to retry removal.
+     * Before [initialize], clears memory immediately. If no identity has been published,
+     * notification waits for storage and is sent only when a previous UID existed.
+     * This call suspends until initialization provides Context and persistence finishes.
+     */
+    suspend fun resetUser() {
+        val change = beginUserChange { sessions.beginReset() }
+        change.await()
+    }
+
+    // A retained pre-initialization instance must invalidate the current SDK's content too.
+    private fun beginUserChange(change: () -> SessionManager.Change): SessionManager.Change {
+        val sdk = _instance ?: return change()
+        return sdk.presentationGate.scoped {
+            sdk.invalidateUserContent()
+            change()
+        }
+    }
+
+    /**
+     * Restores a server UID obtained earlier from [getUserId], dropping the session and custom user.
+     * The next request carries this UID; an unknown UID may be replaced by the server.
+     * Trims surrounding whitespace and rejects an empty or blank UID with [IllegalArgumentException].
+     * Throws if the device refuses to store the UID: the session and custom user are already dropped,
+     * while the previous stored UID is retained. The next request uses that previous UID, or none.
+     * A pre-initialization in-memory restore is rolled back with a listener notification on failure.
+     * Before [initialize], accepts the change in memory and notifies the listener immediately;
+     * this call suspends until initialization provides Context and persistence finishes.
+     */
+    suspend fun restoreUserId(uid: String) {
+        val restored = uid.trim()
+        require(restored.isNotEmpty()) { "uid must not be blank" }
+        val change = beginUserChange { sessions.beginRestore(restored) }
+        change.await()
+    }
+
     fun setNotificationPermissionStatus(status: NotificationPermissionStatus) {
+        requireInitialized()
         notificationPermissionStatus = status
     }
 
     fun setPresentationLockListener(listener: ((Boolean) -> Unit)?) {
+        requireInitialized()
         presentationLockListener = listener
     }
 
     fun lockPresentation() {
+        requireInitialized()
         isPresentationLocked = true
         presentationRevision.invalidate()
         Logger.i(TAG, "Presentation lock called, presentation is now locked")
@@ -356,6 +470,7 @@ class GravitySDK private constructor(
     }
 
     fun unlockPresentation() {
+        requireInitialized()
         isPresentationLocked = false
         Logger.i(TAG, "Presentation unlock called, presentation is now unlocked")
         presentationLockListener?.invoke(false)
@@ -365,6 +480,7 @@ class GravitySDK private constructor(
         pageContext: PageContext,
         activityContext: Context,
     ) {
+        requireInitialized()
         val (request, currentUser, revision) = automaticRequest(pageContext, true)
         ioScope.launch {
             try {
@@ -384,6 +500,7 @@ class GravitySDK private constructor(
         pageContext: PageContext,
         activityContext: Context,
     ) {
+        requireInitialized()
         // The event happened now; events without their own eventTime are sent with it
         val raisedAt = Date()
         val (request, currentUser, revision) = automaticRequest(pageContext, false)
@@ -415,18 +532,24 @@ class GravitySDK private constructor(
         selector: String,
         pageContext: PageContext,
     ): GravityDataResponse<ContentResponse>? {
+        requireInitialized()
+        val identity = sessions.snapshot()
         val response = repository.chooseBySelectorWithDetails(
             selector = selector,
             options = options,
             contentSettings = contentSettings,
-            customerUser = user,
+            identity = identity,
             pageContext = pageContext
         ) ?: return null
-        sendContentLoaded(response.data)
-        return response
+        return presentationGate.scoped {
+            if (!sessions.isCurrent(identity)) return@scoped null
+            sendContentLoaded(response.data)
+            response
+        }
     }
 
     fun dispose() {
+        requireInitialized()
         presentationGate.reset()
         ioScope.cancel()
         mainScope.cancel()
@@ -438,7 +561,7 @@ class GravitySDK private constructor(
         pageContext: PageContext,
         activityContext: Context,
         request: InAppPresentationGate.Request,
-        currentUser: User?,
+        currentUser: SessionManager.Request,
         revision: Long,
     ) {
         if (!presentationGate.isCurrent(request)) return
@@ -511,6 +634,7 @@ class GravitySDK private constructor(
     }
 
     fun sendContentEngagement(engagement: ContentEngagement) {
+        requireInitialized()
         when (engagement) {
             is ContentImpressionEngagement ->
                 contentEventService.sendContentImpression(
@@ -536,6 +660,7 @@ class GravitySDK private constructor(
     }
 
     fun sendProductEngagement(engagement: ProductEngagement) {
+        requireInitialized()
         when (engagement) {
             is ProductClickEngagement -> productEventService.sendProductClick(
                 engagement.slot,
@@ -557,6 +682,7 @@ class GravitySDK private constructor(
     /** Closes the visible SDK in-app with this contentId. Completion runs on the UI thread
      * after dismissal; false means no matching presentation. Inline widgets are unaffected. */
     fun dismissInApp(contentId: String, completion: (Boolean) -> Unit = {}) {
+        requireInitialized()
         mainScope.launch { inAppPresentations.dismiss(contentId, completion) }
     }
 
@@ -579,12 +705,12 @@ class GravitySDK private constructor(
     suspend fun getContentByCampaignId(
         campaignId: String,
         pageContext: PageContext,
-    ): ContentResponse? = getContentByCampaignId(campaignId, pageContext, user)
+    ): ContentResponse? = getContentByCampaignId(campaignId, pageContext, sessions.snapshot())
 
     private suspend fun getContentByCampaignId(
         campaignId: String,
         pageContext: PageContext,
-        currentUser: User?,
+        currentUser: SessionManager.Request,
     ): ContentResponse? {
         return getContentByCampaignIdWithDetails(campaignId, pageContext, currentUser)?.data
     }
@@ -597,37 +723,46 @@ class GravitySDK private constructor(
         campaignId: String,
         pageContext: PageContext,
     ): GravityDataResponse<ContentResponse>? =
-        getContentByCampaignIdWithDetails(campaignId, pageContext, user)
+        getContentByCampaignIdWithDetails(campaignId, pageContext, sessions.snapshot())
 
     private suspend fun getContentByCampaignIdWithDetails(
         campaignId: String,
         pageContext: PageContext,
-        currentUser: User?,
+        currentUser: SessionManager.Request,
     ): GravityDataResponse<ContentResponse>? {
+        requireInitialized()
         val response = repository.chooseByCampaignIdWithDetails(
             campaignId = campaignId,
             options = options,
             contentSettings = contentSettings,
-            customerUser = currentUser,
+            identity = currentUser,
             pageContext = pageContext
         ) ?: return null
-        sendContentLoaded(response.data)
-        return response
+        return presentationGate.scoped {
+            if (!sessions.isCurrent(currentUser)) return@scoped null
+            sendContentLoaded(response.data)
+            response
+        }
     }
 
     suspend fun getContentByGroupSelector(
         groupSelector: String,
         pageContext: PageContext,
     ): ContentResponse? {
+        requireInitialized()
+        val identity = sessions.snapshot()
         val response = repository.chooseByGroup(
             group = groupSelector,
             options = options,
             contentSettings = contentSettings,
-            customerUser = user,
+            identity = identity,
             pageContext = pageContext
         ) ?: return null
-        sendContentLoaded(response)
-        return response
+        return presentationGate.scoped {
+            if (!sessions.isCurrent(identity)) return@scoped null
+            sendContentLoaded(response)
+            response
+        }
     }
 
     private fun sendContentLoaded(response: ContentResponse) {
@@ -648,8 +783,9 @@ class GravitySDK private constructor(
         selector: String,
         pageContext: PageContext,
         cache: InlineViewCache,
-    ) {
-        inlineViewCache.put(selector, pageContext, cache)
+        identity: SessionManager.Request,
+    ) = presentationGate.scoped {
+        if (sessions.isCurrent(identity)) inlineViewCache.put(selector, pageContext, cache)
     }
 
     internal fun updateInlineViewScrollPosition(
@@ -661,6 +797,7 @@ class GravitySDK private constructor(
     }
 
     fun resetInlineViewCache(selector: String, pageContext: PageContext) {
+        requireInitialized()
         inlineViewCache.remove(selector, pageContext)
     }
 
@@ -675,8 +812,9 @@ class GravitySDK private constructor(
         groupSelector: String,
         pageContext: PageContext,
         cache: InlineViewCache,
-    ) {
-        inlineListViewCache.put(groupSelector, pageContext, cache)
+        identity: SessionManager.Request,
+    ) = presentationGate.scoped {
+        if (sessions.isCurrent(identity)) inlineListViewCache.put(groupSelector, pageContext, cache)
     }
 
     internal fun updateInlineListViewScrollPosition(
@@ -688,6 +826,7 @@ class GravitySDK private constructor(
     }
 
     fun resetInlineListViewCache(groupSelector: String, pageContext: PageContext) {
+        requireInitialized()
         inlineListViewCache.remove(groupSelector, pageContext)
     }
 

@@ -10,7 +10,6 @@ import ai.gravityfield.gravity_sdk.models.PageContext
 import ai.gravityfield.gravity_sdk.models.internal.InlineViewCache
 import ai.gravityfield.gravity_sdk.models.internal.ScrollProvider
 import ai.gravityfield.gravity_sdk.network.Campaign
-import ai.gravityfield.gravity_sdk.network.ContentResponse
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import android.annotation.SuppressLint
 import android.content.Context
@@ -47,6 +46,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.AbstractComposeView
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -74,6 +75,9 @@ class GravityInlineListView @JvmOverloads constructor(
     private val loaderLayoutResId: Int
 
     init {
+        // A temporary detach must keep the request and loaded content. The host lifecycle
+        // still disposes the composition; detached stale requests wait for reattachment.
+        setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
         val typedArray = context.obtainStyledAttributes(
             attrs,
             R.styleable.GravityInlineListView,
@@ -150,33 +154,28 @@ private fun GravityListView(
     var pageContext by remember { mutableStateOf<PageContext?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val view = LocalView.current
 
     LaunchedEffect(groupSelector) {
         pageContextProvider.setListener {
             pageContext = it
 
             scope.launch(Dispatchers.IO) {
-                try {
-                    val cache = GravitySDK.instance.getInlineListViewCache(groupSelector, it)
-                    val contentResponse: ContentResponse?
-                    if (cache != null) {
-                        contentResponse = cache.content
-                    } else {
-                        withContext(Dispatchers.Main) {
-                            isLoading = true
+                val sdk = GravitySDK.awaitInitializedInstance()
+                sdk.loadInlineContent(
+                    awaitActive = { view.awaitInlineAttachment() },
+                    load = { identity ->
+                        val cache = sdk.getInlineListViewCache(groupSelector, it)
+                        if (cache != null) {
+                            cache.content
+                        } else {
+                            withContext(Dispatchers.Main) { isLoading = true }
+                            val response = sdk.getContentByGroupSelector(groupSelector, it)
+                            sdk.putInlineListViewCache(groupSelector, it, InlineViewCache(response), identity)
+                            response
                         }
-                        contentResponse = GravitySDK.instance.getContentByGroupSelector(
-                            groupSelector,
-                            it,
-                        )
-                        GravitySDK.instance.putInlineListViewCache(
-                            groupSelector,
-                            it,
-                            InlineViewCache(contentResponse),
-                        )
-                    }
-
-                    withContext(Dispatchers.Main) {
+                    },
+                    loaded = { contentResponse ->
                         isLoading = false
                         val contentItems = mutableListOf<InlineListViewItem>()
                         val campaigns = contentResponse?.data ?: emptyList()
@@ -184,22 +183,16 @@ private fun GravityListView(
                             val payload = campaign.payload.firstOrNull() ?: continue
                             val content =
                                 payload.contents.sortedBy { it.step }.firstOrNull() ?: continue
-
                             contentItems.add(InlineListViewItem(campaign, content))
                         }
                         items = contentItems
-                    }
-                } catch (_: Throwable) {
-                    withContext(Dispatchers.Main) {
+                    },
+                    failed = { identity, _ ->
                         isLoading = false
                         changeHeight(0.0)
-                    }
-                    GravitySDK.instance.putInlineListViewCache(
-                        groupSelector,
-                        it,
-                        InlineViewCache(),
-                    )
-                }
+                        sdk.putInlineListViewCache(groupSelector, it, InlineViewCache(), identity)
+                    },
+                )
             }
         }
     }

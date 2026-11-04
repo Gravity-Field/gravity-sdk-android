@@ -78,6 +78,7 @@ internal object DeviceUtils {
         return contextAttributes
     }
 
+    @Synchronized
     private fun getDeviceId(): String {
         var deviceId = Prefs.getDeviceId()
         if (deviceId == null) {

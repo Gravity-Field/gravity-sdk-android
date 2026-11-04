@@ -270,8 +270,8 @@ class ModalVisibilityWiringTest {
             val old = GravitySDK.instance
             GravitySDK.initialize(rule.activity, "replacement-key", "replacement-section", {})
             current = GravitySDK.instance
-            val field = GravitySDK::class.java.getDeclaredField("visibleImpressionStore").apply { isAccessible = true }
-            store = field.get(current) as ai.gravityfield.gravity_sdk.utils.VisibleImpressionStore
+            val getter = GravitySDK::class.java.getDeclaredMethod("getVisibleImpressionStore").apply { isAccessible = true }
+            store = getter.invoke(current) as ai.gravityfield.gravity_sdk.utils.VisibleImpressionStore
             val content = CampaignContent("replacement-content", null, DeliveryMethod.MODAL, "test", 1,
                 null, null, null, null, listOf(Event(Action.VISIBLE_IMPRESSION, listOf("http://["))))
             assertTrue(old.enqueueModalVisibleImpression(content, User(custom = "old"), "campaign") {

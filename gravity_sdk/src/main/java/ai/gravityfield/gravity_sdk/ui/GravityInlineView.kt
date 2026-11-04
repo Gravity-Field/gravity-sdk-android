@@ -37,6 +37,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.AbstractComposeView
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -62,6 +64,9 @@ class GravityInlineView @JvmOverloads constructor(
     private val loaderLayoutResId: Int
 
     init {
+        // A temporary detach must keep the request and loaded content. The host lifecycle
+        // still disposes the composition; detached stale requests wait for reattachment.
+        setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
         val typedArray = context.obtainStyledAttributes(
             attrs,
             R.styleable.GravityInlineView,
@@ -138,40 +143,35 @@ private fun GravityView(
     var pageContext by remember { mutableStateOf<PageContext?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val view = LocalView.current
 
     LaunchedEffect(selector) {
         pageContextProvider.setListener {
             pageContext = it
 
             scope.launch(Dispatchers.IO) {
-                try {
-                    val cache = GravitySDK.instance.getInlineViewCache(selector, it)
-                    val contentResponse: ContentResponse?
-                    if (cache != null) {
-                        contentResponse = cache.content
-                    } else {
-                        withContext(Dispatchers.Main) {
-                            isLoading = true
+                val sdk = GravitySDK.awaitInitializedInstance()
+                sdk.loadInlineContent(
+                    awaitActive = { view.awaitInlineAttachment() },
+                    load = { identity ->
+                        val cache = sdk.getInlineViewCache(selector, it)
+                        if (cache != null) {
+                            cache.content
+                        } else {
+                            withContext(Dispatchers.Main) { isLoading = true }
+                            val response = sdk.getContentBySelector(selector, it)
+                            sdk.putInlineViewCache(selector, it, InlineViewCache(response), identity)
+                            response
                         }
-                        contentResponse = GravitySDK.instance.getContentBySelector(
-                            selector,
-                            it,
-                        )
-                        GravitySDK.instance.putInlineViewCache(
-                            selector,
-                            it,
-                            InlineViewCache(contentResponse),
-                        )
-                    }
-
-                    val campaign = contentResponse?.data?.firstOrNull()
-                    val payload = campaign?.payload?.firstOrNull()
-                    val content =
-                        payload?.contents?.filter { it.step != null }?.sortedBy { it.step }
-                            ?.firstOrNull()
-                            ?: payload?.contents?.firstOrNull()
-                    val height = content?.variables?.frameUI?.container?.style?.size?.height
-                    withContext(Dispatchers.Main) {
+                    },
+                    loaded = { contentResponse ->
+                        val campaign = contentResponse?.data?.firstOrNull()
+                        val payload = campaign?.payload?.firstOrNull()
+                        val content =
+                            payload?.contents?.filter { it.step != null }?.sortedBy { it.step }
+                                ?.firstOrNull()
+                                ?: payload?.contents?.firstOrNull()
+                        val height = content?.variables?.frameUI?.container?.style?.size?.height
                         result = contentResponse
                         isLoading = false
                         if (content == null) {
@@ -179,18 +179,13 @@ private fun GravityView(
                         } else if (height != null) {
                             changeHeight(height)
                         }
-                    }
-                } catch (_: Throwable) {
-                    withContext(Dispatchers.Main) {
+                    },
+                    failed = { identity, _ ->
                         isLoading = false
                         changeHeight(0.0)
-                    }
-                    GravitySDK.instance.putInlineViewCache(
-                        selector,
-                        it,
-                        InlineViewCache(),
-                    )
-                }
+                        sdk.putInlineViewCache(selector, it, InlineViewCache(), identity)
+                    },
+                )
             }
         }
 

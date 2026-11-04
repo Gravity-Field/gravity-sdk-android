@@ -1,6 +1,8 @@
 package ai.gravityfield.gravity_sdk.network
 
 import ai.gravityfield.gravity_sdk.GravitySDK
+import ai.gravityfield.gravity_sdk.session.SessionManager
+import ai.gravityfield.gravity_sdk.models.Device
 import ai.gravityfield.gravity_sdk.models.ContentSettings
 import ai.gravityfield.gravity_sdk.models.GravityDataResponse
 import ai.gravityfield.gravity_sdk.models.internal.LogMessage
@@ -46,10 +48,19 @@ private const val CHOOSE = "/choose"
 private const val VISIT = "/visit"
 private const val EVENT = "/event"
 
-internal class GravityRepository private constructor() {
+internal class GravityRepository(
+    private val sessions: SessionManager = sessionManager,
+    suppliedClient: HttpClient? = null,
+    private val section: () -> String = { GravitySDK.instance.section },
+    private val device: () -> Device = { DeviceUtils.getDevice() },
+    private val endpoint: () -> String = { GravitySDK.instance.proxyUrl ?: BASE_URL },
+) {
 
     companion object {
-        private var _instance = GravityRepository()
+        val sessionManager = SessionManager(Prefs) {
+            Logger.e(TAG, "Cannot persist server UID: ${it.message}", it)
+        }
+        private val _instance by lazy { GravityRepository() }
 
         val instance: GravityRepository
             get() = _instance
@@ -101,38 +112,37 @@ internal class GravityRepository private constructor() {
         classDiscriminatorMode = ClassDiscriminatorMode.NONE
     }
 
-    private val client = createHttpClient(json, auth = true)
-    private val errorReportingClient = createHttpClient(json, auth = false)
-
-    private var userIdCache: String? = null
-    private var sessionIdCache: String? = null
+    private val client = suppliedClient ?: createHttpClient(json, auth = true)
+    private val errorReportingClient by lazy { createHttpClient(json, auth = false) }
 
     private val baseUrl: String
-        get() = GravitySDK.instance.proxyUrl ?: BASE_URL
+        get() = endpoint()
 
     suspend fun visit(
         pageContext: PageContext,
         options: Options,
-        customerUser: User?,
+        identity: SessionManager.Request,
     ): CampaignIdsResponse? {
         return try {
-            val jsonBody = buildJsonObject {
-                put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
-                put("device", json.encodeToJsonElement(DeviceUtils.getDevice()))
-                put("type", json.encodeToJsonElement("screenview"))
-                put("user", json.encodeToJsonElement(userForRequest(customerUser)))
-                put("ctx", json.encodeToJsonElement(mixPageContextAttributes(pageContext)))
-                put("options", json.encodeToJsonElement(options))
+            sessions.execute(identity, { it.user }, deliverAlways = true) { requestUser ->
+                val jsonBody = buildJsonObject {
+                    put("sec", json.encodeToJsonElement(section()))
+                    put("device", json.encodeToJsonElement(device()))
+                    put("type", json.encodeToJsonElement("screenview"))
+                    put("user", json.encodeToJsonElement(requestUser))
+                    put("ctx", json.encodeToJsonElement(mixPageContextAttributes(pageContext)))
+                    put("options", json.encodeToJsonElement(options))
+                }
+
+                val data = client.post("$baseUrl$VISIT") {
+                    setBody(jsonBody.toString())
+                }.body<String>()
+
+                val json = JSONObject(data).toMap()
+                CampaignIdsResponse.fromJson(json)
             }
-
-            val data = client.post("$baseUrl$VISIT") {
-                setBody(jsonBody.toString())
-            }.body<String>()
-
-            val json = JSONObject(data).toMap()
-            val response = CampaignIdsResponse.fromJson(json)
-            saveUserIfNeeded(customerUser, response.user)
-            response
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Logger.e(TAG, "visit failed: ${e.message}", e)
             null
@@ -144,26 +154,28 @@ internal class GravityRepository private constructor() {
         raisedAt: Date,
         pageContext: PageContext,
         options: Options,
-        customerUser: User?,
+        identity: SessionManager.Request,
     ): CampaignIdsResponse? {
         return try {
-            val jsonBody = buildJsonObject {
-                put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
-                put("device", json.encodeToJsonElement(DeviceUtils.getDevice()))
-                put("data", encodeEvents(json, events, raisedAt))
-                put("user", json.encodeToJsonElement(userForRequest(customerUser)))
-                put("ctx", json.encodeToJsonElement(mixPageContextAttributes(pageContext)))
-                put("options", json.encodeToJsonElement(options))
+            sessions.execute(identity, { it.user }, deliverAlways = true) { requestUser ->
+                val jsonBody = buildJsonObject {
+                    put("sec", json.encodeToJsonElement(section()))
+                    put("device", json.encodeToJsonElement(device()))
+                    put("data", encodeEvents(json, events, raisedAt))
+                    put("user", json.encodeToJsonElement(requestUser))
+                    put("ctx", json.encodeToJsonElement(mixPageContextAttributes(pageContext)))
+                    put("options", json.encodeToJsonElement(options))
+                }
+
+                val data = client.post("$baseUrl$EVENT") {
+                    setBody(jsonBody)
+                }.body<String>()
+
+                val json = JSONObject(data).toMap()
+                CampaignIdsResponse.fromJson(json)
             }
-
-            val data = client.post("$baseUrl$EVENT") {
-                setBody(jsonBody)
-            }.body<String>()
-
-            val json = JSONObject(data).toMap()
-            val response = CampaignIdsResponse.fromJson(json)
-            saveUserIfNeeded(customerUser, response.user)
-            response
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Logger.e(TAG, "event failed: ${e.message}", e)
             null
@@ -174,30 +186,32 @@ internal class GravityRepository private constructor() {
         campaignId: String,
         options: Options,
         contentSettings: ContentSettings,
-        customerUser: User? = null,
+        identity: SessionManager.Request = sessions.snapshot(),
         pageContext: PageContext,
     ): GravityDataResponse<ContentResponse>? {
         return try {
-            val data = buildJsonObject {
-                put("campaignId", Json.parseToJsonElement(campaignId))
-                put("option", json.encodeToJsonElement(contentSettings))
-            }
-            val jsonBody = buildJsonObject {
-                put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
-                put("data", JsonArray(listOf(data)))
-                put("device", json.encodeToJsonElement(DeviceUtils.getDevice()))
-                put("user", json.encodeToJsonElement(userForRequest(customerUser)))
-                put("ctx", json.encodeToJsonElement(mixPageContextAttributes(pageContext)))
-                put("options", json.encodeToJsonElement(options))
-            }
+            sessions.execute(identity, { it.data.user }) { requestUser ->
+                val data = buildJsonObject {
+                    put("campaignId", Json.parseToJsonElement(campaignId))
+                    put("option", json.encodeToJsonElement(contentSettings))
+                }
+                val jsonBody = buildJsonObject {
+                    put("sec", json.encodeToJsonElement(section()))
+                    put("data", JsonArray(listOf(data)))
+                    put("device", json.encodeToJsonElement(device()))
+                    put("user", json.encodeToJsonElement(requestUser))
+                    put("ctx", json.encodeToJsonElement(mixPageContextAttributes(pageContext)))
+                    put("options", json.encodeToJsonElement(options))
+                }
 
-            val stringData = client.post("$baseUrl$CHOOSE") {
-                setBody(jsonBody)
-            }.body<String>()
+                val stringData = client.post("$baseUrl$CHOOSE") {
+                    setBody(jsonBody)
+                }.body<String>()
 
-            val response = parseContentResponse(stringData)
-            saveUserIfNeeded(customerUser, response.data.user)
-            response
+                parseContentResponse(stringData)
+            }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Logger.e(TAG, "chooseByCampaignIdWithDetails failed: ${e.message}", e)
             null
@@ -208,30 +222,32 @@ internal class GravityRepository private constructor() {
         selector: String,
         options: Options,
         contentSettings: ContentSettings,
-        customerUser: User? = null,
+        identity: SessionManager.Request = sessions.snapshot(),
         pageContext: PageContext,
     ): GravityDataResponse<ContentResponse>? {
         return try {
-            val data = buildJsonObject {
-                put("selector", Json.parseToJsonElement(selector))
-                put("option", json.encodeToJsonElement(contentSettings))
-            }
-            val jsonBody = buildJsonObject {
-                put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
-                put("data", JsonArray(listOf(data)))
-                put("device", json.encodeToJsonElement(DeviceUtils.getDevice()))
-                put("user", json.encodeToJsonElement(userForRequest(customerUser)))
-                put("ctx", json.encodeToJsonElement(mixPageContextAttributes(pageContext)))
-                put("options", json.encodeToJsonElement(options))
-            }
+            sessions.execute(identity, { it.data.user }) { requestUser ->
+                val data = buildJsonObject {
+                    put("selector", Json.parseToJsonElement(selector))
+                    put("option", json.encodeToJsonElement(contentSettings))
+                }
+                val jsonBody = buildJsonObject {
+                    put("sec", json.encodeToJsonElement(section()))
+                    put("data", JsonArray(listOf(data)))
+                    put("device", json.encodeToJsonElement(device()))
+                    put("user", json.encodeToJsonElement(requestUser))
+                    put("ctx", json.encodeToJsonElement(mixPageContextAttributes(pageContext)))
+                    put("options", json.encodeToJsonElement(options))
+                }
 
-            val stringData = client.post("$baseUrl$CHOOSE") {
-                setBody(jsonBody)
-            }.body<String>()
+                val stringData = client.post("$baseUrl$CHOOSE") {
+                    setBody(jsonBody)
+                }.body<String>()
 
-            val response = parseContentResponse(stringData)
-            saveUserIfNeeded(customerUser, response.data.user)
-            response
+                parseContentResponse(stringData)
+            }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Logger.e(TAG, "chooseBySelectorWithDetails failed: ${e.message}", e)
             null
@@ -242,30 +258,32 @@ internal class GravityRepository private constructor() {
         group: String,
         options: Options,
         contentSettings: ContentSettings,
-        customerUser: User? = null,
+        identity: SessionManager.Request = sessions.snapshot(),
         pageContext: PageContext,
     ): ContentResponse? {
         return try {
-            val data = buildJsonObject {
-                put("group", Json.parseToJsonElement(group))
-                put("option", json.encodeToJsonElement(contentSettings))
-            }
-            val jsonBody = buildJsonObject {
-                put("sec", json.encodeToJsonElement(GravitySDK.instance.section))
-                put("data", JsonArray(listOf(data)))
-                put("device", json.encodeToJsonElement(DeviceUtils.getDevice()))
-                put("user", json.encodeToJsonElement(userForRequest(customerUser)))
-                put("ctx", json.encodeToJsonElement(mixPageContextAttributes(pageContext)))
-                put("options", json.encodeToJsonElement(options))
-            }
+            sessions.execute(identity, { it.data.user }) { requestUser ->
+                val data = buildJsonObject {
+                    put("group", Json.parseToJsonElement(group))
+                    put("option", json.encodeToJsonElement(contentSettings))
+                }
+                val jsonBody = buildJsonObject {
+                    put("sec", json.encodeToJsonElement(section()))
+                    put("data", JsonArray(listOf(data)))
+                    put("device", json.encodeToJsonElement(device()))
+                    put("user", json.encodeToJsonElement(requestUser))
+                    put("ctx", json.encodeToJsonElement(mixPageContextAttributes(pageContext)))
+                    put("options", json.encodeToJsonElement(options))
+                }
 
-            val stringData = client.post("$baseUrl$CHOOSE") {
-                setBody(jsonBody)
-            }.body<String>()
+                val stringData = client.post("$baseUrl$CHOOSE") {
+                    setBody(jsonBody)
+                }.body<String>()
 
-            val response = parseContentResponse(stringData)
-            saveUserIfNeeded(customerUser, response.data.user)
-            response.data
+                parseContentResponse(stringData)
+            }?.data
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Logger.e(TAG, "chooseByGroup failed: ${e.message}", e)
             null
@@ -297,8 +315,9 @@ internal class GravityRepository private constructor() {
             uid = customerUser.custom
             ses = customerUser.ses
         } else {
-            uid = userIdCache
-            ses = sessionIdCache
+            val cached = sessions.cachedUser()
+            uid = cached.uid
+            ses = cached.ses
         }
         val sec = GravitySDK.instance.section
 
@@ -317,24 +336,14 @@ internal class GravityRepository private constructor() {
             errorReportingClient.post("https://sdk-sentry.gravityfield.ai/error") {
                 setBody(json.encodeToJsonElement(logMessage))
             }.body<String>()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Logger.e(TAG, "sendErrorMessage failed: ${e.message}", e, sendToBack = false)
         }
     }
 
-    internal fun userForRequest(customerUser: User?): User {
-        if (customerUser != null) {
-            return customerUser
-        } else if (userIdCache != null && sessionIdCache != null) {
-            return User(uid = userIdCache, ses = sessionIdCache)
-        } else if (userIdCache == null && sessionIdCache != null) {
-            val userId = Prefs.getUserId()
-            return User(uid = userId, ses = sessionIdCache);
-        } else {
-            val userId = Prefs.getUserId()
-            return User(uid = userId, ses = null)
-        }
-    }
+    internal fun userForRequest(customerUser: User?): User = sessions.userForRequest(customerUser)
 
     private fun mixPageContextAttributes(pageContext: PageContext): PageContext {
         val attributes = pageContext.attributes.toMutableMap()
@@ -342,21 +351,7 @@ internal class GravityRepository private constructor() {
         return pageContext.copy(attributes = attributes)
     }
 
-    private fun saveUserIfNeeded(customerUser: User?, contentResponseUser: User?) {
-        if (customerUser != null) return
 
-        val uid = contentResponseUser?.uid
-        val ses = contentResponseUser?.ses
-
-        if (uid != null) {
-            Prefs.setUserId(uid)
-            userIdCache = uid;
-        }
-
-        if (ses != null) {
-            sessionIdCache = ses
-        }
-    }
 }
 
 fun JSONObject.toMap(): Map<String, Any> {

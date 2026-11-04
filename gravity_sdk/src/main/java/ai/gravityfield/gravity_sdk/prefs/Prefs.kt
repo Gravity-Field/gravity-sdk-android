@@ -1,27 +1,41 @@
 package ai.gravityfield.gravity_sdk.prefs
 
-import com.russhwolf.settings.Settings
+import com.russhwolf.settings.SharedPreferencesSettings
+import kotlinx.coroutines.CompletableDeferred
+import android.content.Context
+import ai.gravityfield.gravity_sdk.session.UserIdStorage
 
-private const val keyUserId = "gravity_user_id"
 private const val keyDeviceId = "gravity_device_id"
 
-internal object Prefs {
+internal object Prefs : UserIdStorage {
 
-    private val prefs = Settings()
+    @Volatile private lateinit var prefs: SharedPreferencesSettings
+    @Volatile private lateinit var userIds: SharedPreferencesUserIdStorage
+    @Volatile private var readiness = CompletableDeferred<Unit>()
+    override val isReady: Boolean get() = ::userIds.isInitialized
+    override suspend fun awaitReady() { readiness.await() }
 
-    fun setUserId(uid: String) {
-        prefs.putString(keyUserId, uid)
+    fun initialize(context: Context) {
+        val preferences = context.applicationContext.getSharedPreferences(
+            "${context.packageName}_preferences", Context.MODE_PRIVATE,
+        )
+        prefs = SharedPreferencesSettings(preferences)
+        userIds = SharedPreferencesUserIdStorage(preferences)
+        readiness.complete(Unit)
     }
 
-    fun getUserId(): String? {
-        return prefs.getStringOrNull(keyUserId)
-    }
+    override fun read(): String? = userIds.read()
+    override fun write(uid: String) = userIds.write(uid)
+    override fun remove() = userIds.remove()
 
     fun setDeviceId(uid: String) {
         prefs.putString(keyDeviceId, uid)
     }
 
-    fun getDeviceId(): String? {
-        return prefs.getStringOrNull(keyDeviceId)
+    fun getDeviceId(): String? = try {
+        prefs.getStringOrNull(keyDeviceId)
+    } catch (_: ClassCastException) {
+        // DeviceUtils replaces a foreign value through the normal device ID creation path.
+        null
     }
 }

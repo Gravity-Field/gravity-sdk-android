@@ -31,7 +31,6 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.rememberAsyncImagePainter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @Composable
 fun GravityInlineCompose(
@@ -49,10 +48,11 @@ fun GravityInlineCompose(
     LaunchedEffect(selector) {
         campaign = null
 
+        val sdk = GravitySDK.awaitInitializedInstance()
         scope.launch(Dispatchers.IO) {
-            try {
-                val result = GravitySDK.instance.getContentBySelector(selector, pageContext)
-                withContext(Dispatchers.Main) {
+            sdk.loadInlineContent(
+                load = { sdk.getContentBySelector(selector, pageContext) },
+                loaded = { result ->
                     isLoading = false
                     campaign = result?.data?.firstOrNull()
                     val payload = campaign?.payload?.firstOrNull()
@@ -63,13 +63,12 @@ fun GravityInlineCompose(
                     } else if (height != null) {
                         changedHeight = height
                     }
-                }
-            } catch (_: Throwable) {
-                withContext(Dispatchers.Main) {
+                },
+                failed = { _, _ ->
                     isLoading = false
                     changedHeight = 0.0
-                }
-            }
+                },
+            )
         }
     }
 

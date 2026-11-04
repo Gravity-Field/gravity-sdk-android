@@ -6,7 +6,8 @@ import ai.gravityfield.gravity_sdk.models.PageContext
 import android.app.Activity
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.russhwolf.settings.Settings
+import android.content.Context
+import com.russhwolf.settings.SharedPreferencesSettings
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
@@ -28,7 +29,9 @@ class CustomUserWireTest {
     private lateinit var server: RecordingServer
 
     // The anonymous test persists a server uid; put back whatever was there
-    private val settings = Settings()
+    private val settings = InstrumentationRegistry.getInstrumentation().targetContext.let { context ->
+        SharedPreferencesSettings(context.getSharedPreferences("${context.packageName}_preferences", Context.MODE_PRIVATE))
+    }
     private var savedUserId: String? = null
 
     @Before

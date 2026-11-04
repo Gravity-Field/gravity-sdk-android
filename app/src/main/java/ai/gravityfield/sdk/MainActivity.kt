@@ -34,6 +34,8 @@ import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -107,6 +109,7 @@ class MainActivity : ComponentActivity() {
                         Column(
                             modifier = Modifier
                                 .padding(top = 32.dp)
+                                .verticalScroll(rememberScrollState())
                                 .align(Alignment.Center)
                         ) {
                             val context = LocalContext.current
@@ -187,6 +190,8 @@ class MainActivity : ComponentActivity() {
                             ) {
                                 Text(text = "Get content by selector")
                             }
+
+                            UserIdentityExample()
 
                             AbVariantButton()
 

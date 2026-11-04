@@ -7,6 +7,8 @@ internal class InlineViewCacheStore {
 
     private val cache = ConcurrentHashMap<InlineViewCacheKey, InlineViewCache>()
 
+    fun clear() = cache.clear()
+
     fun get(selector: String, pageContext: PageContext): InlineViewCache? {
         return cache[key(selector, pageContext)]
     }
