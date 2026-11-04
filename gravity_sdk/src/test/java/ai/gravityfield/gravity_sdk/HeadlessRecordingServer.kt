@@ -13,6 +13,8 @@ internal class HeadlessRecordingServer(private val respond: (String, JSONObject)
     private val serverSocket = ServerSocket(0, 50, InetAddress.getByName("127.0.0.1"))
     val url = "http://127.0.0.1:${serverSocket.localPort}"
 
+    var observeRawBody: ((String) -> Unit)? = null
+
     fun start() {
         thread(name = "RecordingServer", isDaemon = true) {
             while (!serverSocket.isClosed) {
@@ -52,7 +54,9 @@ internal class HeadlessRecordingServer(private val respond: (String, JSONObject)
                 read += n
             }
             val path = requestLine.split(" ").getOrElse(1) { "" }
-            val body = runCatching { JSONObject(String(bodyBytes, 0, read)) }.getOrDefault(JSONObject())
+            val rawBody = String(bodyBytes, 0, read)
+            observeRawBody?.invoke(rawBody)
+            val body = runCatching { JSONObject(rawBody) }.getOrDefault(JSONObject())
             // A null response closes the connection without sending HTTP headers.
             val (status, answer) = respond(path, body) ?: return
             val bytes = answer.toByteArray()

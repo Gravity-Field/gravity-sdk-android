@@ -13,7 +13,7 @@ android {
     defaultConfig {
         minSdk = 21
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "ai.gravityfield.gravity_sdk.LocalFixtureTestRunner"
         consumerProguardFiles("consumer-rules.pro")
 
         resValue("string", "gravity_sdk_version", project.property("SDK_VERSION").toString())

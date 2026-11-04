@@ -50,7 +50,7 @@ class InlineBeforeInitializeTest {
         var sdk: GravitySDK? = null
         try {
             val attributes = Robolectric.buildAttributeSet()
-                .addAttribute(if (isList) R.attr.groupSelector else R.attr.selector, "\"slot\"")
+                .addAttribute(if (isList) R.attr.groupSelector else R.attr.selector, "slot")
                 .build()
             val page = PageContext(ContextType.OTHER, emptyList(), "before-initialize")
             val view: View = if (isList) {
@@ -117,7 +117,7 @@ class InlineBeforeInitializeTest {
                 setParentCompositionContext(frames.recomposer)
                 setContent {
                     GravityInlineCompose(
-                        Modifier, "\"slot\"", PageContext(ContextType.OTHER, emptyList(), "startup"),
+                        Modifier, "slot", PageContext(ContextType.OTHER, emptyList(), "startup"),
                         loader = {
                             DisposableEffect(Unit) {
                                 loaderVisible = true

@@ -209,7 +209,7 @@ internal class GravityRepository(
         return try {
             sessions.execute(identity, { it.data.user }) { requestUser ->
                 val data = buildJsonObject {
-                    put("campaignId", Json.parseToJsonElement(campaignId))
+                    put("campaignId", json.encodeToJsonElement(campaignId))
                     put("option", json.encodeToJsonElement(contentSettings))
                 }
                 val jsonBody = buildJsonObject {
@@ -250,7 +250,7 @@ internal class GravityRepository(
         return try {
             sessions.execute(identity, { it.data.user }) { requestUser ->
                 val data = buildJsonObject {
-                    put("selector", Json.parseToJsonElement(selector))
+                    put("selector", json.encodeToJsonElement(selector))
                     put("option", json.encodeToJsonElement(contentSettings))
                 }
                 val jsonBody = buildJsonObject {
@@ -291,7 +291,7 @@ internal class GravityRepository(
         return try {
             sessions.execute(identity, { it.data.user }) { requestUser ->
                 val data = buildJsonObject {
-                    put("group", Json.parseToJsonElement(group))
+                    put("group", json.encodeToJsonElement(group))
                     put("option", json.encodeToJsonElement(contentSettings))
                 }
                 val jsonBody = buildJsonObject {
