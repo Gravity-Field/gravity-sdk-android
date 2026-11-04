@@ -7,6 +7,7 @@ import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.CancelEvent
 import ai.gravityfield.gravity_sdk.models.ContentCloseEngagement
 import ai.gravityfield.gravity_sdk.models.ContentEngagement
+import ai.gravityfield.gravity_sdk.models.ContentLoadEvent
 import ai.gravityfield.gravity_sdk.models.ContentImpressionEngagement
 import ai.gravityfield.gravity_sdk.models.ContentSettings
 import ai.gravityfield.gravity_sdk.models.ContentVisibleImpressionEngagement
@@ -110,6 +111,7 @@ import java.io.File
 import java.lang.ref.WeakReference
 import java.security.MessageDigest
 import java.util.Date
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.Executors
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.CancellationException
@@ -151,6 +153,9 @@ class GravitySDK private constructor(
         }.asCoroutineDispatcher()
         // Persistence submitted by an existing window survives SDK replacement and dispose().
         private val persistenceScope = CoroutineScope(deliveryDispatcher + SupervisorJob())
+        private val trackingSettingsLock = Any()
+        private var fetchContentOnTrack = true
+        private var contentTimeoutMillis = 10_000L
         private val userIdListenerScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
         /** UID methods are available before [initialize]; storage calls await its Context. */
@@ -328,6 +333,18 @@ class GravitySDK private constructor(
     private val inAppPresentations = InAppPresentationRegistry()
     private val sessions get() = GravityRepository.sessionManager
     internal val user: User? get() = sessions.customUser
+    // Headless requests have no presentation reservation or lock dependency.
+    private var headlessGeneration = 0L
+    private var headlessDisposed = false
+    /** Enables NoShow content fetching. Process-wide, including before and across initialize calls. */
+    var isFetchContentOnTrack: Boolean
+        get() = synchronized(trackingSettingsLock) { fetchContentOnTrack }
+        set(value) { synchronized(trackingSettingsLock) { fetchContentOnTrack = value } }
+
+    /** NoShow response age limit in milliseconds; process-wide. Negative values clamp to zero. */
+    var staleContentTimeoutMillis: Long
+        get() = synchronized(trackingSettingsLock) { contentTimeoutMillis }
+        set(value) { synchronized(trackingSettingsLock) { contentTimeoutMillis = value.coerceAtLeast(0L) } }
 
     private fun automaticRequest(pageContext: PageContext, newScreen: Boolean) = presentationGate.scoped {
         if (newScreen) presentationRevision.invalidate()
@@ -517,6 +534,93 @@ class GravitySDK private constructor(
         }
     }
 
+    /**
+     * Tracks a visit and returns the highest-priority campaign containing root content,
+     * with the original JSON. Needs no Activity, never presents UI, and does not automatically track impressions.
+     * Tries campaigns by descending priority, skipping failed requests and missing root content.
+     * Returns null if no candidate yields content, fetching is disabled, tracking fails or results are stale.
+     * Cancellation propagates. See [isFetchContentOnTrack] and [staleContentTimeoutMillis].
+     * Only the accepted response emits [ContentLoadEvent] callbacks and sends configured onLoad URLs,
+     * just like [getContentByCampaignIdWithDetails].
+     */
+    suspend fun trackViewNoShow(pageContext: PageContext): GravityDataResponse<ContentResponse>? =
+        fetchAfterTracking(pageContext) { snapshot ->
+            repository.visit(pageContext, snapshot.options, snapshot.identity, requireSuccess = true)
+        }
+
+    /** Same as [trackViewNoShow], tracking [events] instead of a visit. */
+    suspend fun triggerEventNoShow(
+        events: List<TriggerEvent>,
+        pageContext: PageContext,
+    ): GravityDataResponse<ContentResponse>? {
+        val raisedAt = Date()
+        return fetchAfterTracking(pageContext) { snapshot ->
+            repository.event(events, raisedAt, pageContext, snapshot.options, snapshot.identity, requireSuccess = true)
+        }
+    }
+
+    private data class HeadlessRequest(
+        val generation: Long,
+        val startedAtNanos: Long,
+        val identity: SessionManager.Request,
+        val options: Options,
+        val contentSettings: ContentSettings,
+    )
+
+    private fun isHeadlessCurrent(request: HeadlessRequest): Boolean = presentationGate.scoped {
+        !headlessDisposed && _instance === this && headlessGeneration == request.generation &&
+            sessions.isCurrent(request.identity) &&
+            System.nanoTime() - request.startedAtNanos <= TimeUnit.MILLISECONDS.toNanos(staleContentTimeoutMillis)
+    }
+
+    private suspend fun fetchAfterTracking(
+        pageContext: PageContext,
+        track: suspend (HeadlessRequest) -> CampaignIdsResponse?,
+    ): GravityDataResponse<ContentResponse>? {
+        requireInitialized()
+        val snapshot = presentationGate.scoped {
+            HeadlessRequest(headlessGeneration, System.nanoTime(),
+                sessions.snapshot(), options, contentSettings)
+        }
+        return withContext(Dispatchers.IO) {
+            try {
+                // Staleness suppresses content only; the visit/event must still be sent.
+                val triggered = track(snapshot) ?: return@withContext null
+                if (!canFetchHeadless(snapshot)) return@withContext null
+                for (id in triggered.campaigns.sortedByDescending { it.priority ?: 0 }) {
+                    if (!canFetchHeadless(snapshot)) return@withContext null
+                    val result = getContentByCampaignIdWithDetails(
+                        campaignId = id.campaignId,
+                        pageContext = pageContext,
+                        currentUser = snapshot.identity,
+                        requestOptions = snapshot.options,
+                        requestContentSettings = snapshot.contentSettings,
+                        requireSuccess = true,
+                        notifyContentLoaded = false,
+                    )
+                    if (!canFetchHeadless(snapshot)) return@withContext null
+                    val contents = result?.data?.data?.firstOrNull()?.payload?.firstOrNull()?.contents
+                    if (contents?.any { it.step == null } != true) continue
+                    return@withContext presentationGate.scoped {
+                        if (!canFetchHeadless(snapshot)) return@scoped null
+                        sendContentLoaded(result.data)
+                        result
+                    }
+                }
+                null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Logger.e(TAG, "Headless tracking failed: ${e.message}", e)
+                null
+            }
+        }
+    }
+
+    private fun canFetchHeadless(request: HeadlessRequest): Boolean = presentationGate.scoped {
+        isFetchContentOnTrack && isHeadlessCurrent(request)
+    }
+
     suspend fun getContentBySelector(
         selector: String,
         pageContext: PageContext,
@@ -550,6 +654,10 @@ class GravitySDK private constructor(
 
     fun dispose() {
         requireInitialized()
+        presentationGate.scoped {
+            headlessDisposed = true
+            headlessGeneration++
+        }
         presentationGate.reset()
         ioScope.cancel()
         mainScope.cancel()
@@ -729,18 +837,23 @@ class GravitySDK private constructor(
         campaignId: String,
         pageContext: PageContext,
         currentUser: SessionManager.Request,
+        requestOptions: Options = options,
+        requestContentSettings: ContentSettings = contentSettings,
+        requireSuccess: Boolean = false,
+        notifyContentLoaded: Boolean = true,
     ): GravityDataResponse<ContentResponse>? {
         requireInitialized()
         val response = repository.chooseByCampaignIdWithDetails(
             campaignId = campaignId,
-            options = options,
-            contentSettings = contentSettings,
+            options = requestOptions,
+            contentSettings = requestContentSettings,
             identity = currentUser,
-            pageContext = pageContext
+            pageContext = pageContext,
+            requireSuccess = requireSuccess,
         ) ?: return null
         return presentationGate.scoped {
             if (!sessions.isCurrent(currentUser)) return@scoped null
-            sendContentLoaded(response.data)
+            if (notifyContentLoaded) sendContentLoaded(response.data)
             response
         }
     }

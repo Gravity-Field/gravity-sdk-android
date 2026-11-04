@@ -53,6 +53,27 @@ class UserIdBeforeInitializeTest {
         runCatching { GravitySDK.instance.setUserIdListener(null) }
     }
 
+    @Test fun trackingSettingsSurvivePlaceholderAndRepeatedInitialization() {
+        val placeholder = GravitySDK.instance
+        try {
+            placeholder.isFetchContentOnTrack = false
+            placeholder.staleContentTimeoutMillis = 1234L
+            initialize()
+            assertFalse(GravitySDK.instance.isFetchContentOnTrack)
+            assertEquals(1234L, GravitySDK.instance.staleContentTimeoutMillis)
+            initialize()
+            assertFalse(GravitySDK.instance.isFetchContentOnTrack)
+            assertEquals(1234L, GravitySDK.instance.staleContentTimeoutMillis)
+            placeholder.isFetchContentOnTrack = true
+            placeholder.staleContentTimeoutMillis = -1L
+            assertTrue(GravitySDK.instance.isFetchContentOnTrack)
+            assertEquals(0L, GravitySDK.instance.staleContentTimeoutMillis)
+        } finally {
+            placeholder.isFetchContentOnTrack = true
+            placeholder.staleContentTimeoutMillis = 10_000L
+        }
+    }
+
     @Test fun getterBeforeInitializeWaitsAndReturnsStoredUid() = runBlocking<Unit> {
         preferences.edit().putString("gravity_user_id", "stored").commit()
         val getter = async(start = CoroutineStart.UNDISPATCHED) { GravitySDK.instance.getUserId() }

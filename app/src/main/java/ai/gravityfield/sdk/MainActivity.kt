@@ -192,6 +192,11 @@ class MainActivity : ComponentActivity() {
                             }
 
                             UserIdentityExample()
+                            ShowContentButton(onClick = {
+                                context.startActivity(Intent(context, HeadlessCampaignActivity::class.java))
+                            }) {
+                                Text("App-rendered campaign")
+                            }
 
                             AbVariantButton()
 

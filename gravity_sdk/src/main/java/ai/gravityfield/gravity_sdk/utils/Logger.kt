@@ -13,6 +13,9 @@ internal object Logger {
 
     private val ioScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
+    // Internal switch lets local transport tests disable remote diagnostics without reflection.
+    @Volatile internal var errorReportingEnabled = true
+
     var logLevel: LogLevel = LogLevel.NONE
         private set
 
@@ -43,7 +46,7 @@ internal object Logger {
             Log.e(TAG, fullMessage, throwable)
         }
 
-        if (sendToBack) {
+        if (sendToBack && errorReportingEnabled) {
             ioScope.launch {
                 GravityRepository.instance.sendErrorMessage(
                     message = fullMessage,

@@ -44,6 +44,11 @@
             android:label="Review Prompt Test Console"
             android:theme="@style/Theme.GravitySDK" />
         <activity
+            android:name=".HeadlessCampaignActivity"
+            android:exported="false"
+            android:label="App-rendered campaign"
+            android:theme="@style/Theme.GravitySDK" />
+        <activity
             android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.GravitySDK">

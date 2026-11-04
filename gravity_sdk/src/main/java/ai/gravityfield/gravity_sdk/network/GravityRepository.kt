@@ -15,6 +15,7 @@ import ai.gravityfield.gravity_sdk.models.encodeEvents
 import ai.gravityfield.gravity_sdk.prefs.Prefs
 import ai.gravityfield.gravity_sdk.utils.DeviceUtils
 import ai.gravityfield.gravity_sdk.utils.Logger
+import io.ktor.client.plugins.expectSuccess
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.android.Android
@@ -122,6 +123,7 @@ internal class GravityRepository(
         pageContext: PageContext,
         options: Options,
         identity: SessionManager.Request,
+        requireSuccess: Boolean = false,
     ): CampaignIdsResponse? {
         return try {
             sessions.execute(identity, { it.user }, deliverAlways = true) { requestUser ->
@@ -135,6 +137,7 @@ internal class GravityRepository(
                 }
 
                 val data = client.post("$baseUrl$VISIT") {
+                    expectSuccess = requireSuccess
                     setBody(jsonBody.toString())
                 }.body<String>()
 
@@ -155,6 +158,7 @@ internal class GravityRepository(
         pageContext: PageContext,
         options: Options,
         identity: SessionManager.Request,
+        requireSuccess: Boolean = false,
     ): CampaignIdsResponse? {
         return try {
             sessions.execute(identity, { it.user }, deliverAlways = true) { requestUser ->
@@ -168,6 +172,7 @@ internal class GravityRepository(
                 }
 
                 val data = client.post("$baseUrl$EVENT") {
+                    expectSuccess = requireSuccess
                     setBody(jsonBody)
                 }.body<String>()
 
@@ -188,6 +193,7 @@ internal class GravityRepository(
         contentSettings: ContentSettings,
         identity: SessionManager.Request = sessions.snapshot(),
         pageContext: PageContext,
+        requireSuccess: Boolean = false,
     ): GravityDataResponse<ContentResponse>? {
         return try {
             sessions.execute(identity, { it.data.user }) { requestUser ->
@@ -205,6 +211,7 @@ internal class GravityRepository(
                 }
 
                 val stringData = client.post("$baseUrl$CHOOSE") {
+                    expectSuccess = requireSuccess
                     setBody(jsonBody)
                 }.body<String>()
 
