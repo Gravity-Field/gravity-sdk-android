@@ -8,6 +8,8 @@ import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +32,7 @@ internal fun GravityFullScreenContent(
     onClickCallback: (model: OnClickModel) -> Unit,
     item: Item?,
 ) {
+    val scrollState = rememberScrollState()
     val frameUi = content.variables?.frameUI
     val container = frameUi?.container
     val style = container?.style
@@ -77,7 +80,8 @@ internal fun GravityFullScreenContent(
                                 bottom = padding.bottom.dp
                             )
                         }
-                        .fillMaxSize(),
+                        .fillMaxSize()
+                        .conditional(content.hasProductsGrid()) { verticalScroll(scrollState) },
                     horizontalAlignment = horizontalAlignment,
                     verticalArrangement = verticalArrangement
                 ) {

@@ -15,6 +15,11 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
 import android.util.TypedValue
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import ai.gravityfield.gravity_sdk.models.ElementType
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -310,7 +315,7 @@ private fun ItemView(
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .conditional(width != null) {
@@ -339,6 +344,10 @@ private fun ItemView(
             )
         }
 
+        val scrollState = rememberScrollState()
+        val scrollGrid = content.hasProductsGrid() && constraints.hasBoundedHeight
+        val hasWeightedSpacer = scrollGrid && content.variables?.elements.orEmpty().any { it.type == ElementType.SPACER }
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -350,7 +359,9 @@ private fun ItemView(
                         end = padding.right.dp,
                         bottom = padding.bottom.dp
                     )
-                },
+                }
+                .conditional(hasWeightedSpacer) { fillMaxHeight() }
+                .conditional(scrollGrid) { verticalScroll(scrollState) },
             horizontalAlignment = horizontalAlignment,
             verticalArrangement = verticalArrangement
         ) {

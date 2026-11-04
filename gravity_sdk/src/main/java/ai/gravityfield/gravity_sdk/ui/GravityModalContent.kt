@@ -2,15 +2,19 @@ package ai.gravityfield.gravity_sdk.ui
 
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.CampaignContent
+import ai.gravityfield.gravity_sdk.models.ElementType
 import ai.gravityfield.gravity_sdk.models.Item
 import ai.gravityfield.gravity_sdk.models.OnClickModel
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,10 +35,13 @@ internal fun GravityModalContent(
     onClickCallback: (model: OnClickModel) -> Unit,
     item: Item?,
 ) {
+    val scrollState = rememberScrollState()
     val frameUi = content.variables?.frameUI
     val container = frameUi?.container
     val style = container?.style
     val padding = style?.padding
+    val hasGrid = content.hasProductsGrid()
+    val hasWeightedSpacer = hasGrid && content.variables?.elements.orEmpty().any { it.type == ElementType.SPACER }
     val cornerRadius = style?.cornerRadius?.dp ?: 0.dp
     val horizontalAlignment =
         style?.contentAlignment?.toHorizontalAlignment() ?: Alignment.CenterHorizontally
@@ -74,7 +81,9 @@ internal fun GravityModalContent(
                                 end = padding.right.dp,
                                 bottom = padding.bottom.dp
                             )
-                        },
+                        }
+                        .conditional(hasWeightedSpacer) { fillMaxHeight() }
+                        .conditional(hasGrid) { verticalScroll(scrollState) },
                     horizontalAlignment = horizontalAlignment,
                     verticalArrangement = verticalArrangement
                 ) {

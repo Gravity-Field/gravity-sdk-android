@@ -9,6 +9,10 @@
 - Preserve `isFetchContentOnTrack` and `staleContentTimeoutMillis` settings before and across SDK initialization; negative timeouts clamp to zero.
 - Add suspend `trackViewNoShow` and `triggerEventNoShow`: send tracking, then return typed content and the original JSON from the highest-priority campaign with root content. Failed or empty candidates fall back to the next campaign. These APIs need no Activity and never open UI or send client impression events automatically; host options are forwarded unchanged. Server-side implicit impressions are controlled by the host’s `isImplicitImpression` option.
 - NoShow honors the current fetch setting and stale-content timeout, rejects results after identity or SDK changes, and emits load callbacks and onLoad tracking only for the accepted result. Presentation locks do not block fetching. The example app demonstrates custom rendering, explicit impressions, and fetch error handling.
+- Avoid duplicate grid product visibility events after recomposition and column changes.
+- Limit tall product grid sheets below the status bar without adding gaps to short sheets.
+- Read `gridSettings` with legacy `gridColumns` fallback: 2 columns and spacing 8 by default, valid columns 1–12, invalid or negative spacing falls back to 8. Grid cards remain square regardless of `size`; only `padding` affects the grid, matching iOS and Flutter.
+- Use the host product builder for grid cards; send visible impressions once per identified slot after at least half the card is visible in its clipped viewport. Preserve configured grid placeholder height while products are absent.
 
 ## 1.2.0
 

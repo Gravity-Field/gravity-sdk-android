@@ -2,6 +2,7 @@ package ai.gravityfield.gravity_sdk
 
 import ai.gravityfield.gravity_sdk.session.SessionManager
 import ai.gravityfield.gravity_sdk.prefs.Prefs
+import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.Action
 import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.CancelEvent
@@ -47,6 +48,7 @@ import ai.gravityfield.gravity_sdk.ui.GravityFullScreenContent
 import ai.gravityfield.gravity_sdk.ui.GravityModalContent
 import ai.gravityfield.gravity_sdk.ui.GravitySnackbarContent1
 import ai.gravityfield.gravity_sdk.ui.GravitySnackbarContent2
+import ai.gravityfield.gravity_sdk.ui.hasProductsGrid
 import ai.gravityfield.gravity_sdk.ui.LocalModalImpression
 import ai.gravityfield.gravity_sdk.ui.product_view_builder.ProductViewBuilder
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
@@ -81,6 +83,11 @@ import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
 import android.view.ViewGroup.MarginLayoutParams
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -1059,6 +1066,7 @@ class GravitySDK private constructor(
             onBackground = { opening.background { presentation.close() } },
         ) {
             val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            val topInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
             val scope = rememberCoroutineScope()
             requestClose = { complete ->
                 scope.launch { state.hide() }.invokeOnCompletion {
@@ -1068,6 +1076,9 @@ class GravitySDK private constructor(
                 }
             }
             ModalBottomSheet(
+                modifier = Modifier.conditional(content.hasProductsGrid()) {
+                    windowInsetsPadding(topInsets)
+                },
                 onDismissRequest = ::dismiss,
                 shape = RoundedCornerShape(
                     topStart = cornerRadius.dp, topEnd = cornerRadius.dp

@@ -12,8 +12,10 @@ import ai.gravityfield.gravity_sdk.ui.ProductsGrid
 import ai.gravityfield.gravity_sdk.ui.ProductsRow
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 
 @Composable
 internal fun ColumnScope.GravityElements(
@@ -42,6 +44,8 @@ internal fun ColumnScope.GravityElements(
                         ProductContainerType.GRID ->
                             ProductsGrid(it, slots, content, campaign)
                     }
+                } else if (it.style.productContainerType == ProductContainerType.GRID) {
+                    Spacer(Modifier.height((it.style.size?.height ?: 0.0).dp))
                 }
             }
 

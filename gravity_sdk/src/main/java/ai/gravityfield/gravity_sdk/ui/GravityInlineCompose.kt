@@ -6,6 +6,11 @@ import ai.gravityfield.gravity_sdk.models.PageContext
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import ai.gravityfield.gravity_sdk.models.ElementType
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -107,7 +112,7 @@ fun GravityInlineCompose(
                     ContentEventService.instance.sendContentImpression(content, campaign!!)
                 }
 
-                Box(
+                BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxSize()
                         .conditional(margin != null)
@@ -136,6 +141,10 @@ fun GravityInlineCompose(
                         )
                     }
 
+                    val scrollState = rememberScrollState()
+                    val scrollGrid = content.hasProductsGrid() && constraints.hasBoundedHeight
+                    val hasWeightedSpacer = scrollGrid && content.variables?.elements.orEmpty().any { it.type == ElementType.SPACER }
+
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -147,7 +156,9 @@ fun GravityInlineCompose(
                                     end = padding.right.dp,
                                     bottom = padding.bottom.dp
                                 )
-                            },
+                            }
+                            .conditional(hasWeightedSpacer) { fillMaxHeight() }
+                            .conditional(scrollGrid) { verticalScroll(scrollState) },
                         horizontalAlignment = horizontalAlignment
                     ) {
                         GravityElements(

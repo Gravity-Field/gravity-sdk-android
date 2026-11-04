@@ -31,6 +31,7 @@ data class Style(
     val productContainerType: ProductContainerType? = null,
     val gridColumns: Int? = null,
     val rowSpacing: Int? = null,
+    val gridSettings: GridSettings? = null,
 ) {
     companion object {
         val empty = Style()
@@ -66,8 +67,9 @@ data class Style(
                 positioned = json["positioned"]?.let { GravityPositioned.fromJson(it as Map<String, Any?>) },
                 weight = (json["weight"] as? Number)?.toFloat() ?: 1f,
                 productContainerType = ProductContainerType.fromString(json["productContainerType"] as? String),
-                gridColumns = (json["gridColumns"] as? Number)?.toInt(),
-                rowSpacing = (json["rowSpacing"] as? Number)?.toInt()
+                gridColumns = GridSettings.parseColumns(json["gridColumns"]),
+                rowSpacing = (json["rowSpacing"] as? Number)?.toInt(),
+                gridSettings = (json["gridSettings"] as? Map<*, *>)?.let(GridSettings::fromJson)
             )
         }
     }
@@ -225,5 +227,28 @@ enum class ProductContainerType {
                 else -> null
             }
         }
+    }
+}
+
+data class GridSettings(
+    val columns: Int? = null,
+    val horizontalSpacing: Double = 8.0,
+    val verticalSpacing: Double = 8.0,
+) {
+    companion object {
+        fun fromJson(json: Map<*, *>): GridSettings = GridSettings(
+            columns = parseColumns(json["columns"]),
+            horizontalSpacing = spacing(json["horizontalSpacing"]),
+            verticalSpacing = spacing(json["verticalSpacing"]),
+        )
+
+        internal fun parseColumns(value: Any?): Int? = dimension(value)
+            ?.takeIf { it.isFinite() && it >= 1 && it <= 12 }?.toInt()
+
+        private fun spacing(value: Any?): Double =
+            dimension(value)?.takeIf { it.isFinite() && it >= 0 } ?: 8.0
+
+        private fun dimension(value: Any?): Double? =
+            (value as? Number)?.toDouble() ?: ParseUtils.parseDimension(value)
     }
 }

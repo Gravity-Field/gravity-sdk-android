@@ -27,6 +27,9 @@ internal class RecordingServer {
     @Volatile
     var responseUser: JSONObject = JSONObject(mapOf("uid" to "server-uid", "ses" to "server-ses"))
 
+    @Volatile
+    var chooseData: JSONArray = JSONArray()
+
     val url = "http://127.0.0.1:${serverSocket.localPort}"
 
     val recorded: List<Request> get() = requests.toList()
@@ -51,6 +54,7 @@ internal class RecordingServer {
     fun reset() {
         requests.clear()
         campaigns = JSONArray()
+        chooseData = JSONArray()
         responseUser = JSONObject(mapOf("uid" to "server-uid", "ses" to "server-ses"))
     }
 
@@ -92,7 +96,7 @@ internal class RecordingServer {
             if (path.endsWith("/visit") || path.endsWith("/event")) {
                 answer.put("campaigns", campaigns)
             } else {
-                answer.put("data", JSONArray())
+                answer.put("data", chooseData)
             }
             val bytes = answer.toString().toByteArray()
             it.getOutputStream().apply {
