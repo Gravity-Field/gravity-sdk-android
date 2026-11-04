@@ -46,6 +46,7 @@ import ai.gravityfield.gravity_sdk.network.GravityRepository
 import ai.gravityfield.gravity_sdk.ui.GravityBottomSheetContent
 import ai.gravityfield.gravity_sdk.ui.GravityFullScreenContent
 import ai.gravityfield.gravity_sdk.ui.GravityModalContent
+import ai.gravityfield.gravity_sdk.ui.SnackbarVisibilityDetector
 import ai.gravityfield.gravity_sdk.ui.GravitySnackbarContent1
 import ai.gravityfield.gravity_sdk.ui.GravitySnackbarContent2
 import ai.gravityfield.gravity_sdk.ui.hasProductsGrid
@@ -305,8 +306,10 @@ class GravitySDK private constructor(
         val originalUser = GravityRepository.instance.userForRequest(user)
         val campaignId = presentationGate.campaignId(content.contentId)
             ?: campaign.payload.firstOrNull()?.campaignId ?: content.contentId
+        val originalIdentity = sessions.snapshot()
         return ModalImpressionSession {
-            contentEventService.sendModalVisibleImpression(this, content, campaign, originalUser, campaignId)
+            if (content.deliveryMethod == DeliveryMethod.SNACK_BAR && !sessions.isCurrent(originalIdentity)) false
+            else contentEventService.sendModalVisibleImpression(this, content, campaign, originalUser, campaignId)
         }
     }
 
@@ -977,8 +980,8 @@ class GravitySDK private constructor(
             DeliveryMethod.BOTTOM_SHEET -> showBottomSheet(activity, content, campaign, item, impression)
             DeliveryMethod.FULL_SCREEN -> showFullScreen(activity, content, campaign, item, impression)
             DeliveryMethod.SNACK_BAR -> {
-                if (content.templateSystemName == null || content.templateSystemName == TemplateSystemName.UNKNOWN) return false
-                showSnackbar(activity, content, campaign)
+                if (content.templateSystemName == null || content.templateSystemName == TemplateSystemName.UNKNOWN || content.variables?.frameUI == null) return false
+                showSnackbar(activity, content, campaign, impression)
             }
             DeliveryMethod.INLINE, DeliveryMethod.UNKNOWN -> return false
         }
@@ -1157,14 +1160,20 @@ class GravitySDK private constructor(
         activity: Activity,
         content: CampaignContent,
         campaign: Campaign,
+        opening: ModalImpressionSession,
     ) {
         val template = content.templateSystemName
         if (template == null || template == TemplateSystemName.UNKNOWN) return
 
+        val originalIdentity = sessions.snapshot()
+        var appeared = false
+        fun isCurrent() = GravitySDK.instance === this && sessions.isCurrent(originalIdentity) && !opening.isAbandoned
         val dismissController = DismissController()
-        val presentation = registerInApp(content, campaign) { complete ->
+        val presentation = registerInApp(content, campaign, reportClose = { appeared }) { complete ->
+            opening.explicitClose()
             val attached = dismissController.listener != null
             dismissController.dismiss()
+            if (attached && !appeared) presentationGate.closed(content.contentId)
             complete(attached)
         }
         fun dismiss() {
@@ -1177,14 +1186,18 @@ class GravitySDK private constructor(
                 content,
                 campaign,
                 activity,
-                ::dismiss
+                ::dismiss,
+                opening
             )
         }
 
         showOverlay(
             activity = activity,
             dismissController = dismissController,
-            onBack = ::dismiss
+            onBack = ::dismiss,
+            opening = opening,
+            onAbandoned = { presentationGate.closed(content.contentId) },
+            onBackground = { opening.background {}; presentation.close() },
         ) {
             val snackbarHostState = remember { SnackbarHostState() }
             val scope = rememberCoroutineScope()
@@ -1200,20 +1213,33 @@ class GravitySDK private constructor(
                 SnackbarHost(
                     hostState = snackbarHostState,
                 ) { _ ->
-                    when (template) {
-                        TemplateSystemName.SNACKBAR_1 -> GravitySnackbarContent1(
-                            content,
-                            campaign,
-                            onClickCallback
-                        )
+                    SnackbarVisibilityDetector(
+                        isCurrent = ::isCurrent,
+                        onAppear = {
+                            if (!appeared && isCurrent()) {
+                                appeared = true
+                                contentEventService.sendContentImpression(content, campaign)
+                            }
+                        },
+                        onVisible = {
+                            if (isCurrent() && content.variables?.onVisibleImpression?.action != Action.UNKNOWN) opening.contentFrame(active = true)
+                        },
+                    ) {
+                        when (template) {
+                            TemplateSystemName.SNACKBAR_1 -> GravitySnackbarContent1(
+                                content,
+                                campaign,
+                                onClickCallback
+                            )
 
-                        TemplateSystemName.SNACKBAR_2 -> GravitySnackbarContent2(
-                            content,
-                            campaign,
-                            onClickCallback
-                        )
+                            TemplateSystemName.SNACKBAR_2 -> GravitySnackbarContent2(
+                                content,
+                                campaign,
+                                onClickCallback
+                            )
 
-                        else -> {}
+                            else -> {}
+                        }
                     }
                 }
             }
@@ -1231,7 +1257,9 @@ class GravitySDK private constructor(
     ) {
         val action = onClickModel.action
 
-        trackEngagementEvent(action, content.events)
+        val closeTrackedByDismissal = content.deliveryMethod == DeliveryMethod.SNACK_BAR && dismissCallback != null &&
+            action == Action.CLOSE && content.variables?.onClose?.action == Action.CLOSE
+        if (!closeTrackedByDismissal) trackEngagementEvent(action, content.events)
 
         if (action != Action.CLOSE && (action != Action.OPEN_STEP || opening == null) && onClickModel.closeOnClick) {
             dismissCallback?.invoke()

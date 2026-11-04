@@ -7,7 +7,6 @@ import ai.gravityfield.gravity_sdk.models.OnClickModel
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityImage
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityText
-import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
@@ -23,7 +22,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,60 +45,50 @@ internal fun GravitySnackbarContent1(
 
     val interactionSource = remember { MutableInteractionSource() }
 
-    LaunchedEffect(Unit) {
-        ContentEventService.instance.sendContentImpression(content, campaign)
-    }
-
-    VisibilityDetector(
-        onVisible = { ContentEventService.instance.sendContentVisibleImpression(content, campaign) },
-        once = true,
-        visibilityKey = content.contentId,
+    Surface(
+        modifier = Modifier
+            .padding(
+                start = 16.dp,
+                end = 16.dp,
+                bottom = WindowInsets.systemBars.asPaddingValues()
+                    .calculateBottomPadding() + 10.dp,
+            )
+            .fillMaxWidth()
+            .conditional(onClick != null) {
+                clickable(interactionSource = interactionSource, onClick = {
+                    onClickCallback.invoke(onClick!!)
+                }, indication = null)
+            },
+        shape = RoundedCornerShape(style?.cornerRadius?.dp ?: 0.dp),
+        color = container.style?.backgroundColor ?: Color.White,
     ) {
-        Surface(
-            modifier = Modifier
-                .padding(
-                    start = 16.dp,
-                    end = 16.dp,
-                    bottom = WindowInsets.systemBars.asPaddingValues()
-                        .calculateBottomPadding() + 10.dp,
+        Row(
+            modifier = Modifier.conditional(padding != null) {
+                padding(
+                    start = padding!!.left.dp,
+                    top = padding.top.dp,
+                    end = padding.right.dp,
+                    bottom = padding.bottom.dp
                 )
-                .fillMaxWidth()
-                .conditional(onClick != null) {
-                    clickable(interactionSource = interactionSource, onClick = {
-                        onClickCallback.invoke(onClick!!)
-                    }, indication = null)
-                },
-            shape = RoundedCornerShape(style?.cornerRadius?.dp ?: 0.dp),
-            color = container.style?.backgroundColor ?: Color.White,
+            },
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier.conditional(padding != null) {
-                    padding(
-                        start = padding!!.left.dp,
-                        top = padding.top.dp,
-                        end = padding.right.dp,
-                        bottom = padding.bottom.dp
-                    )
-                },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                images?.getOrNull(0)?.let {
-                    GravityImage(it, onClickCallback)
-                    Spacer(modifier = Modifier.width(12.dp))
+            images?.getOrNull(0)?.let {
+                GravityImage(it, onClickCallback)
+                Spacer(modifier = Modifier.width(12.dp))
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                texts?.getOrNull(0)?.let {
+                    GravityText(it, onClickCallback)
                 }
-                Column(modifier = Modifier.weight(1f)) {
-                    texts?.getOrNull(0)?.let {
-                        GravityText(it, onClickCallback)
-                    }
-                    texts?.getOrNull(1)?.let {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        GravityText(it, onClickCallback)
-                    }
+                texts?.getOrNull(1)?.let {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    GravityText(it, onClickCallback)
                 }
-                images?.getOrNull(1)?.let {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    GravityImage(it, onClickCallback)
-                }
+            }
+            images?.getOrNull(1)?.let {
+                Spacer(modifier = Modifier.width(8.dp))
+                GravityImage(it, onClickCallback)
             }
         }
     }

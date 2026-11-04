@@ -23,13 +23,17 @@ internal fun VisibilityDetector(
     onVisible: () -> Unit,
     once: Boolean = false,
     visibilityKey: Any? = null,
+    intervalKey: Any? = null,
     observeViewportChanges: Boolean = false,
+    enabled: Boolean = true,
+    canNotify: () -> Boolean = { true },
     content: @Composable () -> Unit
 ) {
     val view = LocalView.current
     var isVisible by remember(visibilityKey) { mutableStateOf(false) }
     var hasBeenVisible by remember(visibilityKey) { mutableStateOf(false) }
     val currentOnVisible by rememberUpdatedState(onVisible)
+    val currentCanNotify by rememberUpdatedState(canNotify)
     val coordinates = remember { arrayOfNulls<LayoutCoordinates>(1) }
 
     fun updateVisibility(layoutCoordinates: LayoutCoordinates) {
@@ -72,11 +76,11 @@ internal fun VisibilityDetector(
         }
     }
 
-    LaunchedEffect(isVisible, visibilityKey, once) {
-        if (!isVisible || (once && hasBeenVisible)) return@LaunchedEffect
+    LaunchedEffect(isVisible, visibilityKey, once, enabled, intervalKey) {
+        if (!enabled || !isVisible || (once && hasBeenVisible)) return@LaunchedEffect
         delay(1000)
 
-        if (isVisible && (!once || !hasBeenVisible)) {
+        if (enabled && isVisible && (!once || !hasBeenVisible) && currentCanNotify()) {
             hasBeenVisible = true
             currentOnVisible()
         }
