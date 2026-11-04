@@ -1,0 +1,49 @@
+import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.api.tasks.bundling.Jar
+import org.gradle.api.tasks.testing.Test
+
+// Test-only sources/jar: no guard class is included in published SDK artifacts.
+def guardRoot = rootProject.file('test-network-guard')
+def asmFiles = rootProject.fileTree(new File(gradle.gradleHomeDir, 'lib')) { include 'asm-*.jar'; exclude 'asm-commons*', 'asm-tree*' }
+def compileGuard = rootProject.tasks.register('compileTestNetworkGuard', JavaCompile) {
+    source rootProject.fileTree(new File(guardRoot, 'common')) { include '**/*.java' }
+    source rootProject.fileTree(new File(guardRoot, 'jvm')) { include '**/*.java' }
+    classpath = asmFiles
+    destinationDirectory.set(rootProject.layout.buildDirectory.dir('test-network-guard/classes'))
+    sourceCompatibility = "11"
+    targetCompatibility = "11"
+    options.release.set(11)
+}
+def guardJar = rootProject.tasks.register('testNetworkGuardJar', Jar) {
+    dependsOn compileGuard
+    archiveFileName.set('test-network-guard.jar')
+    destinationDirectory.set(rootProject.layout.buildDirectory.dir('test-network-guard'))
+    from compileGuard.flatMap { it.destinationDirectory }
+    from { asmFiles.collect { rootProject.zipTree(it) } }
+    exclude 'META-INF/MANIFEST.MF', 'module-info.class'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest { attributes 'Premain-Class': 'ai.gravityfield.testguard.NetworkGuardAgent' }
+}
+allprojects { project ->
+    project.tasks.withType(Test).configureEach { testTask ->
+        dependsOn guardJar
+        jvmArgs "-javaagent:${guardJar.get().archiveFile.get().asFile.absolutePath}", '-Djava.security.manager=allow'
+        systemProperty 'xreview.guard.file', project.layout.buildDirectory.file("network-guard/${testTask.name}.jsonl").get().asFile.absolutePath
+        systemProperty 'xreview.guard.mode', 'guarded'
+    }
+    ['com.android.library', 'com.android.application'].each { plugin ->
+        project.pluginManager.withPlugin(plugin) {
+            def android = project.extensions.getByName('android')
+            project.extensions.getByName('androidComponents').finalizeDsl { androidDsl ->
+                androidDsl.defaultConfig.testInstrumentationRunner = 'ai.gravityfield.gravity_sdk.LocalFixtureTestRunner'
+            }
+            android.sourceSets.test.java.srcDir(new File(guardRoot, 'common'))
+            android.sourceSets.androidTest.java.srcDir(new File(guardRoot, 'common'))
+            android.sourceSets.androidTest.java.srcDir(new File(guardRoot, 'device'))
+            if (project.name == 'gravity_sdk') {
+                android.sourceSets.test.java.srcDir(new File(guardRoot, 'jvm-tests'))
+                android.sourceSets.androidTest.java.srcDir(new File(guardRoot, 'device-tests'))
+            }
+        }
+    }
+}

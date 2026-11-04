@@ -81,7 +81,7 @@ internal object DeviceUtils {
     @Synchronized
     private fun getDeviceId(): String {
         var deviceId = Prefs.getDeviceId()
-        if (deviceId == null) {
+        if (deviceId.isNullOrEmpty()) {
             deviceId = UUID.randomUUID().toString()
             Prefs.setDeviceId(deviceId)
         }

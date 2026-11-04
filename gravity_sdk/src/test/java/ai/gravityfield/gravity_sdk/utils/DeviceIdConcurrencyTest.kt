@@ -27,10 +27,15 @@ class DeviceIdConcurrencyTest {
         checkConcurrentCreation(malformed = true)
     }
 
-    private fun checkConcurrentCreation(malformed: Boolean) {
+    @Test fun concurrentCallersReplaceEmptyDeviceIdOnlyOnce() {
+        checkConcurrentCreation(malformed = false, empty = true)
+    }
+
+    private fun checkConcurrentCreation(malformed: Boolean, empty: Boolean = false) {
         val context = RuntimeEnvironment.getApplication()
         val stored = context.getSharedPreferences("${context.packageName}_preferences", Context.MODE_PRIVATE)
         stored.edit().clear().apply {
+            if (empty) putString("gravity_device_id", "")
             if (malformed) putInt("gravity_device_id", 42)
             putString("host-key", "preserved")
         }.commit()
@@ -51,7 +56,7 @@ class DeviceIdConcurrencyTest {
 
             override fun getString(key: String, defValue: String?): String? {
                 val result = runCatching { stored.getString(key, defValue) }
-                if (key == "gravity_device_id" && result.exceptionOrNull() is ClassCastException) holdRead()
+                if (key == "gravity_device_id" && (result.exceptionOrNull() is ClassCastException || result.getOrNull() == "")) holdRead()
                 return result.getOrThrow()
             }
 

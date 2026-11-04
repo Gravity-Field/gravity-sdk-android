@@ -6,3 +6,5 @@ plugins {
     alias(libs.plugins.android.library) apply false
     alias(libs.plugins.compose.compiler) apply false
 }
+
+apply(from = "gradle/test-network-guard.gradle")

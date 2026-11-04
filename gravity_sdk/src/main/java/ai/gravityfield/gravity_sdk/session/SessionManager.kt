@@ -30,7 +30,7 @@ internal class SessionManager(
     private data class Lease(val user: User, val generation: Long, val gate: CompletableDeferred<Unit>? = null)
     private val lock = Any()
     private val storageScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private var storageTail: Job? = null
+    private var storageTail: Deferred<*>? = null
     private var loading: Pair<Long, Deferred<String?>>? = null
     private var generation = 0L
     private var identityVersion = 0L
@@ -54,6 +54,26 @@ internal class SessionManager(
     private fun current(request: Request) = request.identityVersion == identityVersion
     fun setUserIdListener(listener: ((String?) -> Unit)?) = synchronized(lock) { this.listener = listener }
     fun cachedUser(): User = synchronized(lock) { User(uid = uid, ses = ses) }
+
+    /** Read the current reporting identity after storage operations, never a network session gate. */
+    suspend fun reportingUser(): User {
+        while (true) {
+            val pending = synchronized(lock) {
+                if (!loaded) storedRead(generation)
+                storageTail
+            }
+            // Failed storage operations still publish their accepted identity in finally.
+            try { pending?.await() }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { /* Unreadable storage falls back to the current memory state. */ }
+            synchronized(lock) {
+                if (storageTail === pending) return User(
+                    uid = uid,
+                    ses = ses?.takeIf { it.isNotEmpty() } ?: custom?.ses?.takeIf { it.isNotEmpty() },
+                )
+            }
+        }
+    }
 
     // Tracking must never block on disk or a session round trip. Requests/getUserId load storage first.
     // Engagement and WRIMP protection use this only after a content request has loaded the UID;

@@ -19,11 +19,11 @@ import io.ktor.client.plugins.expectSuccess
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.engine.android.Android
+import io.ktor.http.HttpHeaders
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.api.createClientPlugin
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
@@ -31,7 +31,10 @@ import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
+import io.ktor.client.plugins.ResponseException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
@@ -41,8 +44,6 @@ import kotlinx.serialization.json.encodeToJsonElement
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Date
-import io.ktor.client.plugins.logging.LogLevel as KtorLogLevel
-import io.ktor.client.plugins.logging.Logger as KtorLogger
 
 private const val BASE_URL = "https://evs-01.gravityfield.ai/v2"
 private const val CHOOSE = "/choose"
@@ -55,6 +56,8 @@ internal class GravityRepository(
     private val section: () -> String = { GravitySDK.instance.section },
     private val device: () -> Device = { DeviceUtils.getDevice() },
     private val endpoint: () -> String = { GravitySDK.instance.proxyUrl ?: BASE_URL },
+    private val suppliedErrorClient: HttpClient? = null,
+    private val errorReportLimiter: ErrorReportLimiter = ErrorReportLimiter(),
 ) {
 
     companion object {
@@ -95,14 +98,19 @@ internal class GravityRepository(
                     requestTimeoutMillis = 5000
                 }
 
-                install(Logging) {
-                    logger = object : KtorLogger {
-                        override fun log(message: String) {
-                            Logger.d(prefix = "HTTP", message)
+                // Log only request metadata; Ktor's raw logging includes bodies and exception text.
+                install(createClientPlugin("SafeHttpDiagnostics") {
+                    onRequest { request, _ ->
+                        Logger.d("HTTP", "${request.method.value} ${ErrorReportSanitizer.sanitizeUrls(request.url.buildString())}")
+                        if (request.headers[HttpHeaders.Authorization] != null) {
+                            Logger.d("HTTP", "Authorization: [redacted]")
                         }
                     }
-                    level = KtorLogLevel.ALL
-                }
+                    onResponse { response ->
+                        val request = response.call.request
+                        Logger.d("HTTP", "${request.method.value} ${ErrorReportSanitizer.sanitizeUrls(request.url.toString())} ${response.status.value}")
+                    }
+                })
             }
         }
     }
@@ -114,7 +122,7 @@ internal class GravityRepository(
     }
 
     private val client = suppliedClient ?: createHttpClient(json, auth = true)
-    private val errorReportingClient by lazy { createHttpClient(json, auth = false) }
+    private val errorReportingClient by lazy { suppliedErrorClient ?: createHttpClient(json, auth = false) }
 
     private val baseUrl: String
         get() = endpoint()
@@ -146,8 +154,12 @@ internal class GravityRepository(
             }
         } catch (e: CancellationException) {
             throw e
+        } catch (e: ResponseException) {
+            Logger.e(TAG, httpFailure(e))
+            null
         } catch (e: Exception) {
-            Logger.e(TAG, "visit failed: ${e.message}", e)
+            // Parser exceptions can contain response bodies and credentials.
+            Logger.e(TAG, "visit failed: ${e.javaClass.simpleName}")
             null
         }
     }
@@ -181,8 +193,12 @@ internal class GravityRepository(
             }
         } catch (e: CancellationException) {
             throw e
+        } catch (e: ResponseException) {
+            Logger.e(TAG, httpFailure(e))
+            null
         } catch (e: Exception) {
-            Logger.e(TAG, "event failed: ${e.message}", e)
+            // Parser exceptions can contain response bodies and credentials.
+            Logger.e(TAG, "event failed: ${e.javaClass.simpleName}")
             null
         }
     }
@@ -219,8 +235,12 @@ internal class GravityRepository(
             }
         } catch (e: CancellationException) {
             throw e
+        } catch (e: ResponseException) {
+            Logger.e(TAG, httpFailure(e))
+            null
         } catch (e: Exception) {
-            Logger.e(TAG, "chooseByCampaignIdWithDetails failed: ${e.message}", e)
+            // Parser exceptions can contain response bodies and credentials.
+            Logger.e(TAG, "chooseByCampaignIdWithDetails failed: ${e.javaClass.simpleName}")
             null
         }
     }
@@ -255,8 +275,12 @@ internal class GravityRepository(
             }
         } catch (e: CancellationException) {
             throw e
+        } catch (e: ResponseException) {
+            Logger.e(TAG, httpFailure(e))
+            null
         } catch (e: Exception) {
-            Logger.e(TAG, "chooseBySelectorWithDetails failed: ${e.message}", e)
+            // Parser exceptions can contain response bodies and credentials.
+            Logger.e(TAG, "chooseBySelectorWithDetails failed: ${e.javaClass.simpleName}")
             null
         }
     }
@@ -291,10 +315,25 @@ internal class GravityRepository(
             }?.data
         } catch (e: CancellationException) {
             throw e
+        } catch (e: ResponseException) {
+            Logger.e(TAG, httpFailure(e))
+            null
         } catch (e: Exception) {
-            Logger.e(TAG, "chooseByGroup failed: ${e.message}", e)
+            // Parser exceptions can contain response bodies and credentials.
+            Logger.e(TAG, "chooseByGroup failed: ${e.javaClass.simpleName}")
             null
         }
+    }
+
+    private fun httpFailure(error: ResponseException): String {
+        val request = error.response.call.request
+        val path = when {
+            request.url.encodedPath.endsWith(CHOOSE) -> CHOOSE
+            request.url.encodedPath.endsWith(VISIT) -> VISIT
+            request.url.encodedPath.endsWith(EVENT) -> EVENT
+            else -> "/request"
+        }
+        return "${request.method.value} failed: HTTP ${error.response.status.value} $path"
     }
 
     internal suspend fun trackEngagementEvent(urls: List<String>, apiKey: String? = null) {
@@ -315,38 +354,34 @@ internal class GravityRepository(
         message: String,
         stacktrace: String,
     ) {
-        val uid: String?
-        val ses: String?
-        val customerUser = GravitySDK.instance.user
-        if (customerUser != null) {
-            uid = customerUser.custom
-            ses = customerUser.ses
-        } else {
-            val cached = sessions.cachedUser()
-            uid = cached.uid
-            ses = cached.ses
-        }
-        val sec = GravitySDK.instance.section
-
-        val logMessage = LogMessage(
-            message = message,
-            level = LogMessageLevel.ERROR,
-            sec = sec,
-            uid = uid ?: "",
-            ses = ses ?: "",
-            sdkVersion = DeviceUtils.getSDKVersion(),
-            platform = DeviceUtils.getPlatformVersion() ?: "",
-            stacktrace = stacktrace,
-        )
-
+        var permit: ErrorReportLimiter.Permit? = null
+        var successfully = false
         try {
+            currentCoroutineContext().ensureActive()
+            val admitted = errorReportLimiter.begin(message, stacktrace) ?: return
+            permit = admitted
+            val current = sessions.reportingUser()
+            val logMessage = LogMessage(
+                message = admitted.message,
+                level = LogMessageLevel.ERROR,
+                sec = section(),
+                uid = current.uid?.takeIf { it.isNotEmpty() } ?: device().id.orEmpty(),
+                ses = current.ses ?: "no-session",
+                sdkVersion = DeviceUtils.getSDKVersion(),
+                platform = DeviceUtils.getPlatformVersion() ?: "",
+                stacktrace = admitted.stacktrace,
+            )
             errorReportingClient.post("https://sdk-sentry.gravityfield.ai/error") {
+                expectSuccess = true
                 setBody(json.encodeToJsonElement(logMessage))
             }.body<String>()
+            successfully = true
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Logger.e(TAG, "sendErrorMessage failed: ${e.message}", e, sendToBack = false)
+            Logger.e(TAG, "sendErrorMessage failed: ${e.javaClass.simpleName}", sendToBack = false)
+        } finally {
+            permit?.let { errorReportLimiter.complete(it, successfully) }
         }
     }
 
