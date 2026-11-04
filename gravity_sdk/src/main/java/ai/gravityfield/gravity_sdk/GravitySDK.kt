@@ -951,6 +951,7 @@ class GravitySDK private constructor(
     }
 
     private fun trackEngagementEvent(action: Action, events: List<Event>?) {
+        if (action == Action.UNKNOWN) return
         events?.find { it.type == action }?.let { event ->
             ioScope.launch {
                 try {

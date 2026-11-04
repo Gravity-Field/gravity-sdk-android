@@ -76,6 +76,7 @@ internal class ContentEventService private constructor() {
         sdk.presentationGate.visible(content.contentId)
         if (callbackTrackingEvent) sdk.callbackTrackingEvent(ContentVisibleImpressionEvent(content, campaign))
         val action = content.variables?.onVisibleImpression?.action ?: Action.VISIBLE_IMPRESSION
+        if (action == Action.UNKNOWN) return
         val event = content.events?.find { it.type == action }
         if (event == null || event.urls.isEmpty()) {
             Logger.e("ContentEvent", "Visible impression has no tracking URL")
@@ -108,6 +109,7 @@ internal class ContentEventService private constructor() {
         contentAction: ContentActionModel,
         content: CampaignContent,
     ) {
+        if (contentAction.action == Action.UNKNOWN) return
         content.events?.find { it.type == contentAction.action }?.let { event ->
             scope.launch {
                 try {
