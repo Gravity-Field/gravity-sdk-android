@@ -174,7 +174,7 @@ internal fun finishVisibleImpression(
 ) {
     val owner = current?.takeIf { it.queueKey == source.queueKey } ?: source
     owner.gate.scoped {
-        if (entry.identity == owner.identity()) {
+        if (VisibleImpressionStore.protectionIdentity(entry.identity) == VisibleImpressionStore.protectionIdentity(owner.identity())) {
             owner.gate.finishDelivery(entry.campaignId, entry.contentId, acknowledged, entry.id, remove)
         } else remove()
     }

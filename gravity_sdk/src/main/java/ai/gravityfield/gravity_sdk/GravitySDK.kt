@@ -254,7 +254,8 @@ class GravitySDK private constructor(
         )
     }
     private fun currentIdentity(): String? = identity(GravityRepository.instance.userForRequest(user))
-    private fun identity(user: User): String? = user.custom?.let { "custom:$it" } ?: user.uid?.let { "uid:$it" }
+    private fun identity(user: User): String = user.custom?.let { "custom:$it" } ?: user.uid?.let { "uid:$it" }
+        ?: VisibleImpressionStore.ANONYMOUS_IDENTITY
     internal val presentationGate = InAppPresentationGate(
         deliveryPending = { visibleImpressionStore.blocks(it, currentIdentity()) },
     )
@@ -321,11 +322,11 @@ class GravitySDK private constructor(
         val queued = QueuedVisibleImpression(
             campaignId = campaignId,
             contentId = content.contentId,
-            identity = originalIdentity ?: "unidentified",
+            identity = originalIdentity,
             urls = event.urls,
         )
         visibleImpressionStore.stage(queued, onPersisted)
-        if (originalIdentity != null) presentationGate.visibleDurable(content.contentId, queued.id)
+        presentationGate.visibleDurable(content.contentId, queued.id)
         persistenceScope.launch {
             try { visibleImpressionDelivery.persistStaged() }
             catch (e: Exception) { Logger.e(TAG, "Cannot persist visible impression: ${e.message}", e) }

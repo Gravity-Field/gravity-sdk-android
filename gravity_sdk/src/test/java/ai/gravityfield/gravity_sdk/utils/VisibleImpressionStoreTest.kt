@@ -63,11 +63,11 @@ class VisibleImpressionStoreTest {
         } finally { release.countDown(); thread.join() }
     }
 
-    @Test fun unknownIdentityDoesNotShareProtectionWithOtherUnknownUsers() {
+    @Test fun unknownIdentitySharesProtectionWithOtherAnonymousUsers() {
         val store = VisibleImpressionStore(File(temporary.root, "queue"))
         store.update { listOf(QueuedVisibleImpression(campaignId = "c", contentId = "content",
             identity = "unidentified", urls = listOf("url"))) }
-        assertFalse(store.blocks("c", null))
+        assertTrue(store.blocks("c", null))
         assertEquals(1, store.all().size) // Delivery still retains the original URL.
     }
 

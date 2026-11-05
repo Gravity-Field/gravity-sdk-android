@@ -16,7 +16,7 @@ internal data class QueuedVisibleImpression(
     val id: String = UUID.randomUUID().toString(),
     val campaignId: String,
     val contentId: String,
-    val identity: String,
+    val identity: String? = null,
     val urls: List<String>,
     val terminalUrls: List<String> = emptyList(),
     val createdAtMillis: Long = System.currentTimeMillis(),
@@ -35,6 +35,12 @@ internal class VisibleImpressionStore private constructor(
         const val PROTECTION_MILLIS = 24 * 60 * 60 * 1000L
         const val DELIVERY_TTL_MILLIS = 7 * PROTECTION_MILLIS
         const val MAX_ENTRIES = 512
+        const val ANONYMOUS_IDENTITY = "uid:"
+
+        fun protectionIdentity(identity: String?): String = when (identity) {
+            null, "unidentified" -> ANONYMOUS_IDENTITY
+            else -> identity
+        }
         private val stores = mutableMapOf<String, VisibleImpressionStore>()
 
         // Do not even resolve noBackupFilesDir on main: Android may create that directory.
@@ -125,8 +131,7 @@ internal class VisibleImpressionStore private constructor(
     // Readers never wait for a disk lock. Startup conservatively defers automatic presentation
     // until the persisted protection snapshot is available.
     fun blocks(campaignId: String, identity: String?): Boolean = !loaded ||
-        identity != null &&
         // Read staging first: publication writes entries before removing the staged copy.
-        (staged + entries).any { it.campaignId == campaignId && it.identity == identity &&
+        (staged + entries).any { it.campaignId == campaignId && protectionIdentity(it.identity) == protectionIdentity(identity) &&
             now() - it.createdAtMillis < PROTECTION_MILLIS && it.terminalUrls.isEmpty() }
 }
