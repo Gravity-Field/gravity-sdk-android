@@ -543,7 +543,9 @@ class GravitySDK private constructor(
 
     /**
      * Tracks a visit and returns the highest-priority campaign containing root content,
-     * with the original JSON. Needs no Activity, never presents UI, and does not automatically track impressions.
+     * with the original /choose JSON and the chosen campaign’s non-negative delayTime (ms).
+     * Returns without waiting for that delay; the app owns waiting and rendering.
+     * Needs no Activity, never presents UI, and does not automatically track impressions.
      * Tries campaigns by descending priority, skipping failed requests and missing root content.
      * Returns null if no candidate yields content, fetching is disabled, tracking fails or results are stale.
      * Cancellation propagates. See [isFetchContentOnTrack] and [staleContentTimeoutMillis].
@@ -610,8 +612,9 @@ class GravitySDK private constructor(
                     if (contents?.any { it.step == null } != true) continue
                     return@withContext presentationGate.scoped {
                         if (!canFetchHeadless(snapshot)) return@scoped null
-                        sendContentLoaded(result.data)
-                        result
+                        val accepted = result.copy(delayTime = (id.delayTime ?: 0).coerceAtLeast(0))
+                        sendContentLoaded(accepted.data, accepted.delayTime)
+                        accepted
                     }
                 }
                 null
@@ -637,7 +640,7 @@ class GravitySDK private constructor(
 
     /**
      * Same as [getContentBySelector], plus the raw JSON of the same response,
-     * for rendering the content yourself. Does not show anything.
+     * for rendering the content yourself. Does not show anything. delayTime is always 0.
      */
     suspend fun getContentBySelectorWithDetails(
         selector: String,
@@ -832,7 +835,7 @@ class GravitySDK private constructor(
 
     /**
      * Same as [getContentByCampaignId], plus the raw JSON of the same response,
-     * for rendering the content yourself. Does not show anything.
+     * for rendering the content yourself. Does not show anything. delayTime is always 0.
      */
     suspend fun getContentByCampaignIdWithDetails(
         campaignId: String,
@@ -885,11 +888,11 @@ class GravitySDK private constructor(
         }
     }
 
-    private fun sendContentLoaded(response: ContentResponse) {
+    private fun sendContentLoaded(response: ContentResponse, delayTime: Int = 0) {
         for (campaign in response.data) {
             for (payload in campaign.payload) {
                 for (content in payload.contents) {
-                    contentEventService.sendContentLoaded(content, campaign)
+                    contentEventService.sendContentLoaded(content, campaign, delayTime = delayTime)
                 }
             }
         }

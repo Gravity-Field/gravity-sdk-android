@@ -33,9 +33,10 @@ internal class ContentEventService private constructor() {
         content: CampaignContent,
         campaign: Campaign,
         callbackTrackingEvent: Boolean = true,
+        delayTime: Int = 0,
     ) {
         if (callbackTrackingEvent) {
-            GravitySDK.instance.callbackTrackingEvent(ContentLoadEvent(content, campaign))
+            GravitySDK.instance.callbackTrackingEvent(ContentLoadEvent(content, campaign, delayTime))
         }
         val onLoad = content.variables?.onLoad ?: return
         trackEngagement(onLoad, content)

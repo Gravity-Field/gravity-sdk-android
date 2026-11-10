@@ -56,7 +56,7 @@ class HeadlessCampaignWireTest {
             if (path == "/choose" && id in disconnectedChooseIds) return@HeadlessRecordingServer null
             val response = when (path) {
                 "/visit", "/event" -> """{"user":$trackingUser,"campaigns":$campaignIds}"""
-                "/choose" -> contents[id] ?: """{"data":[]}"""
+                "/choose" -> contents[id?.takeIf { it.isNotEmpty() } ?: "selector"] ?: """{"data":[]}"""
                 else -> "{}"
             }
             val status = if (path == "/choose") chooseStatus[id] ?: 200 else trackingStatus
@@ -109,6 +109,152 @@ class HeadlessCampaignWireTest {
     private fun noShowFetches(): List<suspend () -> GravityDataResponse<ContentResponse>?> = listOf(
         { sdk.trackViewNoShow(page) }, { sdk.triggerEventNoShow(events, page) },
     )
+
+    @Test fun chosenDelayIsNormalizedAndRawChooseJsonIsPreservedForBothMethods() = runBlocking {
+        contents["101"] = content("101")
+        for (fetch in noShowFetches()) {
+            for ((field, expected) in listOf(
+                "" to 0, ",\"delayTime\":0" to 0, ",\"delayTime\":-3" to 0,
+                ",\"delayTime\":1500" to 1500, ",\"delayTime\":\" 1500.0 \"" to 1500,
+                ",\"delayTime\":60000" to 60000, ",\"delayTime\":null" to 0,
+                ",\"delayTime\":true" to 0, ",\"delayTime\":{}" to 0,
+                ",\"delayTime\":[]" to 0, ",\"delayTime\":\"0x10\"" to 0,
+            )) {
+                campaignIds = """[{"campaignId":"101","priority":1$field}]"""
+                callbacks.clear()
+                val result = withTimeout(3000) { fetch() }!!
+                assertEquals(expected, result.delayTime)
+                assertEquals(ai.gravityfield.gravity_sdk.network.parseContentResponse(contents.getValue("101")).json, result.json)
+                shadowOf(Looper.getMainLooper()).idle()
+                assertEquals(listOf(expected), callbacks.filterIsInstance<ContentLoadEvent>().map { it.delayTime })
+            }
+        }
+    }
+
+    @Test fun fallbackReturnsAcceptedCampaignDelayForBothMethods() = runBlocking {
+        campaignIds = """[{"campaignId":"101","priority":30,"delayTime":99},
+            {"campaignId":"202","priority":20,"delayTime":88},
+            {"campaignId":"303","priority":10,"delayTime":77}]"""
+        contents["101"] = content("101")
+        chooseStatus["101"] = 503
+        contents["202"] = content("202", step = "1")
+        contents["303"] = content("303")
+        for (fetch in noShowFetches()) {
+            recorded.clear()
+            callbacks.clear()
+            val result = fetch()!!
+            assertEquals(77, result.delayTime)
+            assertEquals(listOf("101", "202", "303"), chosenIds())
+            shadowOf(Looper.getMainLooper()).idle()
+            assertEquals(listOf(77), callbacks.filterIsInstance<ContentLoadEvent>().map { it.delayTime })
+        }
+    }
+
+    @Test fun zeroDelayDoesNotChooseAgainOrPresentWithAnActiveActivity() = runBlocking {
+        campaignIds = """[{"campaignId":"101","delayTime":0}]"""
+        contents["101"] = content("101").replace("\"custom_title\"", "\"elements\":[{\"type\":\"text\",\"text\":\"Ready to present\"}],\"custom_title\"")
+        val preparations = java.util.concurrent.atomic.AtomicInteger()
+        GravitySDK.initialize(RuntimeEnvironment.getApplication(), "headless-key", "headless-section", { callbacks += it },
+            inAppPreparation = InAppPreparation { _, _ -> preparations.incrementAndGet(); null })
+        sdk = GravitySDK.instance
+        sdk.setOptions(null, null, url)
+        val controller = Robolectric.buildActivity(Activity::class.java).setup().visible()
+        controller.windowFocusChanged(true)
+        try {
+            // Positive control: this payload and Activity really reach automatic
+            // presentation preparation. A missing Activity or empty elements cannot
+            // make the NoShow assertion pass vacuously.
+            sdk.trackView(page, controller.get())
+            withTimeout(3000) {
+                while (preparations.get() == 0) {
+                    shadowOf(Looper.getMainLooper()).idle()
+                    delay(10)
+                }
+            }
+            preparations.set(0)
+            for (fetch in noShowFetches()) {
+                recorded.clear()
+                callbacks.clear()
+                val before = org.robolectric.shadows.ShadowDialog.getLatestDialog()
+                assertEquals(0, withTimeout(3000) { fetch() }!!.delayTime)
+                // Drain queued presentation work while a real resumed Activity is available.
+                repeat(10) {
+                    shadowOf(Looper.getMainLooper()).idleFor(100, TimeUnit.MILLISECONDS)
+                    delay(10)
+                }
+                assertEquals("NoShow must not enter presentation preparation", 0, preparations.get())
+                assertSame(before, org.robolectric.shadows.ShadowDialog.getLatestDialog())
+                assertEquals(listOf("101"), chosenIds())
+                assertTrue(callbacks.none { it is ContentImpressionEvent || it is ContentVisibleImpressionEvent })
+                assertTrue(recorded.all { it.path in listOf("/visit", "/event", "/choose") })
+            }
+        } finally {
+            controller.pause().stop().destroy()
+        }
+    }
+
+    @Test fun directDetailsAndLegacyConstructorsDefaultToZeroDelay() = runBlocking {
+        contents["101"] = JSONObject(content("101")).put("delayTime", 60000).toString()
+        val byId = sdk.getContentByCampaignIdWithDetails("101", page)!!
+        assertEquals(0, byId.delayTime)
+        assertEquals(0, GravityDataResponse(byId.data, byId.json).delayTime)
+        // Selector requests have no campaign ID.
+        contents["selector"] = contents.getValue("101")
+        val bySelector = sdk.getContentBySelectorWithDetails("custom", page)!!
+        assertEquals(0, bySelector.delayTime)
+        assertEquals(byId.json, bySelector.json)
+        shadowOf(Looper.getMainLooper()).idle()
+        assertEquals(listOf(0, 0), callbacks.filterIsInstance<ContentLoadEvent>().map { it.delayTime })
+    }
+
+    @Test fun nonFiniteWireNumberKeepsCampaignAndSiblingsForBothMethods() = runBlocking {
+        campaignIds = """[{"campaignId":"101","priority":1e400,"delayTime":1e400},
+            {"campaignId":"202","priority":-1,"delayTime":42}]"""
+        contents["202"] = content("202")
+        for (fetch in noShowFetches()) {
+            recorded.clear()
+            val result = fetch()!!
+            assertEquals(42, result.delayTime)
+            assertEquals(listOf("101", "202"), chosenIds())
+        }
+    }
+
+    @Test fun androidJsonDecoderTypesAndOverflowAreExplicit() {
+        // Android JSONTokener.readLiteral returns Integer, Long or Double, never Float.
+        // An overflowing literal becomes infinity and JSONObject.put rejects it.
+        val samples = listOf("1500", "2147483648", "1500.9", "1e3")
+        assertEquals(listOf(Int::class.javaObjectType, Long::class.javaObjectType,
+            Double::class.javaObjectType, Double::class.javaObjectType),
+            samples.map { org.json.JSONTokener(it).nextValue().javaClass })
+        assertEquals(Double.POSITIVE_INFINITY, org.json.JSONTokener("1e400").nextValue())
+        assertThrows(org.json.JSONException::class.java) { JSONObject("""{"priority":1e400}""") }
+        val result = ai.gravityfield.gravity_sdk.network.parseCampaignIdsResponse("""
+            {"campaigns":[{"campaignId":"c","priority":1e400,"delayTime":1e400},
+                {"campaignId":"sibling","priority":7,"delayTime":42}]}
+        """.trimIndent())
+        assertEquals(2, result.campaigns.size)
+        assertNull(result.campaigns[0].priority)
+        assertNull(result.campaigns[0].delayTime)
+        assertEquals(7, result.campaigns[1].priority)
+        assertEquals(42, result.campaigns[1].delayTime)
+    }
+
+    @Test fun publicResponseStoresConstructorValuesAndLoadEventNormalizesNegatives() = runBlocking {
+        contents["101"] = content("101")
+        val original = sdk.getContentByCampaignIdWithDetails("101", page)!!
+        val supplied = GravityDataResponse(data = original.data, json = original.json, delayTime = -1)
+        assertEquals(-1, supplied.delayTime)
+        assertEquals(Int.MIN_VALUE, original.copy(delayTime = Int.MIN_VALUE).delayTime)
+        val (data, json, delay) = supplied
+        assertSame(original.data, data)
+        assertSame(original.json, json)
+        assertEquals(-1, delay)
+        val campaign = original.data.data.single()
+        val content = campaign.payload.single().contents.single()
+        assertEquals(0, ContentLoadEvent(content, campaign, -1).delayTime)
+        assertEquals(0, ContentLoadEvent(content = content, campaign = campaign, delayTime = Int.MIN_VALUE).delayTime)
+        assertEquals(1500, ContentLoadEvent(content, campaign, 1500).delayTime)
+    }
 
     @Test fun headlessPassesHostOptionsUnchanged() = runBlocking {
         campaigns("101" to 1)

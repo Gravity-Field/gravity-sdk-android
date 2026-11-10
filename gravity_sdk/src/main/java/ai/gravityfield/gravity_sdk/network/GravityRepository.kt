@@ -149,8 +149,7 @@ internal class GravityRepository(
                     setBody(jsonBody.toString())
                 }.body<String>()
 
-                val json = JSONObject(data).toMap()
-                CampaignIdsResponse.fromJson(json)
+                parseCampaignIdsResponse(data)
             }
         } catch (e: CancellationException) {
             throw e
@@ -188,8 +187,7 @@ internal class GravityRepository(
                     setBody(jsonBody)
                 }.body<String>()
 
-                val json = JSONObject(data).toMap()
-                CampaignIdsResponse.fromJson(json)
+                parseCampaignIdsResponse(data)
             }
         } catch (e: CancellationException) {
             throw e
