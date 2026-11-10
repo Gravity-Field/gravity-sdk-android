@@ -554,7 +554,7 @@ class GravitySDK private constructor(
      */
     suspend fun trackViewNoShow(pageContext: PageContext): GravityDataResponse<ContentResponse>? =
         fetchAfterTracking(pageContext) { snapshot ->
-            repository.visit(pageContext, snapshot.options, snapshot.identity, requireSuccess = true)
+            repository.visit(pageContext, snapshot.options, snapshot.identity)
         }
 
     /** Same as [trackViewNoShow], tracking [events] instead of a visit. */
@@ -564,7 +564,7 @@ class GravitySDK private constructor(
     ): GravityDataResponse<ContentResponse>? {
         val raisedAt = Date()
         return fetchAfterTracking(pageContext) { snapshot ->
-            repository.event(events, raisedAt, pageContext, snapshot.options, snapshot.identity, requireSuccess = true)
+            repository.event(events, raisedAt, pageContext, snapshot.options, snapshot.identity)
         }
     }
 
@@ -604,7 +604,6 @@ class GravitySDK private constructor(
                         currentUser = snapshot.identity,
                         requestOptions = snapshot.options,
                         requestContentSettings = snapshot.contentSettings,
-                        requireSuccess = true,
                         notifyContentLoaded = false,
                     )
                     if (!canFetchHeadless(snapshot)) return@withContext null
@@ -849,7 +848,6 @@ class GravitySDK private constructor(
         currentUser: SessionManager.Request,
         requestOptions: Options = options,
         requestContentSettings: ContentSettings = contentSettings,
-        requireSuccess: Boolean = false,
         notifyContentLoaded: Boolean = true,
     ): GravityDataResponse<ContentResponse>? {
         requireInitialized()
@@ -859,7 +857,6 @@ class GravitySDK private constructor(
             contentSettings = requestContentSettings,
             identity = currentUser,
             pageContext = pageContext,
-            requireSuccess = requireSuccess,
         ) ?: return null
         return presentationGate.scoped {
             if (!sessions.isCurrent(currentUser)) return@scoped null

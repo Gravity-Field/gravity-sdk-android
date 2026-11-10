@@ -131,7 +131,6 @@ internal class GravityRepository(
         pageContext: PageContext,
         options: Options,
         identity: SessionManager.Request,
-        requireSuccess: Boolean = false,
     ): CampaignIdsResponse? {
         return try {
             sessions.execute(identity, { it.user }, deliverAlways = true) { requestUser ->
@@ -145,7 +144,7 @@ internal class GravityRepository(
                 }
 
                 val data = client.post("$baseUrl$VISIT") {
-                    expectSuccess = requireSuccess
+                    expectSuccess = true
                     setBody(jsonBody.toString())
                 }.body<String>()
 
@@ -169,7 +168,6 @@ internal class GravityRepository(
         pageContext: PageContext,
         options: Options,
         identity: SessionManager.Request,
-        requireSuccess: Boolean = false,
     ): CampaignIdsResponse? {
         return try {
             sessions.execute(identity, { it.user }, deliverAlways = true) { requestUser ->
@@ -183,7 +181,7 @@ internal class GravityRepository(
                 }
 
                 val data = client.post("$baseUrl$EVENT") {
-                    expectSuccess = requireSuccess
+                    expectSuccess = true
                     setBody(jsonBody)
                 }.body<String>()
 
@@ -207,7 +205,6 @@ internal class GravityRepository(
         contentSettings: ContentSettings,
         identity: SessionManager.Request = sessions.snapshot(),
         pageContext: PageContext,
-        requireSuccess: Boolean = false,
     ): GravityDataResponse<ContentResponse>? {
         return try {
             sessions.execute(identity, { it.data.user }) { requestUser ->
@@ -225,7 +222,7 @@ internal class GravityRepository(
                 }
 
                 val stringData = client.post("$baseUrl$CHOOSE") {
-                    expectSuccess = requireSuccess
+                    expectSuccess = true
                     setBody(jsonBody)
                 }.body<String>()
 
@@ -266,6 +263,7 @@ internal class GravityRepository(
                 }
 
                 val stringData = client.post("$baseUrl$CHOOSE") {
+                    expectSuccess = true
                     setBody(jsonBody)
                 }.body<String>()
 
@@ -306,6 +304,7 @@ internal class GravityRepository(
                 }
 
                 val stringData = client.post("$baseUrl$CHOOSE") {
+                    expectSuccess = true
                     setBody(jsonBody)
                 }.body<String>()
 
