@@ -3,13 +3,13 @@ package ai.gravityfield.gravity_sdk.network
 import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.models.ContentSettings
 import ai.gravityfield.gravity_sdk.models.GravityDataResponse
-import ai.gravityfield.gravity_sdk.models.internal.LogMessage
-import ai.gravityfield.gravity_sdk.models.internal.LogMessageLevel
 import ai.gravityfield.gravity_sdk.models.Options
 import ai.gravityfield.gravity_sdk.models.PageContext
 import ai.gravityfield.gravity_sdk.models.TriggerEvent
 import ai.gravityfield.gravity_sdk.models.User
 import ai.gravityfield.gravity_sdk.models.encodeEvents
+import ai.gravityfield.gravity_sdk.models.internal.LogMessage
+import ai.gravityfield.gravity_sdk.models.internal.LogMessageLevel
 import ai.gravityfield.gravity_sdk.prefs.Prefs
 import ai.gravityfield.gravity_sdk.utils.DeviceUtils
 import ai.gravityfield.gravity_sdk.utils.Logger
@@ -21,7 +21,6 @@ import io.ktor.client.plugins.api.createClientPlugin
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.Logging
-import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -232,6 +231,8 @@ internal class GravityRepository private constructor() {
             val response = parseContentResponse(stringData)
             saveUserIfNeeded(customerUser, response.data.user)
             response
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Logger.e(TAG, "chooseBySelectorWithDetails failed: ${e.message}", e)
             null

@@ -34,6 +34,11 @@
             android:label="InlineList demo"
             android:theme="@style/Theme.AppCompat.Light" />
         <activity
+            android:name=".AssistantDemoActivity"
+            android:exported="false"
+            android:label="Assistant demo"
+            android:theme="@style/Theme.GravitySDK" />
+        <activity
             android:name=".WebViewActivity"
             android:configChanges="orientation|screenSize|keyboardHidden"
             android:exported="false"

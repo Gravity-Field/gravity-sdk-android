@@ -1,16 +1,16 @@
 package ai.gravityfield.sdk
 
 import ai.gravityfield.gravity_sdk.GravitySDK
+import ai.gravityfield.gravity_sdk.models.AddToCartEvent
 import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.CancelEvent
-import ai.gravityfield.gravity_sdk.models.ContentImpressionEngagement
 import ai.gravityfield.gravity_sdk.models.ContentCloseEvent
+import ai.gravityfield.gravity_sdk.models.ContentImpressionEngagement
 import ai.gravityfield.gravity_sdk.models.ContentImpressionEvent
 import ai.gravityfield.gravity_sdk.models.ContentLoadEvent
 import ai.gravityfield.gravity_sdk.models.ContentVisibleImpressionEvent
 import ai.gravityfield.gravity_sdk.models.ContextType
 import ai.gravityfield.gravity_sdk.models.CopyEvent
-import ai.gravityfield.gravity_sdk.models.AddToCartEvent
 import ai.gravityfield.gravity_sdk.models.CustomEvent
 import ai.gravityfield.gravity_sdk.models.FollowDeeplinkEvent
 import ai.gravityfield.gravity_sdk.models.FollowUrlEvent
@@ -98,16 +98,22 @@ class MainActivity : ComponentActivity() {
             logLevel = LogLevel.DEBUG,
             inAppPreparation = ReviewPromptCoordinator.integration.preparation(),
         )
+        GravitySDK.instance.setAssistantProductBlockBuilder(AssistantProductBlockBuilderImpl())
+        GravitySDK.instance.setAssistantActionHandler(AssistantActionHandlerImpl)
 
         enableEdgeToEdge()
         setContent {
             GravitySDKTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Box(modifier = Modifier.padding(innerPadding)) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                    ) {
                         Column(
                             modifier = Modifier
+                                .align(Alignment.TopCenter)
                                 .padding(top = 32.dp)
-                                .align(Alignment.Center)
                         ) {
                             val context = LocalContext.current
                             ShowContentButton(
@@ -189,6 +195,19 @@ class MainActivity : ComponentActivity() {
                             }
 
                             AbVariantButton()
+
+                            ShowContentButton(
+                                onClick = {
+                                    context.startActivity(
+                                        Intent(
+                                            context,
+                                            AssistantDemoActivity::class.java,
+                                        )
+                                    )
+                                },
+                            ) {
+                                Text(text = "Assistant demo")
+                            }
 
                             ShowContentButton(
                                 onClick = {

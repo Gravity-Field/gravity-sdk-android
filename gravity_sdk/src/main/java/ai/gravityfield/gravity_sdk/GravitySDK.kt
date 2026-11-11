@@ -1,5 +1,6 @@
 package ai.gravityfield.gravity_sdk
 
+import ai.gravityfield.gravity_sdk.assistant.AssistantController
 import ai.gravityfield.gravity_sdk.models.Action
 import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.CancelEvent
@@ -30,6 +31,13 @@ import ai.gravityfield.gravity_sdk.models.TrackingEvent
 import ai.gravityfield.gravity_sdk.models.TriggerEvent
 import ai.gravityfield.gravity_sdk.models.UISettings
 import ai.gravityfield.gravity_sdk.models.User
+import ai.gravityfield.gravity_sdk.models.assistant.AssistantActionHandler
+import ai.gravityfield.gravity_sdk.models.assistant.AssistantInteractionResult
+import ai.gravityfield.gravity_sdk.models.assistant.AssistantOpenResult
+import ai.gravityfield.gravity_sdk.models.assistant.AssistantPrepareResult
+import ai.gravityfield.gravity_sdk.models.assistant.AssistantProductAction
+import ai.gravityfield.gravity_sdk.models.assistant.AssistantProductBlockBuilder
+import ai.gravityfield.gravity_sdk.models.assistant.AssistantProductRef
 import ai.gravityfield.gravity_sdk.models.internal.InlineViewCache
 import ai.gravityfield.gravity_sdk.models.internal.InlineViewCacheStore
 import ai.gravityfield.gravity_sdk.models.internal.ScrollPosition
@@ -39,6 +47,7 @@ import ai.gravityfield.gravity_sdk.network.CampaignIdsResponse
 import ai.gravityfield.gravity_sdk.network.ContentResponse
 import ai.gravityfield.gravity_sdk.network.EngagementTransport
 import ai.gravityfield.gravity_sdk.network.GravityRepository
+import ai.gravityfield.gravity_sdk.ui.GravityAssistantContent
 import ai.gravityfield.gravity_sdk.ui.GravityBottomSheetContent
 import ai.gravityfield.gravity_sdk.ui.GravityFullScreenContent
 import ai.gravityfield.gravity_sdk.ui.GravityModalContent
@@ -77,6 +86,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
 import android.view.ViewGroup.MarginLayoutParams
+import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -100,26 +110,28 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.children
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
-import java.io.File
-import java.lang.ref.WeakReference
-import java.security.MessageDigest
-import java.util.Date
-import java.util.concurrent.Executors
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import java.io.File
+import java.lang.ref.WeakReference
+import java.security.MessageDigest
+import java.util.Date
+import java.util.concurrent.Executors
 
 typealias ProductFilter = (Slot) -> Boolean
 typealias GravityEventCallback = (TrackingEvent) -> Unit
@@ -207,6 +219,8 @@ class GravitySDK private constructor(
     }
 
     private var options = Options()
+
+    internal val currentOptions: Options get() = options
     private var contentSettings = ContentSettings()
     private val queueFileName = MessageDigest.getInstance("SHA-256")
         .digest((apiKey + "\u0000" + section).toByteArray()).joinToString("") { "%02x".format(it) }
@@ -310,6 +324,15 @@ class GravitySDK private constructor(
     private var isPresentationLocked = false
     private var presentationLockListener: ((Boolean) -> Unit)? = null
 
+    /** Blocks campaign presentation while the assistant is open, independently of [lockPresentation]. */
+    @Volatile
+    private var lockPresentationByAssistant = false
+    private var assistantDismissController: DismissController? = null
+
+    /** Restores the host window state changed while the assistant is open. */
+    private var assistantWindowRestore: (() -> Unit)? = null
+    private val assistantController = AssistantController()
+
     private val repository = GravityRepository.instance
     private val contentEventService = ContentEventService.instance
     private val productEventService = ProductEventService.instance
@@ -331,12 +354,23 @@ class GravitySDK private constructor(
     }
 
     fun setUser(userId: String, sessionId: String) {
-        presentationGate.scoped {
-            if (requestUser?.custom != userId || requestUser?.ses != sessionId) {
+        val changed = presentationGate.scoped {
+            val changed = requestUser?.custom != userId || requestUser?.ses != sessionId
+            if (changed) {
                 presentationGate.reset()
                 presentationRevision.invalidate()
             }
             requestUser = User(custom = userId, ses = sessionId)
+            changed
+        }
+
+        if (!changed) return
+
+        // Must be Main.immediate: a queued dispatch would cancel a prepareAssistant started right after setUser.
+        // Close before reset: close analytics still needs the old conversation context.
+        mainScope.launch(Dispatchers.Main.immediate) {
+            closeAssistant()
+            assistantController.reset()
         }
     }
 
@@ -426,8 +460,179 @@ class GravitySDK private constructor(
         return response
     }
 
+    fun setAssistantProductBlockBuilder(builder: AssistantProductBlockBuilder) {
+        assistantController.productBlockBuilder = builder
+    }
+
+    fun setAssistantActionHandler(handler: AssistantActionHandler) {
+        assistantController.actionHandler = handler
+    }
+
+    /**
+     * Loads the assistant start screen for the given page context.
+     * Show the assistant entry point only after [AssistantPrepareResult.Ready].
+     */
+    suspend fun prepareAssistant(
+        assistantSelector: String,
+        pageContext: PageContext,
+        timeoutMillis: Long = 10_000,
+    ): AssistantPrepareResult {
+        return try {
+            assistantController.prepare(
+                assistantSelector = assistantSelector,
+                pageContext = pageContext,
+                timeoutMillis = timeoutMillis,
+                options = options,
+                contentSettings = contentSettings,
+                customerUser = user,
+            )
+        } catch (_: CancellationException) {
+            AssistantPrepareResult.Cancelled
+        }
+    }
+
+    fun openAssistant(activityContext: Context): AssistantOpenResult {
+        if (lockPresentationByAssistant) {
+            Logger.i(TAG, "Assistant is already presented")
+            return AssistantOpenResult.AlreadyOpen
+        }
+
+        if (assistantController.config == null && assistantController.dialogState.items.isEmpty()) {
+            Logger.i(TAG, "Assistant is not prepared")
+            return AssistantOpenResult.NotReady
+        }
+
+        val activity = findOwner<Activity>(activityContext)
+        if (activity == null || activity.isFinishing || activity.isDestroyed) {
+            return AssistantOpenResult.InvalidPresenter
+        }
+
+        if (activity.window?.decorView !is ViewGroup) {
+            return AssistantOpenResult.InvalidPresenter
+        }
+
+        val dismissController = DismissController()
+        assistantDismissController = dismissController
+        lockPresentationByAssistant = true
+
+        val window = activity.window
+        val previousSoftInputMode = window.attributes.softInputMode
+        window.setSoftInputMode(assistantSoftInputMode(previousSoftInputMode))
+
+        assistantWindowRestore = {
+            WindowInsetsControllerCompat(window, window.decorView)
+                .hide(WindowInsetsCompat.Type.ime())
+            window.setSoftInputMode(previousSoftInputMode)
+        }
+
+        fun dismiss() {
+            if (assistantDismissController !== dismissController) return
+            assistantDismissController = null
+            lockPresentationByAssistant = false
+            restoreAssistantWindow()
+            dismissController.dismiss()
+        }
+
+        showOverlay(
+            activity = activity,
+            dismissController = dismissController,
+            onBack = ::dismiss,
+            onDetach = {
+                if (assistantDismissController === dismissController) {
+                    assistantDismissController = null
+                    lockPresentationByAssistant = false
+                    assistantWindowRestore = null
+                    Logger.i(TAG, "Assistant overlay detached, presentation unlocked")
+                }
+
+                assistantController.onAssistantClosed()
+            },
+        ) {
+            GravityAssistantContent(
+                // Read during composition: preparation may replace the start screen while the chat is open.
+                startScreen = assistantController.config?.startScreen,
+                isPreparing = assistantController.isPreparing,
+                startScreenError = assistantController.startScreenError,
+                state = assistantController.dialogState,
+                productBlockBuilder = assistantController.productBlockBuilder,
+                onSuggestClick = assistantController::sendMessage,
+                onSendMessage = assistantController::sendMessage,
+                onRetry = assistantController::retryLastQuestion,
+                onNewChat = assistantController::startNewChat,
+                onClose = ::dismiss,
+            )
+        }
+
+        assistantController.onAssistantOpened()
+
+        return AssistantOpenResult.Opened
+    }
+
+    /**
+     * Soft input mode for the chat, keeping the state bits of [previous].
+     * On API 30+ the chat pads itself by the IME inset; below that the window is resized.
+     */
+    private fun assistantSoftInputMode(previous: Int): Int {
+        val adjust = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
+        } else {
+            @Suppress("DEPRECATION")
+            WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+        }
+        return (previous and WindowManager.LayoutParams.SOFT_INPUT_MASK_STATE) or adjust
+    }
+
+    /** Closes the assistant if it is open. Must be called on the main thread. */
+    fun closeAssistant() {
+        val dismissController = assistantDismissController ?: return
+        assistantDismissController = null
+        lockPresentationByAssistant = false
+        restoreAssistantWindow()
+        dismissController.dismiss()
+    }
+
+    /**
+     * Hides the keyboard and restores the previous soft input mode.
+     * Call before removing the overlay so the host relayout happens under the chat.
+     */
+    private fun restoreAssistantWindow() {
+        val restore = assistantWindowRestore ?: return
+        assistantWindowRestore = null
+        try {
+            restore()
+        } catch (e: Exception) {
+            Logger.e(TAG, "Failed to restore window after assistant: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Reports an impression or a tap on an assistant product card.
+     * If the action requires it, closes the chat before invoking the [AssistantActionHandler].
+     */
+    fun performAssistantProductAction(
+        product: AssistantProductRef,
+        action: AssistantProductAction,
+    ): AssistantInteractionResult {
+        val plan = assistantController.planProductAction(product, action)
+        val assistantAction = plan.action ?: return plan.result
+
+        if (plan.closeChat) {
+            closeAssistant()
+        }
+
+        try {
+            assistantController.actionHandler?.handle(assistantAction)
+        } catch (e: Exception) {
+            Logger.e(TAG, "Assistant action handler failed: ${e.message}", e)
+        }
+
+        return plan.result
+    }
+
     fun dispose() {
         presentationGate.reset()
+        closeAssistant()
+        assistantController.reset()
         ioScope.cancel()
         mainScope.cancel()
         presentationLockListener = null
@@ -479,7 +684,11 @@ class GravitySDK private constructor(
         opening: ModalImpressionSession? = null,
     ): Boolean {
         fun canPresent() = GravitySDK.instance === this@GravitySDK &&
-            presentationRevision.canPresent(revision, isActivityActive(activity), isPresentationLocked)
+            presentationRevision.canPresent(
+                revision,
+                isActivityActive(activity),
+                isPresentationLocked || lockPresentationByAssistant,
+            )
         if (!withContext(Dispatchers.Main) { canPresent() }) return false
 
         val prepared = resolvedContent(content, campaign, inAppPreparation) ?: run {
@@ -1072,6 +1281,7 @@ class GravitySDK private constructor(
         opening: ModalImpressionSession? = null,
         onAbandoned: () -> Unit = {},
         onBackground: () -> Unit = {},
+        onDetach: (() -> Unit)? = null,
         content: @Composable () -> Unit,
     ) {
         val decorView = activity.window?.decorView as ViewGroup
@@ -1104,6 +1314,18 @@ class GravitySDK private constructor(
                 }
             })
         }
+
+        if (onDetach != null) {
+            view.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+                override fun onViewAttachedToWindow(v: View) = Unit
+
+                override fun onViewDetachedFromWindow(v: View) {
+                    v.removeOnAttachStateChangeListener(this)
+                    onDetach()
+                }
+            })
+        }
+
         dismissController.listener = {
             decorView.removeView(view)
             dismissController.dispose()

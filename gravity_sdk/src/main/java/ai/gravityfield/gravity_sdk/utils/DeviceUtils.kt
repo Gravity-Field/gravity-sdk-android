@@ -14,8 +14,11 @@ internal object DeviceUtils {
     private var sdkVersion: String = ""
     var contextAttributes: Map<String, String> = emptyMap()
         private set
+    var appContext: Context? = null
+        private set
 
     fun initialize(context: Context) {
+        appContext = context.applicationContext
         sdkVersion = context.getString(R.string.gravity_sdk_version)
         userAgent = getUserAgent(context)
         contextAttributes = getContextAttributes(context)
