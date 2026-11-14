@@ -408,12 +408,51 @@ class SnackbarEventsTest {
                             var removedAgain: Boolean? = null
                             h.sdk.dismissInApp(h.content.contentId) { removedAgain = it }; h.flush()
                             assertEquals("External removal must retire the registry entry", false, removedAgain)
+                            assertFalse("External removal must release the presentation guard", h.isRegistered())
                         }
                     } finally { h.close() }
                 }
             }
         }
         assertEquals("Close mismatch cases", emptyList<String>(), failures)
+    }
+
+    @Test fun destroyedHostCannotKeepTheShowingGuardLocked() = runBlocking {
+        val h = Harness(delivery = DeliveryMethod.MODAL, hasVisibleUrl = false)
+        try {
+            h.show(); h.drawModalStep()
+            h.hostRemove(HostRemoval.RECREATE)
+            repeat(8) { h.composeWithoutDrawing() }
+            assertFalse("A destroyed host has no showing window", h.isRegistered())
+        } finally { h.close() }
+    }
+
+    @Test fun attachedContentCannotStackAfterGateExpiryOrDirectShow() = runBlocking {
+        for (delivery in listOf(DeliveryMethod.MODAL, DeliveryMethod.BOTTOM_SHEET,
+            DeliveryMethod.FULL_SCREEN, DeliveryMethod.SNACK_BAR)) {
+            for (background in listOf(false, true)) {
+                if (background && delivery == DeliveryMethod.SNACK_BAR) continue // closes on STOP
+                val h = Harness(delivery = delivery, hasVisibleUrl = false)
+                try {
+                    h.expireGateImmediately()
+                    h.show()
+                    if (delivery in listOf(DeliveryMethod.MODAL, DeliveryMethod.BOTTOM_SHEET)) h.drawModalStep()
+                    else h.drawContent()
+                    h.awaitTrackingJobs()
+                    if (background) { h.background(); h.resume() }
+                    assertFalse("$delivery background=$background automatic duplicate", h.tryShow())
+                    assertFalse("$delivery direct duplicate", h.tryShowDirect())
+                    assertFalse("$delivery same campaign with another content ID", h.tryShowDirect(content = h.content.copy(contentId = "replacement")))
+                    h.sdk.presentationGate.acknowledgedCampaign(h.campaign.payload.first().campaignId)
+                    assertFalse("$delivery acknowledged but still attached", h.tryShow())
+                    h.awaitTrackingJobs()
+                    assertEquals(1, h.paths.count { it == "/impression" })
+                    h.sdk.dismissInApp(h.content.contentId); h.flush()
+                    repeat(40) { h.composeWithoutDrawing() }
+                    assertTrue("$delivery must reopen after close", h.tryShow())
+                } finally { h.close() }
+            }
+        }
     }
 
     @Test fun appearedModalsWithoutVisibleUrlSurviveBackground() = runBlocking {
@@ -594,15 +633,27 @@ class SnackbarEventsTest {
         fun tryShow(opening: ModalImpressionSession? = null): Boolean {
             if (content.variables?.onClose == null) assertFalse(content.rawVariables.containsKey("onClose"))
             val request = sdk.presentationGate.beginRequest("/snackbar", true)
-            val reservation = requireNotNull(sdk.presentationGate.reserve(campaignId, request))
+            val reservation = sdk.presentationGate.reserve(campaignId, request) ?: return false
             return sdk.presentationGate.present(reservation, listOf(content.contentId)) {
-                val shown = GravitySDK::class.java.getDeclaredMethod("showBackendContent", Activity::class.java,
-                    CampaignContent::class.java, Campaign::class.java, Item::class.java, ModalImpressionSession::class.java)
-                    .apply { isAccessible = true }.invoke(sdk, activity.get(), content, campaign, null, opening) as Boolean
+                val shown = tryShowDirect(opening)
                 if (shown) overlay = (activity.get().window.decorView as ViewGroup).getChildAt(0)
                 shown
             }
         }
+        fun isRegistered(): Boolean {
+            val registry = GravitySDK::class.java.getDeclaredField("inAppPresentations")
+                .apply { isAccessible = true }.get(sdk) as ai.gravityfield.gravity_sdk.utils.InAppPresentationRegistry
+            return registry.contains(content.contentId) || registry.containsCampaign(campaignId)
+        }
+        fun expireGateImmediately() {
+            sdk.presentationGate.javaClass.getDeclaredField("acknowledgementTimeoutMillis")
+                .apply { isAccessible = true }.setLong(sdk.presentationGate, 0)
+        }
+        fun resume() { activity.start().resume(); activity.windowFocusChanged(true); flush() }
+        fun tryShowDirect(opening: ModalImpressionSession? = null, content: CampaignContent = this.content): Boolean =
+            GravitySDK::class.java.getDeclaredMethod("showBackendContent", Activity::class.java,
+                CampaignContent::class.java, Campaign::class.java, Item::class.java, ModalImpressionSession::class.java)
+                .apply { isAccessible = true }.invoke(sdk, activity.get(), content, campaign, null, opening) as Boolean
         fun show(opening: ModalImpressionSession? = null): View {
             assertTrue(tryShow(opening)); return requireNotNull(overlay)
         }

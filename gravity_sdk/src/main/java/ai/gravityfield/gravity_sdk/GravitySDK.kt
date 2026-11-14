@@ -812,6 +812,7 @@ class GravitySDK private constructor(
     }
 
     private fun registerInApp(
+        activity: Activity,
         content: CampaignContent,
         campaign: Campaign,
         reportClose: () -> Boolean = { true },
@@ -829,7 +830,10 @@ class GravitySDK private constructor(
             if (success && shouldReportClose) contentEventService.sendContentClosed(content, campaign)
         }
         registered = WeakReference(presentation)
-        inAppPresentations.register(presentation, content.contentId)
+        val host = WeakReference(activity)
+        inAppPresentations.register(presentation, content.contentId, campaign.payload.firstOrNull()?.campaignId) {
+            host.get()?.let { !it.isDestroyed } == true
+        }
         return presentation
     }
 
@@ -984,6 +988,12 @@ class GravitySDK private constructor(
         opening: ModalImpressionSession? = null,
     ): Boolean {
         if (activity.isFinishing || activity.isDestroyed || activity.window?.decorView !is ViewGroup) return false
+        // A live window outlasts the gate timeout or WRIMP acknowledgement. Shared
+        // openings may advance to another step, but never mount the same content twice.
+        if (inAppPresentations.contains(content.contentId) ||
+            (opening == null && campaign.payload.firstOrNull()?.campaignId?.let {
+                inAppPresentations.containsCampaign(it)
+            } == true)) return false
         val impression = opening ?: modalImpression(content, campaign)
         when (content.deliveryMethod) {
             DeliveryMethod.MODAL -> showModal(activity, content, campaign, item, impression)
@@ -1006,7 +1016,7 @@ class GravitySDK private constructor(
         opening: ModalImpressionSession,
     ) {
         val dismissController = DismissController()
-        val presentation = registerInApp(content, campaign, reportClose = { opening.hasAppeared && !opening.isAbandoned }) { complete ->
+        val presentation = registerInApp(activity, content, campaign, reportClose = { opening.hasAppeared && !opening.isAbandoned }) { complete ->
             opening.explicitClose()
             val attached = dismissController.listener != null
             dismissController.dismiss()
@@ -1060,7 +1070,7 @@ class GravitySDK private constructor(
 
         val dismissController = DismissController()
         var requestClose: (((Boolean) -> Unit) -> Unit)? = null
-        val presentation = registerInApp(content, campaign, reportClose = { opening.hasAppeared && !opening.isAbandoned }) { complete ->
+        val presentation = registerInApp(activity, content, campaign, reportClose = { opening.hasAppeared && !opening.isAbandoned }) { complete ->
             opening.explicitClose()
             if (dismissController.listener == null) complete(false)
             else if (opening.isAbandoned) { dismissController.dismiss(); complete(true) }
@@ -1134,7 +1144,7 @@ class GravitySDK private constructor(
         opening: ModalImpressionSession,
     ) {
         val dismissController = DismissController()
-        val presentation = registerInApp(content, campaign, reportClose = { opening.hasAppeared && !opening.isAbandoned }) { complete ->
+        val presentation = registerInApp(activity, content, campaign, reportClose = { opening.hasAppeared && !opening.isAbandoned }) { complete ->
             opening.explicitClose()
             val attached = dismissController.listener != null
             dismissController.dismiss()
@@ -1184,7 +1194,7 @@ class GravitySDK private constructor(
         var appeared = false
         fun isCurrent() = GravitySDK.instance === this && sessions.isCurrent(originalIdentity) && !opening.isAbandoned
         val dismissController = DismissController()
-        val presentation = registerInApp(content, campaign, reportClose = { appeared }) { complete ->
+        val presentation = registerInApp(activity, content, campaign, reportClose = { appeared }) { complete ->
             opening.explicitClose()
             val attached = dismissController.listener != null
             dismissController.dismiss()

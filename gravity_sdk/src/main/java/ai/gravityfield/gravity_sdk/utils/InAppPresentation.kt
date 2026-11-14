@@ -25,10 +25,15 @@ internal class InAppPresentation(
 
 /** Weak references keep externally removed UI from being retained by the SDK. */
 internal class InAppPresentationRegistry {
-    private val entries = mutableMapOf<String, WeakReference<InAppPresentation>>()
-    fun register(presentation: InAppPresentation, contentId: String) {
+    private data class Entry(val presentation: WeakReference<InAppPresentation>, val campaignId: String?, val isShowing: () -> Boolean) {
+        fun get() = presentation.get()
+    }
+    private val entries = mutableMapOf<String, Entry>()
+    fun contains(contentId: String) = entries[contentId]?.let { it.get() != null && it.isShowing() } == true
+    fun containsCampaign(campaignId: String) = entries.values.any { it.campaignId == campaignId && it.get() != null && it.isShowing() }
+    fun register(presentation: InAppPresentation, contentId: String, campaignId: String? = null, isShowing: () -> Boolean = { true }) {
         entries.entries.removeAll { it.value.get() == null }
-        entries[contentId] = WeakReference(presentation)
+        entries[contentId] = Entry(WeakReference(presentation), campaignId, isShowing)
     }
     fun remove(presentation: InAppPresentation?, contentId: String) {
         if (entries[contentId]?.get() === presentation) entries.remove(contentId)
