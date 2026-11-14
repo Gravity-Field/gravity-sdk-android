@@ -46,7 +46,7 @@ internal object ParseUtils {
             }
 
             else -> null
-        }
+        }?.takeIf { it.isFinite() }
     }
 
     fun parseFontSize(fontSize: Any?): TextUnit? {
