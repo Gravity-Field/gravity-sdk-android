@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 1.3.0
+
+- Treat non-finite dimensions as absent when parsing size, padding, margin and corner radius, preventing invalid Compose layout.
+
+- Return an identity-capable placeholder from `GravitySDK.instance` before initialization instead of throwing; use the new `GravitySDK.isInitialized` property to check whether the SDK is configured.
+
+- Treat missing campaign priority as zero in automatic presentation, matching NoShow ordering and preserving server order for ties.
+
 - Prevent duplicate presentations of an attached campaign after reservation expiry or visible-impression acknowledgement; allow showing again after dismissal and preserve step transitions.
 
 - Replace the current modal, bottom-sheet, fullscreen or snackbar step with the next `open_step` step regardless of `closeOnClick`, as on Flutter, instead of stacking it; the replaced step reports no close, and the step that is finally closed reports exactly one.
@@ -13,12 +21,8 @@
 - Keep modal, bottom-sheet, fullscreen and snackbar content open across Activity recreation for configuration changes such as rotation, remounting the same presentation in the new Activity without new impression, visible-impression, product-visibility or close events; the campaign stays attached until its real close, which is tracked once.
 
 - Send close tracking once when modal, bottom-sheet or fullscreen close controls share the configured onClose action, including appeared content without a visible-impression URL.
-- Send close tracking once when modal, bottom-sheet or fullscreen close controls share the configured onClose action.
-- Treat non-finite dimensions as absent when parsing size, padding, margin and corner radius, preventing invalid Compose layout.
-- Treat missing campaign priority as zero in automatic presentation, matching NoShow ordering and preserving server order for ties.
 
-- Return the chosen campaign’s non-negative `delayTime` in NoShow responses and load callbacks without waiting; parse decimal priority/delay values exactly with Unicode whitespace, normalize negative load-event constructor delays, and demonstrate app-owned delayed rendering.
-- Return the chosen campaign’s non-negative `delayTime` in NoShow responses and load callbacks without waiting; keep raw JSON priority/delay numbers at double precision and parse decimal strings exactly with Unicode whitespace, normalize negative load-event constructor delays, and demonstrate app-owned delayed rendering.
+- Return the chosen campaign’s non-negative `delayTime` in NoShow responses and load callbacks without waiting; parse decimal priority/delay strings exactly with Unicode whitespace, ignore non-finite numeric campaign fields without dropping sibling campaigns, and demonstrate app-owned delayed rendering.
 
 - Keep HTTP debug logs to method, sanitized endpoint and status, without request/response bodies, header values or exception text; redact each complete free-text Authorization value line, including Proxy-Authorization and x-authorization, case-insensitively before length limits and duplicate fingerprinting, and sanitize bounded error-report URLs, including nested and generic-scheme URLs, escaped URLs, password-like ports, adjacent URLs and truncated credentials; malformed spaced userinfo is limited to one following token to preserve diagnostic prose. HTTP/parsing diagnostics omit response bodies and exception stacks. Backend reports admit at most ten attempts per rolling minute before identity or payload work, suppress in-flight and successfully delivered duplicates by sanitized text, and allow retries after failed sends within the remaining budget; successful deduplication lasts sixty seconds from completion. Reports use the current server UID or shared device ID, with server/custom/no-session precedence, without waiting for network session initialization.
 - Treat unsuccessful HTTP content responses as failures in every choose API, without publishing their user identity or sending content-loaded callbacks. Successful empty responses remain valid.
@@ -38,8 +42,8 @@
 - Count snackbar impressions after actual appearance, persist qualified visible impressions through the modal WRIMP path, and avoid duplicate close tracking while preserving dismissal and user-change reservation handling. Attached snackbars keep counting across presentation locks or new screens, and recheck visibility when focus returns. Focus or lifecycle loss immediately restarts the uninterrupted visible-impression interval. Programmatic dismissal reports successful removal before appearance without impression or close events, and reports one close after appearance.
 - Colour enabled button labels like iOS: `textStyle.color` when set, otherwise the primary label colour (black, white in dark mode) instead of Material's white onPrimary; a top-level `textColor` still does not apply to buttons.
 - Avoid duplicate grid product visibility events after recomposition and column changes.
-- Render a product row or grid with no products (`products` or `slots` absent, or `slots: []`; a container without a type is a row) as nothing, without height, margin, padding or background. Grids no longer keep a placeholder height while products are absent.
 - Lay out product rows like iOS and Flutter: `size.height` is the outer box including padding, the background fills that box with margins outside it, and products are clipped to it instead of overlapping neighbouring elements. The example product card now fits the height it is given.
+- Render a product row or grid with no products (`products` or `slots` absent, or `slots: []`; a container without a type is a row) as nothing, without height, margin, padding or background. Grids no longer keep a placeholder height while products are absent.
 - Limit tall product grid sheets below the status bar without adding gaps to short sheets.
 - Read `gridSettings` with legacy `gridColumns` fallback: 2 columns and spacing 8 by default, valid columns 1–12, invalid or negative spacing falls back to 8. Grid cards remain square regardless of `size`; only `padding` affects the grid, matching iOS and Flutter.
 - Use the host product builder for grid cards; send visible impressions once per identified slot after at least half the card is visible in its clipped viewport.
