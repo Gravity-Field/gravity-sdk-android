@@ -814,9 +814,15 @@ class GravitySDK private constructor(
         performDismiss: (complete: (Boolean) -> Unit) -> Unit,
     ): InAppPresentation {
         var registered: WeakReference<InAppPresentation>? = null
-        val presentation = InAppPresentation(performDismiss) { success ->
+        var shouldReportClose = false
+        val presentation = InAppPresentation({ complete ->
+            // Detaching a drawn opening without WRIMP can mark it abandoned.
+            // Decide close analytics while its actual appearance is still observable.
+            shouldReportClose = reportClose()
+            performDismiss(complete)
+        }) { success ->
             inAppPresentations.remove(registered?.get(), content.contentId)
-            if (success && reportClose()) contentEventService.sendContentClosed(content, campaign)
+            if (success && shouldReportClose) contentEventService.sendContentClosed(content, campaign)
         }
         registered = WeakReference(presentation)
         inAppPresentations.register(presentation, content.contentId)
@@ -996,7 +1002,7 @@ class GravitySDK private constructor(
         opening: ModalImpressionSession,
     ) {
         val dismissController = DismissController()
-        val presentation = registerInApp(content, campaign, reportClose = { !opening.isAbandoned }) { complete ->
+        val presentation = registerInApp(content, campaign, reportClose = { opening.hasAppeared && !opening.isAbandoned }) { complete ->
             opening.explicitClose()
             val attached = dismissController.listener != null
             dismissController.dismiss()
@@ -1048,7 +1054,7 @@ class GravitySDK private constructor(
 
         val dismissController = DismissController()
         var requestClose: (((Boolean) -> Unit) -> Unit)? = null
-        val presentation = registerInApp(content, campaign, reportClose = { !opening.isAbandoned }) { complete ->
+        val presentation = registerInApp(content, campaign, reportClose = { opening.hasAppeared && !opening.isAbandoned }) { complete ->
             opening.explicitClose()
             if (dismissController.listener == null) complete(false)
             else if (opening.isAbandoned) { dismissController.dismiss(); complete(true) }
@@ -1120,7 +1126,7 @@ class GravitySDK private constructor(
         opening: ModalImpressionSession,
     ) {
         val dismissController = DismissController()
-        val presentation = registerInApp(content, campaign, reportClose = { !opening.isAbandoned }) { complete ->
+        val presentation = registerInApp(content, campaign, reportClose = { opening.hasAppeared && !opening.isAbandoned }) { complete ->
             opening.explicitClose()
             val attached = dismissController.listener != null
             dismissController.dismiss()

@@ -67,6 +67,18 @@ class ModalImpressionSessionTest {
         assertFalse(opening.hasFired)
     }
 
+    @Test fun failedWrimpAfterAppearanceDoesNotAbandonOnBackground() {
+        val opening = ModalImpressionSession { false }
+        opening.attach()
+        opening.frameDrawn(active = true)
+        var removed = false
+        opening.background { removed = true }
+        assertFalse(opening.hasFired)
+        assertTrue(opening.hasAppeared)
+        assertFalse(opening.isAbandoned)
+        assertFalse(removed)
+    }
+
     @Test fun rejectedEnqueueCanBeRetriedByCloseWithoutDuplicateAfterSuccess() {
         var attempts = 0
         val opening = ModalImpressionSession { ++attempts > 1 }
@@ -104,13 +116,12 @@ class ModalImpressionSessionTest {
         assertEquals(1, impressions)
     }
 
-    @Test fun unconfirmedBackgroundCloseRunsCloseSemanticsWithoutCreatingAnImpression() {
+    @Test fun unappearedBackgroundCloseRunsCloseSemanticsWithoutCreatingAnImpression() {
         var impressions = 0
         var closes = 0
         var released = 0
         val opening = ModalImpressionSession { impressions++; true }
         opening.attach()
-        opening.frameDrawn(active = true)
         opening.background {
             opening.explicitClose() // Same production dismissal handler; the fallback must be disabled.
             opening.detach { released++ }

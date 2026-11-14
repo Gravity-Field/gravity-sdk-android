@@ -12,6 +12,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.BroadcastFrameClock
 import androidx.compose.runtime.Recomposer
 import androidx.compose.ui.platform.compositionContext
+import androidx.compose.ui.semantics.getOrNull
 import kotlinx.coroutines.*
 import org.junit.Assert.*
 import org.junit.Test
@@ -292,6 +293,67 @@ class SnackbarEventsTest {
             assertEquals(1, h.callbacks.count { it is ContentCloseEvent })
         } finally { h.close() }
     }
+    @Test fun sheetCloseStillReportsOnceWhenHostIsDestroyedDuringHide() = runBlocking {
+        val h = Harness(delivery = DeliveryMethod.BOTTOM_SHEET)
+        try {
+            h.show(); h.drawModalStep()
+            h.clickAction(inDialog = true)
+            // hide() has started but cannot complete until more animation frames.
+            assertEquals(0, h.callbacks.count { it is ContentCloseEvent })
+            h.destroyActivity()
+            repeat(60) { h.composeWithoutDrawing() }
+            h.awaitPath("/close"); h.awaitTrackingJobs(); h.flush()
+            assertEquals(1, h.paths.count { it == "/close" })
+            assertEquals(1, h.callbacks.count { it is ContentCloseEvent })
+        } finally { h.close() }
+    }
+
+    @Test fun repeatedSheetCloseTapDuringHideDoesNotSendTwice() = runBlocking {
+        val h = Harness(delivery = DeliveryMethod.BOTTOM_SHEET)
+        try {
+            h.show(); h.drawModalStep()
+            val click = h.clickAction(inDialog = true)
+            assertTrue(click.invoke()); h.flush()
+            repeat(60) { h.composeWithoutDrawing() }
+            h.awaitPath("/close"); h.awaitTrackingJobs(); h.flush()
+            assertTrue(click.invoke()); h.flush(); h.awaitTrackingJobs()
+            assertEquals(1, h.paths.count { it == "/close" })
+            assertEquals(1, h.callbacks.count { it is ContentCloseEvent })
+        } finally { h.close() }
+    }
+
+    @Test fun fullscreenCloseWithoutVisibleImpressionUrlStillReportsOnce() = closeWithoutVisibleUrl(DeliveryMethod.FULL_SCREEN)
+    @Test fun modalCloseWithoutVisibleImpressionUrlStillReportsOnce() = closeWithoutVisibleUrl(DeliveryMethod.MODAL)
+    @Test fun sheetCloseWithoutVisibleImpressionUrlStillReportsOnce() = closeWithoutVisibleUrl(DeliveryMethod.BOTTOM_SHEET)
+    private fun closeWithoutVisibleUrl(delivery: DeliveryMethod) = runBlocking {
+        val h = Harness(delivery = delivery, hasVisibleUrl = false)
+        try {
+            h.show()
+            if (delivery == DeliveryMethod.FULL_SCREEN) h.drawContent() else h.drawModalStep()
+            h.clickAction(inDialog = delivery != DeliveryMethod.FULL_SCREEN)
+            repeat(60) { h.composeWithoutDrawing() }
+            h.awaitTrackingJobs(); h.flush()
+            assertEquals(1, h.paths.count { it == "/close" })
+            assertEquals(1, h.callbacks.count { it is ContentCloseEvent })
+        } finally { h.close() }
+    }
+
+    @Test fun modalDismissalBeforeFirstDrawRemainsSilentWithOrWithoutVisibleUrl() = runBlocking {
+        for (delivery in listOf(DeliveryMethod.FULL_SCREEN, DeliveryMethod.MODAL, DeliveryMethod.BOTTOM_SHEET)) {
+            for (hasVisibleUrl in listOf(true, false)) {
+                val h = Harness(delivery = delivery, hasVisibleUrl = hasVisibleUrl)
+                try {
+                    h.show()
+                    h.sdk.dismissInApp(h.content.contentId); h.flush()
+                    repeat(60) { h.composeWithoutDrawing() }
+                    h.awaitTrackingJobs(); h.flush()
+                    assertEquals(0, h.paths.count { it == "/close" })
+                    assertEquals(0, h.callbacks.count { it is ContentCloseEvent })
+                } finally { h.close() }
+            }
+        }
+    }
+
     @Test fun autoWithoutOnCloseSendsOnlyTheCallbackAndReleasesReservation() = runBlocking {
         val h = Harness(hasOnClose = false)
         try {
@@ -390,7 +452,7 @@ class SnackbarEventsTest {
         } finally { h.close() }
     }
 
-    private class Harness(template: TemplateSystemName = TemplateSystemName.SNACKBAR_1, hasOnClose: Boolean = true, unknownActions: Boolean = false, frameUi: Boolean = true, openStep: Boolean = false, delivery: DeliveryMethod = DeliveryMethod.SNACK_BAR) {
+    private class Harness(template: TemplateSystemName = TemplateSystemName.SNACKBAR_1, hasOnClose: Boolean = true, unknownActions: Boolean = false, frameUi: Boolean = true, openStep: Boolean = false, delivery: DeliveryMethod = DeliveryMethod.SNACK_BAR, hasVisibleUrl: Boolean = true) {
         private val reporting = Logger.errorReportingEnabled
         private val freshProcess = UserIdTestProcess.start()
         private val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup()
@@ -441,7 +503,7 @@ class SnackbarEventsTest {
                     "onClose" to (if (hasOnClose) mapOf("action" to if (unknownActions) "future" else "close") else null)).filterValues { it != null }),
                 null, null, null, listOf(
                     Event(Action.IMPRESSION, listOf("${server.url}/impression")),
-                    Event(Action.VISIBLE_IMPRESSION, listOf("${server.url}/visible")),
+                    Event(Action.VISIBLE_IMPRESSION, if (hasVisibleUrl) listOf("${server.url}/visible") else emptyList()),
                     Event(Action.CLOSE, listOf("${server.url}/close")),
                     Event(Action.UNKNOWN, listOf("${server.url}/foreign"))))
             campaign = Campaign(null, listOf(CampaignVariation(campaignId, "e", "v", "d", listOf(content,
@@ -491,7 +553,7 @@ class SnackbarEventsTest {
                 listener.javaClass.declaredFields.map { it.isAccessible = true; it.get(listener) }
             }.filterIsInstance<ModalImpressionSession>().firstOrNull()
         }
-        fun clickAction(inDialog: Boolean = false) {
+        fun clickAction(inDialog: Boolean = false): () -> Boolean {
             fun roots(view: View): Sequence<androidx.compose.ui.platform.ViewRootForTest> = sequence {
                 if (view is androidx.compose.ui.platform.ViewRootForTest) yield(view)
                 if (view is ViewGroup) for (index in 0 until view.childCount) yieldAll(roots(view.getChildAt(index)))
@@ -501,9 +563,14 @@ class SnackbarEventsTest {
             }
             val rootView = if (inDialog) org.robolectric.shadows.ShadowDialog.getLatestDialog().window!!.decorView else requireNotNull(overlay)
             val node = roots(rootView).flatMap { nodes(it.semanticsOwner.unmergedRootSemanticsNode) }
-                .first { it.config.contains(androidx.compose.ui.semantics.SemanticsActions.OnClick) }
-            assertTrue(requireNotNull(node.config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action).invoke())
+                .single { candidate ->
+                    candidate.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.Role) == androidx.compose.ui.semantics.Role.Button &&
+                        nodes(candidate).any { child -> child.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.Text)?.any { it.text == "Action" } == true }
+                }
+            val click = requireNotNull(node.config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action)
+            assertTrue(click.invoke())
             flush()
+            return click
         }
         suspend fun drawModalStep() {
             repeat(8) { composeWithoutDrawing() }

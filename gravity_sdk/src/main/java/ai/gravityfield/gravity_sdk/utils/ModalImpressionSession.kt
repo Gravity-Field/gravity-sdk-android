@@ -21,12 +21,13 @@ internal class ModalImpressionSession(private val enqueueImpression: () -> Boole
     @Synchronized fun frameDrawn(active: Boolean) {
         if (active && !abandoned) appeared = true
     }
+    val hasAppeared: Boolean get() = synchronized(this) { appeared }
     val hasFired: Boolean get() = fired.get()
     val isAbandoned: Boolean get() = synchronized(this) { abandoned }
 
-    /** Keep counted windows across backgrounding. Cancel unconfirmed windows without a view fallback. */
+    /** Keep appeared windows across backgrounding, even if WRIMP could not be queued. */
     @Synchronized fun background(closeUnconfirmed: () -> Unit) {
-        if (hasFired || abandoned) return
+        if (hasFired || appeared || abandoned) return
         abandoned = true
         closeUnconfirmed()
     }
