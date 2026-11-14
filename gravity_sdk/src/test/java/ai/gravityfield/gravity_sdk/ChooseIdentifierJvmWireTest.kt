@@ -36,6 +36,25 @@ class ChooseIdentifierJvmWireTest {
     }
     @After fun cleanup() { sdk.dispose(); server.stop(); Logger.errorReportingEnabled = reporting }
 
+    @Test fun everyChooseEntrypointUsesSingularOptionForContentSettings() = runBlocking {
+        sdk.setOptions(null, ContentSettings(skusOnly = true, fields = listOf("id", "name")), server.url)
+        sdk.getContentBySelector("slot", page)
+        sdk.getContentByGroupSelector("group", page)
+        sdk.getContentByCampaignId("campaign", page)
+        sdk.getContentBySelectorWithDetails("slot", page)
+        sdk.getContentByCampaignIdWithDetails("campaign", page)
+        assertEquals(5, bodies.size)
+        for (body in bodies) {
+            val data = body.getJSONArray("data").getJSONObject(0)
+            assertFalse(data.has("options"))
+            val option = data.getJSONObject("option")
+            assertTrue(option.getBoolean("skusOnly"))
+            assertEquals(listOf("id", "name"), (0 until option.getJSONArray("fields").length()).map {
+                option.getJSONArray("fields").getString(it)
+            })
+        }
+    }
+
     @Test fun everyChooseEntrypointPreservesExactStringIdentifiers() = runBlocking {
         for (value in listOf("101", "1e3", "-0", "true", "false", "null", "", "001",
             "123456789012345678901234567890", "slot", "a\"b", "[1]", "{\"key\":1}", "with space", "\"slot\"")) {

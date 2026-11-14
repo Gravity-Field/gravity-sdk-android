@@ -3,6 +3,7 @@ package ai.gravityfield.gravity_sdk.network
 import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.session.SessionManager
 import ai.gravityfield.gravity_sdk.models.Device
+import ai.gravityfield.gravity_sdk.models.RtRule
 import ai.gravityfield.gravity_sdk.models.ContentSettings
 import ai.gravityfield.gravity_sdk.models.GravityDataResponse
 import ai.gravityfield.gravity_sdk.models.internal.LogMessage
@@ -205,12 +206,14 @@ internal class GravityRepository(
         contentSettings: ContentSettings,
         identity: SessionManager.Request = sessions.snapshot(),
         pageContext: PageContext,
+        rules: List<RtRule>? = null,
     ): GravityDataResponse<ContentResponse>? {
         return try {
             sessions.execute(identity, { it.data.user }) { requestUser ->
                 val data = buildJsonObject {
                     put("campaignId", json.encodeToJsonElement(campaignId))
                     put("option", json.encodeToJsonElement(contentSettings))
+                    rules?.let { put("rules", json.encodeToJsonElement(it)) }
                 }
                 val jsonBody = buildJsonObject {
                     put("sec", json.encodeToJsonElement(section()))
@@ -246,12 +249,14 @@ internal class GravityRepository(
         contentSettings: ContentSettings,
         identity: SessionManager.Request = sessions.snapshot(),
         pageContext: PageContext,
+        rules: List<RtRule>? = null,
     ): GravityDataResponse<ContentResponse>? {
         return try {
             sessions.execute(identity, { it.data.user }) { requestUser ->
                 val data = buildJsonObject {
                     put("selector", json.encodeToJsonElement(selector))
                     put("option", json.encodeToJsonElement(contentSettings))
+                    rules?.let { put("rules", json.encodeToJsonElement(it)) }
                 }
                 val jsonBody = buildJsonObject {
                     put("sec", json.encodeToJsonElement(section()))
@@ -287,12 +292,14 @@ internal class GravityRepository(
         contentSettings: ContentSettings,
         identity: SessionManager.Request = sessions.snapshot(),
         pageContext: PageContext,
+        rules: List<RtRule>? = null,
     ): ContentResponse? {
         return try {
             sessions.execute(identity, { it.data.user }) { requestUser ->
                 val data = buildJsonObject {
                     put("group", json.encodeToJsonElement(group))
                     put("option", json.encodeToJsonElement(contentSettings))
+                    rules?.let { put("rules", json.encodeToJsonElement(it)) }
                 }
                 val jsonBody = buildJsonObject {
                     put("sec", json.encodeToJsonElement(section()))

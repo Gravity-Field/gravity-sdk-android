@@ -10,6 +10,7 @@ import ai.gravityfield.gravity_sdk.models.ContentCloseEngagement
 import ai.gravityfield.gravity_sdk.models.ContentEngagement
 import ai.gravityfield.gravity_sdk.models.ContentLoadEvent
 import ai.gravityfield.gravity_sdk.models.ContentImpressionEngagement
+import ai.gravityfield.gravity_sdk.models.RtRule
 import ai.gravityfield.gravity_sdk.models.ContentSettings
 import ai.gravityfield.gravity_sdk.models.ContentVisibleImpressionEngagement
 import ai.gravityfield.gravity_sdk.models.CopyEvent
@@ -656,8 +657,18 @@ class GravitySDK private constructor(
     suspend fun getContentBySelector(
         selector: String,
         pageContext: PageContext,
+    ): ContentResponse? = getContentBySelector(selector, pageContext, rules = null)
+
+    /**
+     * Same request with recommendation [rules], sent in this request's `data[].rules`.
+     * Null sends no `rules` key, exactly like the overload without rules; an empty list sends `[]`.
+     */
+    suspend fun getContentBySelector(
+        selector: String,
+        pageContext: PageContext,
+        rules: List<RtRule>?,
     ): ContentResponse? {
-        return getContentBySelectorWithDetails(selector, pageContext)?.data
+        return getContentBySelectorWithDetails(selector, pageContext, rules)?.data
     }
 
     /**
@@ -667,6 +678,16 @@ class GravitySDK private constructor(
     suspend fun getContentBySelectorWithDetails(
         selector: String,
         pageContext: PageContext,
+    ): GravityDataResponse<ContentResponse>? = getContentBySelectorWithDetails(selector, pageContext, rules = null)
+
+    /**
+     * Same request with recommendation [rules], sent in this request's `data[].rules`.
+     * Null sends no `rules` key, exactly like the overload without rules; an empty list sends `[]`.
+     */
+    suspend fun getContentBySelectorWithDetails(
+        selector: String,
+        pageContext: PageContext,
+        rules: List<RtRule>?,
     ): GravityDataResponse<ContentResponse>? {
         requireInitialized()
         val identity = sessions.snapshot()
@@ -675,7 +696,8 @@ class GravitySDK private constructor(
             options = options,
             contentSettings = contentSettings,
             identity = identity,
-            pageContext = pageContext
+            pageContext = pageContext,
+            rules = rules,
         ) ?: return null
         return presentationGate.scoped {
             if (!sessions.isCurrent(identity)) return@scoped null
@@ -857,12 +879,23 @@ class GravitySDK private constructor(
         pageContext: PageContext,
     ): ContentResponse? = getContentByCampaignId(campaignId, pageContext, sessions.snapshot())
 
+    /**
+     * Same request with recommendation [rules], sent in this request's `data[].rules`.
+     * Null sends no `rules` key, exactly like the overload without rules; an empty list sends `[]`.
+     */
+    suspend fun getContentByCampaignId(
+        campaignId: String,
+        pageContext: PageContext,
+        rules: List<RtRule>?,
+    ): ContentResponse? = getContentByCampaignId(campaignId, pageContext, sessions.snapshot(), rules)
+
     private suspend fun getContentByCampaignId(
         campaignId: String,
         pageContext: PageContext,
         currentUser: SessionManager.Request,
+        rules: List<RtRule>? = null,
     ): ContentResponse? {
-        return getContentByCampaignIdWithDetails(campaignId, pageContext, currentUser)?.data
+        return getContentByCampaignIdWithDetails(campaignId, pageContext, currentUser, rules = rules)?.data
     }
 
     /**
@@ -875,6 +908,17 @@ class GravitySDK private constructor(
     ): GravityDataResponse<ContentResponse>? =
         getContentByCampaignIdWithDetails(campaignId, pageContext, sessions.snapshot())
 
+    /**
+     * Same request with recommendation [rules], sent in this request's `data[].rules`.
+     * Null sends no `rules` key, exactly like the overload without rules; an empty list sends `[]`.
+     */
+    suspend fun getContentByCampaignIdWithDetails(
+        campaignId: String,
+        pageContext: PageContext,
+        rules: List<RtRule>?,
+    ): GravityDataResponse<ContentResponse>? =
+        getContentByCampaignIdWithDetails(campaignId, pageContext, sessions.snapshot(), rules = rules)
+
     private suspend fun getContentByCampaignIdWithDetails(
         campaignId: String,
         pageContext: PageContext,
@@ -882,6 +926,7 @@ class GravitySDK private constructor(
         requestOptions: Options = options,
         requestContentSettings: ContentSettings = contentSettings,
         notifyContentLoaded: Boolean = true,
+        rules: List<RtRule>? = null,
     ): GravityDataResponse<ContentResponse>? {
         requireInitialized()
         val response = repository.chooseByCampaignIdWithDetails(
@@ -890,6 +935,7 @@ class GravitySDK private constructor(
             contentSettings = requestContentSettings,
             identity = currentUser,
             pageContext = pageContext,
+            rules = rules,
         ) ?: return null
         return presentationGate.scoped {
             if (!sessions.isCurrent(currentUser)) return@scoped null
@@ -901,6 +947,16 @@ class GravitySDK private constructor(
     suspend fun getContentByGroupSelector(
         groupSelector: String,
         pageContext: PageContext,
+    ): ContentResponse? = getContentByGroupSelector(groupSelector, pageContext, rules = null)
+
+    /**
+     * Same request with recommendation [rules], sent in this request's `data[].rules`.
+     * Null sends no `rules` key, exactly like the overload without rules; an empty list sends `[]`.
+     */
+    suspend fun getContentByGroupSelector(
+        groupSelector: String,
+        pageContext: PageContext,
+        rules: List<RtRule>?,
     ): ContentResponse? {
         requireInitialized()
         val identity = sessions.snapshot()
@@ -909,7 +965,8 @@ class GravitySDK private constructor(
             options = options,
             contentSettings = contentSettings,
             identity = identity,
-            pageContext = pageContext
+            pageContext = pageContext,
+            rules = rules,
         ) ?: return null
         return presentationGate.scoped {
             if (!sessions.isCurrent(identity)) return@scoped null

@@ -4,6 +4,7 @@ import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.LocalScrollProvider
 import ai.gravityfield.gravity_sdk.R
 import ai.gravityfield.gravity_sdk.extensions.conditional
+import ai.gravityfield.gravity_sdk.models.RtRule
 import ai.gravityfield.gravity_sdk.models.PageContext
 import ai.gravityfield.gravity_sdk.models.internal.InlineViewCache
 import ai.gravityfield.gravity_sdk.models.internal.ScrollProvider
@@ -31,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -100,6 +102,12 @@ class GravityInlineView @JvmOverloads constructor(
     }
 
     private val pageContextProvider = PageContextProvider()
+    private var inlineRules by mutableStateOf<List<RtRule>?>(null)
+
+    /** Reload this placement with recommendation rules; null omits rules from the request. */
+    fun setRules(rules: List<RtRule>?) {
+        inlineRules = rules?.toList()
+    }
 
     fun init(pageContext: PageContext) {
         pageContextProvider.provide(pageContext)
@@ -107,24 +115,28 @@ class GravityInlineView @JvmOverloads constructor(
 
     @Composable
     override fun Content() {
-        GravityView(
-            selector,
-            colorInt,
-            cornerRadius,
-            cornerRadiusTopStart,
-            cornerRadiusTopEnd,
-            cornerRadiusBottomStart,
-            cornerRadiusBottomEnd,
-            loaderLayoutResId,
-            pageContextProvider,
-        ) {
-            post {
-                layoutParams = layoutParams.apply {
-                    height = TypedValue.applyDimension(
-                        TypedValue.COMPLEX_UNIT_DIP,
-                        it.toFloat(),
-                        resources.displayMetrics
-                    ).toInt()
+        // A new rules selection starts a fresh placement, so the new content reports its own impression.
+        key(inlineRules) {
+            GravityView(
+                selector,
+                colorInt,
+                cornerRadius,
+                cornerRadiusTopStart,
+                cornerRadiusTopEnd,
+                cornerRadiusBottomStart,
+                cornerRadiusBottomEnd,
+                loaderLayoutResId,
+                pageContextProvider,
+                rules = inlineRules,
+            ) {
+                post {
+                    layoutParams = layoutParams.apply {
+                        height = TypedValue.applyDimension(
+                            TypedValue.COMPLEX_UNIT_DIP,
+                            it.toFloat(),
+                            resources.displayMetrics
+                        ).toInt()
+                    }
                 }
             }
         }
@@ -142,6 +154,7 @@ private fun GravityView(
     cornerRadiusBottomEnd: Float,
     loaderLayoutResId: Int,
     pageContextProvider: PageContextProvider,
+    rules: List<RtRule>?,
     changeHeight: (Double) -> Unit,
 ) {
     var result by remember { mutableStateOf<ContentResponse?>(null) }
@@ -149,23 +162,25 @@ private fun GravityView(
     var isLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val view = LocalView.current
+    var request: kotlinx.coroutines.Job? by remember { mutableStateOf(null) }
 
-    LaunchedEffect(selector) {
+    LaunchedEffect(selector, rules) {
         pageContextProvider.setListener {
             pageContext = it
 
-            scope.launch(Dispatchers.IO) {
+            request?.cancel()
+            request = scope.launch(Dispatchers.IO) {
                 val sdk = GravitySDK.awaitInitializedInstance()
                 sdk.loadInlineContent(
                     awaitActive = { view.awaitInlineAttachment() },
                     load = { identity ->
-                        val cache = sdk.getInlineViewCache(selector, it)
+                        val cache = if (rules == null) sdk.getInlineViewCache(selector, it) else null
                         if (cache != null) {
                             cache.content
                         } else {
                             withContext(Dispatchers.Main) { isLoading = true }
-                            val response = sdk.getContentBySelector(selector, it)
-                            sdk.putInlineViewCache(selector, it, InlineViewCache(response), identity)
+                            val response = sdk.getContentBySelector(selector, it, rules)
+                            if (rules == null) sdk.putInlineViewCache(selector, it, InlineViewCache(response), identity)
                             response
                         }
                     },
@@ -188,7 +203,7 @@ private fun GravityView(
                     failed = { identity, _ ->
                         isLoading = false
                         changeHeight(0.0)
-                        sdk.putInlineViewCache(selector, it, InlineViewCache(), identity)
+                        if (rules == null) sdk.putInlineViewCache(selector, it, InlineViewCache(), identity)
                     },
                 )
             }
@@ -196,9 +211,10 @@ private fun GravityView(
 
     }
 
-    DisposableEffect(selector) {
+    DisposableEffect(selector, rules) {
         onDispose {
             pageContextProvider.removeListener()
+            request?.cancel()
         }
     }
 

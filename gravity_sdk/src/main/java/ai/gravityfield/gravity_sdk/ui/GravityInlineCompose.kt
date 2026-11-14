@@ -3,6 +3,7 @@ package ai.gravityfield.gravity_sdk.ui
 import ai.gravityfield.gravity_sdk.GravitySDK
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.PageContext
+import ai.gravityfield.gravity_sdk.models.RtRule
 import ai.gravityfield.gravity_sdk.network.Campaign
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
@@ -23,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -37,12 +39,39 @@ import coil3.compose.rememberAsyncImagePainter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+/**
+ * Inline content whose recommendations follow [rules]; null omits rules from the request.
+ * Changing rules reloads the placement and reports the impression of the new content.
+ */
 @Composable
 fun GravityInlineCompose(
     modifier: Modifier,
     selector: String,
     pageContext: PageContext,
     loader: (@Composable () -> Unit)?,
+    rules: List<RtRule>?,
+) {
+    // A new rules selection starts a fresh placement: the previous request, content and impression are dropped.
+    key(rules) {
+        InlineComposePlacement(modifier, selector, pageContext, loader, rules)
+    }
+}
+
+@Composable
+fun GravityInlineCompose(
+    modifier: Modifier,
+    selector: String,
+    pageContext: PageContext,
+    loader: (@Composable () -> Unit)?,
+) = InlineComposePlacement(modifier, selector, pageContext, loader, rules = null)
+
+@Composable
+private fun InlineComposePlacement(
+    modifier: Modifier,
+    selector: String,
+    pageContext: PageContext,
+    loader: (@Composable () -> Unit)?,
+    rules: List<RtRule>?,
 ) {
     var campaign by remember { mutableStateOf<Campaign?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -56,7 +85,7 @@ fun GravityInlineCompose(
         val sdk = GravitySDK.awaitInitializedInstance()
         scope.launch(Dispatchers.IO) {
             sdk.loadInlineContent(
-                load = { sdk.getContentBySelector(selector, pageContext) },
+                load = { sdk.getContentBySelector(selector, pageContext, rules) },
                 loaded = { result ->
                     isLoading = false
                     campaign = result?.data?.firstOrNull()

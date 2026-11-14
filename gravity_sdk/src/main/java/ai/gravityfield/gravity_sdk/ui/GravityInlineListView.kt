@@ -6,6 +6,7 @@ import ai.gravityfield.gravity_sdk.R
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.CampaignContent
 import ai.gravityfield.gravity_sdk.models.GravityLayoutWidth
+import ai.gravityfield.gravity_sdk.models.RtRule
 import ai.gravityfield.gravity_sdk.models.PageContext
 import ai.gravityfield.gravity_sdk.models.internal.InlineViewCache
 import ai.gravityfield.gravity_sdk.models.internal.ScrollProvider
@@ -38,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -111,6 +113,12 @@ class GravityInlineListView @JvmOverloads constructor(
     }
 
     private val pageContextProvider = PageContextProvider()
+    private var inlineRules by mutableStateOf<List<RtRule>?>(null)
+
+    /** Reload this placement with recommendation rules; null omits rules from the request. */
+    fun setRules(rules: List<RtRule>?) {
+        inlineRules = rules?.toList()
+    }
 
     fun init(pageContext: PageContext) {
         pageContextProvider.provide(pageContext)
@@ -118,24 +126,28 @@ class GravityInlineListView @JvmOverloads constructor(
 
     @Composable
     override fun Content() {
-        GravityListView(
-            groupSelector,
-            colorInt,
-            cornerRadius,
-            cornerRadiusTopStart,
-            cornerRadiusTopEnd,
-            cornerRadiusBottomStart,
-            cornerRadiusBottomEnd,
-            loaderLayoutResId,
-            pageContextProvider,
-        ) {
-            post {
-                layoutParams = layoutParams.apply {
-                    height = TypedValue.applyDimension(
-                        TypedValue.COMPLEX_UNIT_DIP,
-                        it.toFloat(),
-                        resources.displayMetrics
-                    ).toInt()
+        // A new rules selection starts a fresh placement without the previous request or content.
+        key(inlineRules) {
+            GravityListView(
+                groupSelector,
+                colorInt,
+                cornerRadius,
+                cornerRadiusTopStart,
+                cornerRadiusTopEnd,
+                cornerRadiusBottomStart,
+                cornerRadiusBottomEnd,
+                loaderLayoutResId,
+                pageContextProvider,
+                rules = inlineRules,
+            ) {
+                post {
+                    layoutParams = layoutParams.apply {
+                        height = TypedValue.applyDimension(
+                            TypedValue.COMPLEX_UNIT_DIP,
+                            it.toFloat(),
+                            resources.displayMetrics
+                        ).toInt()
+                    }
                 }
             }
         }
@@ -153,6 +165,7 @@ private fun GravityListView(
     cornerRadiusBottomEnd: Float,
     loaderLayoutResId: Int,
     pageContextProvider: PageContextProvider,
+    rules: List<RtRule>?,
     changeHeight: (Double) -> Unit,
 ) {
     var items by remember { mutableStateOf<List<InlineListViewItem>?>(null) }
@@ -160,23 +173,25 @@ private fun GravityListView(
     var isLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val view = LocalView.current
+    var request: kotlinx.coroutines.Job? by remember { mutableStateOf(null) }
 
-    LaunchedEffect(groupSelector) {
+    LaunchedEffect(groupSelector, rules) {
         pageContextProvider.setListener {
             pageContext = it
 
-            scope.launch(Dispatchers.IO) {
+            request?.cancel()
+            request = scope.launch(Dispatchers.IO) {
                 val sdk = GravitySDK.awaitInitializedInstance()
                 sdk.loadInlineContent(
                     awaitActive = { view.awaitInlineAttachment() },
                     load = { identity ->
-                        val cache = sdk.getInlineListViewCache(groupSelector, it)
+                        val cache = if (rules == null) sdk.getInlineListViewCache(groupSelector, it) else null
                         if (cache != null) {
                             cache.content
                         } else {
                             withContext(Dispatchers.Main) { isLoading = true }
-                            val response = sdk.getContentByGroupSelector(groupSelector, it)
-                            sdk.putInlineListViewCache(groupSelector, it, InlineViewCache(response), identity)
+                            val response = sdk.getContentByGroupSelector(groupSelector, it, rules)
+                            if (rules == null) sdk.putInlineListViewCache(groupSelector, it, InlineViewCache(response), identity)
                             response
                         }
                     },
@@ -195,16 +210,17 @@ private fun GravityListView(
                     failed = { identity, _ ->
                         isLoading = false
                         changeHeight(0.0)
-                        sdk.putInlineListViewCache(groupSelector, it, InlineViewCache(), identity)
+                        if (rules == null) sdk.putInlineListViewCache(groupSelector, it, InlineViewCache(), identity)
                     },
                 )
             }
         }
     }
 
-    DisposableEffect(groupSelector) {
+    DisposableEffect(groupSelector, rules) {
         onDispose {
             pageContextProvider.removeListener()
+            request?.cancel()
         }
     }
 
