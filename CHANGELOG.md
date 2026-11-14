@@ -4,6 +4,8 @@
 
 - Keep appeared modal content mounted across backgrounding even when its visible-impression URL is absent or cannot be queued.
 
+- Track one close after permanent host removal of appeared in-app overlays or native dialogs; keep removals before appearance silent and avoid counting restored windows as closed.
+
 - Send close tracking once when modal, bottom-sheet or fullscreen close controls share the configured onClose action, including appeared content without a visible-impression URL.
 
 - Return the chosen campaign’s non-negative `delayTime` in NoShow responses and load callbacks without waiting; parse decimal priority/delay values exactly with Unicode whitespace, normalize negative load-event constructor delays, and demonstrate app-owned delayed rendering.

@@ -104,6 +104,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalView
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
@@ -1016,11 +1020,13 @@ class GravitySDK private constructor(
             activity = activity,
             dismissController = dismissController,
             onBack = ::dismiss,
+            onExternalRemoval = ::dismiss,
             opening = opening,
             onAbandoned = { presentationGate.closed(content.contentId) },
             onBackground = { opening.background { presentation.close() } },
         ) {
             Dialog(onDismissRequest = ::dismiss) {
+                HostRemovalObserver(activity, ::dismiss)
                 GravityModalContent(
                     content,
                     campaign,
@@ -1072,6 +1078,7 @@ class GravitySDK private constructor(
             activity = activity,
             dismissController = dismissController,
             onBack = ::dismiss,
+            onExternalRemoval = ::dismiss,
             opening = opening,
             onAbandoned = { presentationGate.closed(content.contentId) },
             onBackground = { opening.background { presentation.close() } },
@@ -1099,6 +1106,7 @@ class GravitySDK private constructor(
                 dragHandle = null,
                 sheetState = state,
             ) {
+                HostRemovalObserver(activity, ::dismiss)
                 GravityBottomSheetContent(
                     content,
                     campaign,
@@ -1140,6 +1148,7 @@ class GravitySDK private constructor(
             activity = activity,
             dismissController = dismissController,
             onBack = ::dismiss,
+            onExternalRemoval = ::dismiss,
             opening = opening,
             onAbandoned = { presentationGate.closed(content.contentId) },
             onBackground = { opening.background { presentation.close() } },
@@ -1201,6 +1210,7 @@ class GravitySDK private constructor(
             activity = activity,
             dismissController = dismissController,
             onBack = ::dismiss,
+            onExternalRemoval = ::dismiss,
             opening = opening,
             onAbandoned = { presentationGate.closed(content.contentId) },
             onBackground = { opening.background {}; presentation.close() },
@@ -1364,10 +1374,37 @@ class GravitySDK private constructor(
         }
     }
 
+    /** A native dialog can disappear without Compose invoking onDismissRequest. */
+    @Composable
+    private fun HostRemovalObserver(activity: Activity, onRemoved: () -> Unit) {
+        val view = LocalView.current
+        val removalState = LocalOverlayRemovalState.current
+        DisposableEffect(view, removalState) {
+            val state = removalState
+            state?.generation = (state?.generation ?: 0) + 1
+            val listener = object : View.OnAttachStateChangeListener {
+                override fun onViewAttachedToWindow(v: View) = Unit
+                override fun onViewDetachedFromWindow(v: View) {
+                    val generation = state?.generation
+                    Handler(Looper.getMainLooper()).post {
+                        // Disposing/recreating a window as part of host reattachment
+                        // must not turn a restored presentation into a close.
+                        if (generation == state?.generation && !view.isAttachedToWindow && !activity.isChangingConfigurations) onRemoved()
+                    }
+                }
+            }
+            view.addOnAttachStateChangeListener(listener)
+            onDispose {
+                view.removeOnAttachStateChangeListener(listener)
+            }
+        }
+    }
+
     private fun showOverlay(
         activity: Activity,
         dismissController: DismissController = DismissController(),
         onBack: () -> Unit,
+        onExternalRemoval: () -> Unit = {},
         opening: ModalImpressionSession? = null,
         onAbandoned: () -> Unit = {},
         onBackground: () -> Unit = {},
@@ -1375,6 +1412,7 @@ class GravitySDK private constructor(
     ) {
         val decorView = activity.window?.decorView as ViewGroup
         val fontResId = uiSettings?.fontResId
+        val removalState = OverlayRemovalState()
 
         val view = ComposeView(activity).apply {
             setContent {
@@ -1382,7 +1420,7 @@ class GravitySDK private constructor(
                     if (fontResId != null) FontFamily(Font(fontResId)) else FontFamily.Default
                 }
                 BackHandler { onBack.invoke() }
-                CompositionLocalProvider(LocalAppFont provides font, LocalModalImpression provides opening) {
+                CompositionLocalProvider(LocalAppFont provides font, LocalModalImpression provides opening, LocalOverlayRemovalState provides removalState) {
                     content()
                 }
             }
@@ -1393,13 +1431,23 @@ class GravitySDK private constructor(
             val owner = activity as? LifecycleOwner
             val observer = LifecycleEventObserver { _, event ->
                 if (event == Lifecycle.Event.ON_STOP) onBackground()
+                if (event == Lifecycle.Event.ON_DESTROY && !activity.isChangingConfigurations) onExternalRemoval()
             }
             owner?.lifecycle?.addObserver(observer)
             view.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
-                override fun onViewAttachedToWindow(v: View) = Unit
+                private var released = false
+                override fun onViewAttachedToWindow(v: View) { removalState.generation++ }
                 override fun onViewDetachedFromWindow(v: View) {
-                    owner?.lifecycle?.removeObserver(observer)
-                    opening.detach(onAbandoned)
+                    removalState.generation++
+                    // A host may reparent the overlay in this UI turn. Close only
+                    // when it remains gone, before detach can abandon a drawn opening.
+                    Handler(Looper.getMainLooper()).post {
+                        if (released || view.isAttachedToWindow) return@post
+                        released = true
+                        owner?.lifecycle?.removeObserver(observer)
+                        if (!activity.isChangingConfigurations) onExternalRemoval()
+                        opening.detach(onAbandoned)
+                    }
                 }
             })
         }
@@ -1443,3 +1491,7 @@ internal val LocalAppFont = compositionLocalOf<FontFamily> {
 internal val LocalScrollProvider = compositionLocalOf<ScrollProvider?> {
     null
 }
+
+/** UI-thread generation shared by an overlay and its native dialog window. */
+private class OverlayRemovalState { var generation = 0 }
+private val LocalOverlayRemovalState = compositionLocalOf<OverlayRemovalState?> { null }

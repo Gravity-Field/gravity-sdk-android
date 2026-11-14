@@ -354,6 +354,83 @@ class SnackbarEventsTest {
         }
     }
 
+    @Test fun externallyDismissedNativeDialogReportsClose() = runBlocking {
+        for (delivery in listOf(DeliveryMethod.MODAL, DeliveryMethod.BOTTOM_SHEET)) {
+            for (hasVisibleUrl in listOf(true, false)) {
+                val h = Harness(delivery = delivery, hasVisibleUrl = hasVisibleUrl)
+                try {
+                    h.show(); h.drawModalStep(); h.hostRemove(HostRemoval.DIALOG)
+                    repeat(60) { h.composeWithoutDrawing() }; h.awaitTrackingJobs(); h.flush()
+                    assertEquals(1, h.callbacks.count { it is ContentCloseEvent })
+                    assertEquals(1, h.paths.count { it == "/close" })
+                } finally { h.close() }
+            }
+        }
+    }
+
+    @Test fun externallyRemovedOverlayWithoutWrimpReportsClose() = runBlocking {
+        for (delivery in listOf(DeliveryMethod.FULL_SCREEN, DeliveryMethod.MODAL, DeliveryMethod.BOTTOM_SHEET, DeliveryMethod.SNACK_BAR)) {
+            val h = Harness(delivery = delivery, hasVisibleUrl = false)
+            try {
+                h.show()
+                if (delivery in listOf(DeliveryMethod.MODAL, DeliveryMethod.BOTTOM_SHEET)) h.drawModalStep() else h.drawContent()
+                h.hostRemove(HostRemoval.OVERLAY)
+                repeat(60) { h.composeWithoutDrawing() }; h.awaitTrackingJobs(); h.flush()
+                assertEquals(1, h.callbacks.count { it is ContentCloseEvent })
+                assertEquals(1, h.paths.count { it == "/close" })
+            } finally { h.close() }
+        }
+    }
+
+    private enum class HostRemoval { OVERLAY, FINISH, DESTROY, RECREATE, DIALOG }
+
+    @Test fun hostRemovalReportsExactlyOnceOnlyAfterAppearance() = runBlocking {
+        val failures = mutableListOf<String>()
+        for (delivery in listOf(DeliveryMethod.FULL_SCREEN, DeliveryMethod.MODAL, DeliveryMethod.BOTTOM_SHEET, DeliveryMethod.SNACK_BAR)) {
+            for (removal in HostRemoval.entries) {
+                if (removal == HostRemoval.DIALOG && delivery !in listOf(DeliveryMethod.MODAL, DeliveryMethod.BOTTOM_SHEET)) continue
+                for (appeared in listOf(false, true)) {
+                    val h = Harness(delivery = delivery)
+                    try {
+                        h.show()
+                        if (delivery in listOf(DeliveryMethod.MODAL, DeliveryMethod.BOTTOM_SHEET)) {
+                            if (appeared) h.drawModalStep() else repeat(8) { h.composeWithoutDrawing() }
+                        } else if (appeared) h.drawContent()
+                        val dialog = if (delivery in listOf(DeliveryMethod.MODAL, DeliveryMethod.BOTTOM_SHEET)) org.robolectric.shadows.ShadowDialog.getLatestDialog() else null
+                        h.hostRemove(removal)
+                        repeat(60) { h.composeWithoutDrawing() }
+                        h.awaitTrackingJobs(); h.flush()
+                        println("HOST_MATRIX $delivery $removal appeared=$appeared close=${h.callbacks.count { it is ContentCloseEvent }} url=${h.paths.count { it == "/close" }} overlay=${h.isOverlayAttached()} dialog=${dialog?.isShowing} dialogAttached=${dialog?.window?.decorView?.isAttachedToWindow} changing=${h.changingConfigurations()} gateFree=${h.reserveAgain() != null}")
+                        if (removal != HostRemoval.RECREATE) {
+                            val expected = if (appeared) 1 else 0
+                            if (h.callbacks.count { it is ContentCloseEvent } != expected || h.paths.count { it == "/close" } != expected) failures += "$delivery/$removal appeared=$appeared"
+                            if (h.isOverlayAttached()) failures += "$delivery/$removal left an overlay"
+                            var removedAgain: Boolean? = null
+                            h.sdk.dismissInApp(h.content.contentId) { removedAgain = it }; h.flush()
+                            assertEquals("External removal must retire the registry entry", false, removedAgain)
+                        }
+                    } finally { h.close() }
+                }
+            }
+        }
+        assertEquals("Close mismatch cases", emptyList<String>(), failures)
+    }
+
+    @Test fun appearedModalsWithoutVisibleUrlSurviveBackground() = runBlocking {
+        val results = mutableMapOf<DeliveryMethod, Boolean>()
+        for (delivery in listOf(DeliveryMethod.FULL_SCREEN, DeliveryMethod.MODAL, DeliveryMethod.BOTTOM_SHEET)) {
+            val h = Harness(delivery = delivery, hasVisibleUrl = false)
+            try {
+                h.show()
+                if (delivery == DeliveryMethod.FULL_SCREEN) h.drawContent() else h.drawModalStep()
+                h.background(); repeat(60) { h.composeWithoutDrawing() }; h.awaitTrackingJobs(); h.flush()
+                println("BACKGROUND_MATRIX $delivery overlay=${h.isOverlayAttached()} close=${h.callbacks.count { it is ContentCloseEvent }} url=${h.paths.count { it == "/close" }}")
+                results[delivery] = h.isOverlayAttached() && h.callbacks.none { it is ContentCloseEvent } && h.paths.none { it == "/close" }
+            } finally { h.close() }
+        }
+        assertTrue("Appeared modals must remain available on resume without WRIMP: $results", results.values.all { it })
+    }
+
     @Test fun autoWithoutOnCloseSendsOnlyTheCallbackAndReleasesReservation() = runBlocking {
         val h = Harness(hasOnClose = false)
         try {
@@ -583,6 +660,21 @@ class SnackbarEventsTest {
             org.robolectric.shadow.api.Shadow.extract<org.robolectric.shadows.ShadowViewRootImpl>(root).callWindowFocusChanged(true)
             repeat(8) { composeWithoutDrawing() }
             drawView(decor)
+        }
+        fun isOverlayAttached() = overlay?.isAttachedToWindow == true
+        private var removedDuringConfigurationChange = false
+        fun changingConfigurations() = removedDuringConfigurationChange
+        fun hostRemove(removal: HostRemoval) {
+            val removedActivity = activity.get()
+            when (removal) {
+                HostRemoval.OVERLAY -> (requireNotNull(overlay).parent as ViewGroup).removeView(overlay)
+                HostRemoval.FINISH -> { activity.get().finish(); activity.pause().stop().destroy() }
+                HostRemoval.DESTROY -> activity.pause().stop().destroy()
+                HostRemoval.RECREATE -> activity.recreate()
+                HostRemoval.DIALOG -> org.robolectric.shadows.ShadowDialog.getLatestDialog().dismiss()
+            }
+            removedDuringConfigurationChange = removedActivity.isChangingConfigurations
+            flush()
         }
         fun destroyActivity() { activity.pause().stop().destroy(); flush() }
         fun focus(value: Boolean) { activity.windowFocusChanged(value); flush() }
