@@ -47,8 +47,11 @@ internal fun GravityBottomSheetContent(
     val backgroundFit = style?.backgroundFit ?: ContentScale.Crop
     val close = frameUi?.close
 
+    val presentationAnalytics = LocalPresentationAnalytics.current
     LaunchedEffect(Unit) {
-        ContentEventService.instance.sendContentImpression(content, campaign)
+        if (presentationAnalytics?.claimImpression() != false) {
+            ContentEventService.instance.sendContentImpression(content, campaign)
+        }
     }
 
     ModalVisibilityDetector {

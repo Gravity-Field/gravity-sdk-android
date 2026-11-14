@@ -43,9 +43,9 @@ class HostRemovalDeviceTest {
     @Test fun immediateOverlayReparentingDoesNotCloseRestoredContent() {
         for (delivery in deliveries) exercise(delivery, Removal.REPARENT)
     }
-    @Test fun recreationDoesNotInventCloseForNativeModals() {
-        // Android does not restore this SDK overlay itself. Keep rotation policy unchanged.
-        for (delivery in deliveries.filter { it != DeliveryMethod.SNACK_BAR }) exercise(delivery, Removal.RECREATE)
+    @Test fun recreationKeepsTheSameShowingInTheNewActivity() {
+        // As on iOS/Flutter, a configuration change keeps the presentation: no close, then one real close.
+        for (delivery in deliveries) exercise(delivery, Removal.RECREATE)
     }
     @Test fun appearedModalsWithoutWrimpSurviveBackgroundAndCloseExplicitly() {
         for (delivery in deliveries.filter { it != DeliveryMethod.SNACK_BAR }) exercise(delivery, Removal.BACKGROUND)
@@ -123,7 +123,25 @@ class HostRemovalDeviceTest {
             if (removal == Removal.REPARENT) assertTrue(overlay.isAttachedToWindow)
             if (removal == Removal.RECREATE) {
                 assertTrue(oldActivity.isChangingConfigurations)
-                assertFalse("The old overlay is not automatically restored", overlay.isAttachedToWindow)
+                assertFalse("The old Activity's overlay is gone", overlay.isAttachedToWindow)
+                lateinit var restored: View
+                scenario.onActivity { activity ->
+                    assertNotSame(oldActivity, activity)
+                    restored = (activity.window.decorView as ViewGroup).getChildAt(0)
+                }
+                await { restored.isAttachedToWindow }
+                assertNotSame("$delivery must be remounted in the recreated Activity", overlay, restored)
+                assertTrue("$delivery restored SDK overlay", restored is androidx.compose.ui.platform.ComposeView)
+                assertEquals("$delivery opening stays confirmed once", 1, confirmations.get())
+                instrumentation.runOnMainSync { sdk.dismissInApp(content.contentId) }
+                await { closes.get() == 1 && server.recorded.count { it.path == "/close" } >= 1 && !restored.isAttachedToWindow }
+                instrumentation.waitForIdleSync()
+                Thread.sleep(150)
+                assertEquals("$delivery one close after rotation", 1, closes.get())
+                assertEquals("$delivery one close URL after rotation", 1, server.recorded.count { it.path == "/close" })
+                instrumentation.runOnMainSync {
+                    assertNotNull("UI reservation must be released", sdk.presentationGate.reserve("host-campaign", sdk.presentationGate.beginRequest("after", false)))
+                }
             }
             if (removal !in listOf(Removal.RECREATE, Removal.REPARENT)) instrumentation.runOnMainSync {
                 assertFalse("$delivery/$removal overlay must be removed", overlay.isAttachedToWindow)

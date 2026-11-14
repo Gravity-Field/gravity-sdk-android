@@ -8,6 +8,8 @@
 
 - Track one close after permanent host removal of appeared in-app overlays or native dialogs; keep removals before appearance silent and avoid counting restored windows as closed.
 
+- Keep modal, bottom-sheet, fullscreen and snackbar content open across Activity recreation for configuration changes such as rotation, remounting the same presentation in the new Activity without new impression, visible-impression, product-visibility or close events; the campaign stays attached until its real close, which is tracked once.
+
 - Send close tracking once when modal, bottom-sheet or fullscreen close controls share the configured onClose action, including appeared content without a visible-impression URL.
 
 - Return the chosen campaign’s non-negative `delayTime` in NoShow responses and load callbacks without waiting; parse decimal priority/delay values exactly with Unicode whitespace, normalize negative load-event constructor delays, and demonstrate app-owned delayed rendering.

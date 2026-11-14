@@ -27,6 +27,7 @@ internal fun ProductsRow(
     campaign: Campaign,
 ) {
     val style = element.style
+    val presentationAnalytics = LocalPresentationAnalytics.current
     val height = style.size?.height
     val margin = style.margin
     val paddingValues = if (style.padding != null)
@@ -68,11 +69,13 @@ internal fun ProductsRow(
                 val slot = slots[index]
                 VisibilityDetector(
                     onVisible = {
-                        ProductEventService.instance.sendProductVisibleImpression(
-                            slot,
-                            content,
-                            campaign
-                        )
+                        if (presentationAnalytics?.shouldReportRowProduct(slot) != false) {
+                            ProductEventService.instance.sendProductVisibleImpression(
+                                slot,
+                                content,
+                                campaign
+                            )
+                        }
                     }
                 ) {
                     if (GravitySDK.instance.productViewBuilder != null) {

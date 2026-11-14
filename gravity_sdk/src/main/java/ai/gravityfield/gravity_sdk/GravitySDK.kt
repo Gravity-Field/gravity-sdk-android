@@ -51,6 +51,8 @@ import ai.gravityfield.gravity_sdk.ui.GravitySnackbarContent1
 import ai.gravityfield.gravity_sdk.ui.GravitySnackbarContent2
 import ai.gravityfield.gravity_sdk.ui.hasProductsGrid
 import ai.gravityfield.gravity_sdk.ui.LocalModalImpression
+import ai.gravityfield.gravity_sdk.ui.LocalPresentationAnalytics
+import ai.gravityfield.gravity_sdk.ui.PresentationAnalytics
 import ai.gravityfield.gravity_sdk.ui.product_view_builder.ProductViewBuilder
 import ai.gravityfield.gravity_sdk.utils.ContentEventService
 import ai.gravityfield.gravity_sdk.utils.DeviceUtils
@@ -68,6 +70,8 @@ import ai.gravityfield.gravity_sdk.utils.VisibleImpressionOwner
 import ai.gravityfield.gravity_sdk.utils.VisibleImpressionStore
 import ai.gravityfield.gravity_sdk.utils.finishVisibleImpression
 import android.app.Activity
+import android.app.Application
+import android.os.Bundle
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -83,7 +87,10 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams
 import android.view.ViewGroup.MarginLayoutParams
+import androidx.activity.OnBackPressedDispatcherOwner
 import androidx.activity.compose.BackHandler
+import androidx.activity.findViewTreeOnBackPressedDispatcherOwner
+import androidx.activity.setViewTreeOnBackPressedDispatcherOwner
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
@@ -119,6 +126,14 @@ import androidx.core.view.children
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.findViewTreeLifecycleOwner
+import androidx.lifecycle.findViewTreeViewModelStoreOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.findViewTreeSavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import java.io.File
 import java.lang.ref.WeakReference
 import java.security.MessageDigest
@@ -812,7 +827,7 @@ class GravitySDK private constructor(
     }
 
     private fun registerInApp(
-        activity: Activity,
+        host: InAppHost,
         content: CampaignContent,
         campaign: Campaign,
         reportClose: () -> Boolean = { true },
@@ -830,9 +845,8 @@ class GravitySDK private constructor(
             if (success && shouldReportClose) contentEventService.sendContentClosed(content, campaign)
         }
         registered = WeakReference(presentation)
-        val host = WeakReference(activity)
         inAppPresentations.register(presentation, content.contentId, campaign.payload.firstOrNull()?.campaignId) {
-            host.get()?.let { !it.isDestroyed } == true
+            host.isShowing
         }
         return presentation
     }
@@ -995,13 +1009,14 @@ class GravitySDK private constructor(
                 inAppPresentations.containsCampaign(it)
             } == true)) return false
         val impression = opening ?: modalImpression(content, campaign)
+        val host = InAppHost(activity)
         when (content.deliveryMethod) {
-            DeliveryMethod.MODAL -> showModal(activity, content, campaign, item, impression)
-            DeliveryMethod.BOTTOM_SHEET -> showBottomSheet(activity, content, campaign, item, impression)
-            DeliveryMethod.FULL_SCREEN -> showFullScreen(activity, content, campaign, item, impression)
+            DeliveryMethod.MODAL -> showModal(host, content, campaign, item, impression)
+            DeliveryMethod.BOTTOM_SHEET -> showBottomSheet(host, content, campaign, item, impression)
+            DeliveryMethod.FULL_SCREEN -> showFullScreen(host, content, campaign, item, impression)
             DeliveryMethod.SNACK_BAR -> {
                 if (content.templateSystemName == null || content.templateSystemName == TemplateSystemName.UNKNOWN || content.variables?.frameUI == null) return false
-                showSnackbar(activity, content, campaign, impression)
+                showSnackbar(host, content, campaign, impression)
             }
             DeliveryMethod.INLINE, DeliveryMethod.UNKNOWN -> return false
         }
@@ -1009,14 +1024,14 @@ class GravitySDK private constructor(
     }
 
     private fun showModal(
-        activity: Activity,
+        host: InAppHost,
         content: CampaignContent,
         campaign: Campaign,
         item: Item?,
         opening: ModalImpressionSession,
     ) {
         val dismissController = DismissController()
-        val presentation = registerInApp(activity, content, campaign, reportClose = { opening.hasAppeared && !opening.isAbandoned }) { complete ->
+        val presentation = registerInApp(host, content, campaign, reportClose = { opening.hasAppeared && !opening.isAbandoned }) { complete ->
             opening.explicitClose()
             val attached = dismissController.listener != null
             dismissController.dismiss()
@@ -1027,7 +1042,7 @@ class GravitySDK private constructor(
         }
 
         showOverlay(
-            activity = activity,
+            host = host,
             dismissController = dismissController,
             onBack = ::dismiss,
             onExternalRemoval = ::dismiss,
@@ -1036,7 +1051,7 @@ class GravitySDK private constructor(
             onBackground = { opening.background { presentation.close() } },
         ) {
             Dialog(onDismissRequest = ::dismiss) {
-                HostRemovalObserver(activity, ::dismiss)
+                HostRemovalObserver(::dismiss)
                 GravityModalContent(
                     content,
                     campaign,
@@ -1045,7 +1060,7 @@ class GravitySDK private constructor(
                             onClickModel,
                             content,
                             campaign,
-                            activity,
+                            host.context,
                             ::dismiss,
                             opening
                         )
@@ -1058,7 +1073,7 @@ class GravitySDK private constructor(
 
     @OptIn(ExperimentalMaterial3Api::class)
     private fun showBottomSheet(
-        activity: Activity,
+        host: InAppHost,
         content: CampaignContent,
         campaign: Campaign,
         item: Item? = null,
@@ -1070,7 +1085,7 @@ class GravitySDK private constructor(
 
         val dismissController = DismissController()
         var requestClose: (((Boolean) -> Unit) -> Unit)? = null
-        val presentation = registerInApp(activity, content, campaign, reportClose = { opening.hasAppeared && !opening.isAbandoned }) { complete ->
+        val presentation = registerInApp(host, content, campaign, reportClose = { opening.hasAppeared && !opening.isAbandoned }) { complete ->
             opening.explicitClose()
             if (dismissController.listener == null) complete(false)
             else if (opening.isAbandoned) { dismissController.dismiss(); complete(true) }
@@ -1085,7 +1100,7 @@ class GravitySDK private constructor(
         }
 
         showOverlay(
-            activity = activity,
+            host = host,
             dismissController = dismissController,
             onBack = ::dismiss,
             onExternalRemoval = ::dismiss,
@@ -1116,7 +1131,7 @@ class GravitySDK private constructor(
                 dragHandle = null,
                 sheetState = state,
             ) {
-                HostRemovalObserver(activity, ::dismiss)
+                HostRemovalObserver(::dismiss)
                 GravityBottomSheetContent(
                     content,
                     campaign,
@@ -1125,7 +1140,7 @@ class GravitySDK private constructor(
                             onClickModel,
                             content,
                             campaign,
-                            activity,
+                            host.context,
                             dismissCallback = ::dismiss,
                             opening = opening
                         )
@@ -1137,14 +1152,14 @@ class GravitySDK private constructor(
     }
 
     private fun showFullScreen(
-        activity: Activity,
+        host: InAppHost,
         content: CampaignContent,
         campaign: Campaign,
         item: Item?,
         opening: ModalImpressionSession,
     ) {
         val dismissController = DismissController()
-        val presentation = registerInApp(activity, content, campaign, reportClose = { opening.hasAppeared && !opening.isAbandoned }) { complete ->
+        val presentation = registerInApp(host, content, campaign, reportClose = { opening.hasAppeared && !opening.isAbandoned }) { complete ->
             opening.explicitClose()
             val attached = dismissController.listener != null
             dismissController.dismiss()
@@ -1155,7 +1170,7 @@ class GravitySDK private constructor(
         }
 
         showOverlay(
-            activity = activity,
+            host = host,
             dismissController = dismissController,
             onBack = ::dismiss,
             onExternalRemoval = ::dismiss,
@@ -1171,7 +1186,7 @@ class GravitySDK private constructor(
                         onClickModel,
                         content,
                         campaign,
-                        activity,
+                        host.context,
                         ::dismiss,
                         opening
                     )
@@ -1182,7 +1197,7 @@ class GravitySDK private constructor(
     }
 
     private fun showSnackbar(
-        activity: Activity,
+        host: InAppHost,
         content: CampaignContent,
         campaign: Campaign,
         opening: ModalImpressionSession,
@@ -1194,7 +1209,7 @@ class GravitySDK private constructor(
         var appeared = false
         fun isCurrent() = GravitySDK.instance === this && sessions.isCurrent(originalIdentity) && !opening.isAbandoned
         val dismissController = DismissController()
-        val presentation = registerInApp(activity, content, campaign, reportClose = { appeared }) { complete ->
+        val presentation = registerInApp(host, content, campaign, reportClose = { appeared }) { complete ->
             opening.explicitClose()
             val attached = dismissController.listener != null
             dismissController.dismiss()
@@ -1210,14 +1225,14 @@ class GravitySDK private constructor(
                 onClickModel,
                 content,
                 campaign,
-                activity,
+                host.context,
                 ::dismiss,
                 opening
             )
         }
 
         showOverlay(
-            activity = activity,
+            host = host,
             dismissController = dismissController,
             onBack = ::dismiss,
             onExternalRemoval = ::dismiss,
@@ -1386,20 +1401,20 @@ class GravitySDK private constructor(
 
     /** A native dialog can disappear without Compose invoking onDismissRequest. */
     @Composable
-    private fun HostRemovalObserver(activity: Activity, onRemoved: () -> Unit) {
+    private fun HostRemovalObserver(onRemoved: () -> Unit) {
         val view = LocalView.current
-        val removalState = LocalOverlayRemovalState.current
-        DisposableEffect(view, removalState) {
-            val state = removalState
-            state?.generation = (state?.generation ?: 0) + 1
+        val state = LocalOverlayRemovalState.current ?: return
+        DisposableEffect(view, state) {
+            state.generation++
             val listener = object : View.OnAttachStateChangeListener {
                 override fun onViewAttachedToWindow(v: View) = Unit
                 override fun onViewDetachedFromWindow(v: View) {
-                    val generation = state?.generation
+                    val generation = state.generation
                     Handler(Looper.getMainLooper()).post {
-                        // Disposing/recreating a window as part of host reattachment
-                        // must not turn a restored presentation into a close.
-                        if (generation == state?.generation && !view.isAttachedToWindow && !activity.isChangingConfigurations) onRemoved()
+                        // Disposing/recreating a window as part of host reattachment or a
+                        // configuration recreation must not turn a kept presentation into a close.
+                        if (generation == state.generation && !view.isAttachedToWindow && !state.retired &&
+                            !state.activity.isChangingConfigurations) onRemoved()
                     }
                 }
             }
@@ -1411,7 +1426,7 @@ class GravitySDK private constructor(
     }
 
     private fun showOverlay(
-        activity: Activity,
+        host: InAppHost,
         dismissController: DismissController = DismissController(),
         onBack: () -> Unit,
         onExternalRemoval: () -> Unit = {},
@@ -1420,54 +1435,148 @@ class GravitySDK private constructor(
         onBackground: () -> Unit = {},
         content: @Composable () -> Unit,
     ) {
-        val decorView = activity.window?.decorView as ViewGroup
         val fontResId = uiSettings?.fontResId
-        val removalState = OverlayRemovalState()
+        // Per showing, not per Activity: a configuration recreation remounts the same presentation.
+        val analytics = PresentationAnalytics()
+        val handler = Handler(Looper.getMainLooper())
+        var mountGeneration = 0
+        var currentRemovalState: OverlayRemovalState? = null
+        var released = false
+        var recreation: HostRecreation? = null
+        var watcher: Application.ActivityLifecycleCallbacks? = null
+        val initial = requireNotNull(host.activity)
+        val application = initial.application
 
-        val view = ComposeView(activity).apply {
-            setContent {
-                val font = remember(fontResId) {
-                    if (fontResId != null) FontFamily(Font(fontResId)) else FontFamily.Default
-                }
-                BackHandler { onBack.invoke() }
-                CompositionLocalProvider(LocalAppFont provides font, LocalModalImpression provides opening, LocalOverlayRemovalState provides removalState) {
-                    content()
-                }
-            }
-            z = (decorView.children.maxOfOrNull { it.z } ?: 0f) + 1
+        fun stopRecreation() {
+            recreation?.let { handler.removeCallbacks(it.timeout) }
+            recreation = null
         }
-        if (opening != null) {
-            opening.attach()
-            val owner = activity as? LifecycleOwner
-            val observer = LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_STOP) onBackground()
-                if (event == Lifecycle.Event.ON_DESTROY && !activity.isChangingConfigurations) onExternalRemoval()
-            }
-            owner?.lifecycle?.addObserver(observer)
-            view.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
-                private var released = false
-                override fun onViewAttachedToWindow(v: View) { removalState.generation++ }
-                override fun onViewDetachedFromWindow(v: View) {
-                    removalState.generation++
-                    // A host may reparent the overlay in this UI turn. Close only
-                    // when it remains gone, before detach can abandon a drawn opening.
-                    Handler(Looper.getMainLooper()).post {
-                        if (released || view.isAttachedToWindow) return@post
-                        released = true
-                        owner?.lifecycle?.removeObserver(observer)
-                        if (!activity.isChangingConfigurations) onExternalRemoval()
-                        opening.detach(onAbandoned)
+        fun release() {
+            if (released) return
+            released = true
+            stopRecreation()
+            watcher?.let { application?.unregisterActivityLifecycleCallbacks(it) }
+            watcher = null
+            host.recreating = false
+            opening?.detach(onAbandoned)
+        }
+        // The old Activity has no recreated successor: that is a permanent host removal.
+        fun recreationLost() {
+            stopRecreation()
+            host.recreating = false
+            onExternalRemoval()
+            release()
+        }
+
+        val mount: (Activity) -> Unit = mount@{ activity ->
+            val decorView = activity.window?.decorView as? ViewGroup ?: run { recreationLost(); return@mount }
+            val mountId = ++mountGeneration
+            host.moveTo(activity)
+            val removalState = OverlayRemovalState(activity)
+            currentRemovalState = removalState
+            if (mountId > 1) analytics.remounted()
+            val view = ComposeView(activity).apply {
+                setContent {
+                    val font = remember(fontResId) {
+                        if (fontResId != null) FontFamily(Font(fontResId)) else FontFamily.Default
+                    }
+                    BackHandler { onBack.invoke() }
+                    CompositionLocalProvider(
+                        LocalAppFont provides font,
+                        LocalModalImpression provides opening,
+                        LocalOverlayRemovalState provides removalState,
+                        LocalPresentationAnalytics provides analytics,
+                    ) {
+                        content()
                     }
                 }
-            })
+                z = (decorView.children.maxOfOrNull { it.z } ?: 0f) + 1
+                // A recreated host may install its content after onStart; Compose still needs owners.
+                if (decorView.findViewTreeLifecycleOwner() == null) (activity as? LifecycleOwner)?.let { setViewTreeLifecycleOwner(it) }
+                if (decorView.findViewTreeSavedStateRegistryOwner() == null) (activity as? SavedStateRegistryOwner)?.let { setViewTreeSavedStateRegistryOwner(it) }
+                if (decorView.findViewTreeViewModelStoreOwner() == null) (activity as? ViewModelStoreOwner)?.let { setViewTreeViewModelStoreOwner(it) }
+                if (decorView.findViewTreeOnBackPressedDispatcherOwner() == null) (activity as? OnBackPressedDispatcherOwner)?.let { setViewTreeOnBackPressedDispatcherOwner(it) }
+            }
+            if (opening != null) {
+                val owner = activity as? LifecycleOwner
+                val observer = LifecycleEventObserver { _, event ->
+                    // A configuration recreation is the same showing, not an app switch.
+                    if (event == Lifecycle.Event.ON_STOP && !activity.isChangingConfigurations) onBackground()
+                    if (event == Lifecycle.Event.ON_DESTROY && !activity.isChangingConfigurations) onExternalRemoval()
+                }
+                owner?.lifecycle?.addObserver(observer)
+                view.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+                    private var detached = false
+                    override fun onViewAttachedToWindow(v: View) { removalState.generation++ }
+                    override fun onViewDetachedFromWindow(v: View) {
+                        removalState.generation++
+                        // A host may reparent the overlay in this UI turn. Close only
+                        // when it remains gone, before detach can abandon a drawn opening.
+                        handler.post {
+                            if (detached || view.isAttachedToWindow) return@post
+                            detached = true
+                            owner?.lifecycle?.removeObserver(observer)
+                            // The recreated Activity owns (or is about to own) this showing.
+                            if (removalState.retired || mountId != mountGeneration) return@post
+                            if (!activity.isChangingConfigurations) onExternalRemoval()
+                            release()
+                        }
+                    }
+                })
+            }
+            dismissController.listener = {
+                (view.parent as? ViewGroup)?.removeView(view)
+                dismissController.dispose()
+                // Closed while waiting for the recreated Activity: nothing will detach later.
+                if (recreation != null) release()
+            }
+            decorView.addView(
+                view, 0, MarginLayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+            )
         }
-        dismissController.listener = {
-            decorView.removeView(view)
-            dismissController.dispose()
+
+        if (opening == null) { mount(initial); return }
+        opening.attach()
+        mount(initial)
+        if (application == null || released) return
+        // Follows this showing from a configuration-destroyed Activity to its recreated instance.
+        watcher = object : Application.ActivityLifecycleCallbacks {
+            override fun onActivityDestroyed(activity: Activity) {
+                val waiting = recreation
+                if (waiting == null) {
+                    if (released || activity !== host.activity || !activity.isChangingConfigurations ||
+                        dismissController.listener == null) return
+                    currentRemovalState?.retired = true
+                    host.recreating = true
+                    val next = HostRecreation(activity.javaClass, activity.taskId) { recreationLost() }
+                    recreation = next
+                    handler.postDelayed(next.timeout, RECREATION_TIMEOUT_MILLIS)
+                } else if (activity === waiting.successor) {
+                    waiting.successor = null
+                    // A successor destroyed by another configuration change is replaced by a newer one.
+                    if (!activity.isChangingConfigurations) recreationLost()
+                }
+            }
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
+                val waiting = recreation ?: return
+                if (waiting.successor == null && activity.javaClass == waiting.activityClass &&
+                    activity.taskId == waiting.taskId) waiting.successor = activity
+            }
+            override fun onActivityStarted(activity: Activity) {
+                val waiting = recreation ?: return
+                if (activity !== waiting.successor) return
+                handler.removeCallbacks(waiting.timeout)
+                recreation = null
+                if (dismissController.listener == null) { release(); return }
+                mount(activity)
+            }
+            override fun onActivityResumed(activity: Activity) = Unit
+            override fun onActivityPaused(activity: Activity) = Unit
+            override fun onActivityStopped(activity: Activity) = Unit
+            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) = Unit
         }
-        decorView.addView(
-            view, 0, MarginLayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
-        )
+        // Registered for the showing's lifetime; release() removes it on the final close.
+        watcher?.let(application::registerActivityLifecycleCallbacks)
     }
 
     private inline fun <reified T> findOwner(context: Context): T? {
@@ -1502,6 +1611,33 @@ internal val LocalScrollProvider = compositionLocalOf<ScrollProvider?> {
     null
 }
 
-/** UI-thread generation shared by an overlay and its native dialog window. */
-private class OverlayRemovalState { var generation = 0 }
+/** UI-thread state shared by one overlay mount and its native dialog window. */
+private class OverlayRemovalState(val activity: Activity) {
+    var generation = 0
+    /** Set when the Activity is destroyed for a configuration change; its windows go silently. */
+    var retired = false
+}
+
+/** The Activity showing one SDK presentation; it changes only across configuration recreation. */
+private class InAppHost(activity: Activity) {
+    private var reference = WeakReference(activity)
+    private val application: Context = activity.applicationContext
+    /** Between a configuration destroy and the recreated Activity, the showing stays open. */
+    var recreating = false
+    val activity: Activity? get() = reference.get()
+    /** Click handlers and remounts resolve the current Activity at use time. */
+    val context: Context get() = reference.get() ?: application
+    val isShowing: Boolean get() = recreating || reference.get()?.isDestroyed == false
+    fun moveTo(activity: Activity) {
+        reference = WeakReference(activity)
+        recreating = false
+    }
+}
+
+private class HostRecreation(val activityClass: Class<out Activity>, val taskId: Int, lost: () -> Unit) {
+    var successor: Activity? = null
+    val timeout = Runnable(lost)
+}
+
+private const val RECREATION_TIMEOUT_MILLIS = 10_000L
 private val LocalOverlayRemovalState = compositionLocalOf<OverlayRemovalState?> { null }

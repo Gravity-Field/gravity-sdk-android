@@ -100,7 +100,7 @@ class ModalVisibilityWiringTest {
             GravitySDK.initialize(rule.activity, "ui-test-key", "ui-test-section", {
                 if (it is ContentCloseEvent) closes.incrementAndGet()
             })
-            val method = GravitySDK::class.java.getDeclaredMethod("showFullScreen", Activity::class.java,
+            val method = GravitySDK::class.java.getDeclaredMethod("showBackendContent", Activity::class.java,
                 CampaignContent::class.java, Campaign::class.java, Item::class.java, ModalImpressionSession::class.java)
             method.isAccessible = true
             method.invoke(GravitySDK.instance, rule.activity, content, Campaign(null, emptyList()), null, opening)
@@ -153,7 +153,8 @@ class ModalVisibilityWiringTest {
             GravitySDK.initialize(rule.activity, "close-path-key", "close-path-section", {
                 if (it is ContentCloseEvent) closes.incrementAndGet()
             })
-            val method = GravitySDK::class.java.getDeclaredMethod(methodName, Activity::class.java,
+            // The content's delivery method selects the presentation named by methodName.
+            val method = GravitySDK::class.java.getDeclaredMethod("showBackendContent", Activity::class.java,
                 CampaignContent::class.java, Campaign::class.java, Item::class.java, ModalImpressionSession::class.java)
             method.isAccessible = true
             method.invoke(GravitySDK.instance, rule.activity, content, Campaign(null, emptyList()), null, opening)
@@ -297,7 +298,7 @@ class ModalVisibilityWiringTest {
                 Variables.fromJson(mapOf("elements" to listOf(mapOf("type" to "text", "text" to "Not drawn yet")))),
                 null, null, null, null)
             val opening = ModalImpressionSession { impressions.incrementAndGet(); true }
-            val method = GravitySDK::class.java.getDeclaredMethod("showFullScreen", Activity::class.java,
+            val method = GravitySDK::class.java.getDeclaredMethod("showBackendContent", Activity::class.java,
                 CampaignContent::class.java, Campaign::class.java, Item::class.java, ModalImpressionSession::class.java)
             method.isAccessible = true
             method.invoke(GravitySDK.instance, rule.activity, content, Campaign(null, emptyList()), null, opening)

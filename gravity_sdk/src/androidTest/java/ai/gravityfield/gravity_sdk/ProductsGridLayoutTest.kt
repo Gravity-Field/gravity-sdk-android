@@ -97,12 +97,8 @@ class ProductsGridLayoutTest {
 
     private fun showSdkContent(mode: String, content: CampaignContent) {
         rule.runOnUiThread {
-            val methodName = when (mode) {
-                "sheet" -> "showBottomSheet"
-                "modal" -> "showModal"
-                else -> "showFullScreen"
-            }
-            val method = GravitySDK::class.java.getDeclaredMethod(methodName, Activity::class.java,
+            // The content's delivery method selects the sheet, modal or fullscreen presentation.
+            val method = GravitySDK::class.java.getDeclaredMethod("showBackendContent", Activity::class.java,
                 CampaignContent::class.java, Campaign::class.java, Item::class.java, ModalImpressionSession::class.java)
             method.isAccessible = true
             method.invoke(GravitySDK.instance, rule.activity, content, campaign, null, ModalImpressionSession { true })

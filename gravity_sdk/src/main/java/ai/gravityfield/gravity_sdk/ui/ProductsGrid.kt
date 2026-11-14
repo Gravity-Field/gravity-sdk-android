@@ -58,7 +58,10 @@ internal fun ProductsGrid(
     val parameters = ProductsGridParameters.fromStyle(style)
     val padding = style.padding
     val builder = GravitySDK.instance.productViewBuilder
-    val visibleProducts = remember(content.contentId, campaign) { mutableSetOf<String>() }
+    val presentationAnalytics = LocalPresentationAnalytics.current
+    val visibleProducts = remember(content.contentId, campaign, presentationAnalytics) {
+        presentationAnalytics?.gridProducts(content.contentId) ?: mutableSetOf()
+    }
 
     // Ordinary rows take their full content height and can live in any scrolling parent.
     Column(

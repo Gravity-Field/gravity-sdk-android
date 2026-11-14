@@ -421,10 +421,90 @@ class SnackbarEventsTest {
         val h = Harness(delivery = DeliveryMethod.MODAL, hasVisibleUrl = false)
         try {
             h.show(); h.drawModalStep()
-            h.hostRemove(HostRemoval.RECREATE)
+            h.hostRemove(HostRemoval.DESTROY)
             repeat(8) { h.composeWithoutDrawing() }
             assertFalse("A destroyed host has no showing window", h.isRegistered())
         } finally { h.close() }
+    }
+
+    @Test fun configurationRecreationKeepsTheSameShowing() = runBlocking {
+        val failures = mutableListOf<String>()
+        for (delivery in listOf(DeliveryMethod.FULL_SCREEN, DeliveryMethod.MODAL, DeliveryMethod.BOTTOM_SHEET, DeliveryMethod.SNACK_BAR)) {
+            for (appearedBefore in listOf(true, false)) {
+                val h = Harness(delivery = delivery)
+                val case = "$delivery appearedBefore=$appearedBefore"
+                val native = delivery in listOf(DeliveryMethod.MODAL, DeliveryMethod.BOTTOM_SHEET)
+                try {
+                    val oldOverlay = h.show()
+                    val opening = h.openingFor(oldOverlay)
+                    if (appearedBefore) {
+                        if (native) h.drawModalStep() else h.drawContent()
+                        h.advanceWithoutDrawing(1100); h.awaitTrackingJobs()
+                    } else repeat(8) { h.composeWithoutDrawing() }
+                    val oldActivity = h.context
+                    val oldDialog = if (native) org.robolectric.shadows.ShadowDialog.getLatestDialog() else null
+
+                    h.recreate()
+                    assertTrue("$case must be a configuration change", oldActivity.isChangingConfigurations)
+                    assertNotSame(oldActivity, h.context)
+                    if (native) h.drawModalStep() else h.drawContent()
+                    h.advanceWithoutDrawing(1100)
+                    repeat(20) { h.composeWithoutDrawing() }
+                    h.awaitTrackingJobs(); h.flush()
+
+                    val restored = h.currentOverlay()
+                    if (restored === oldOverlay || !restored.isAttachedToWindow) failures += "$case not restored in the new Activity"
+                    if (h.openingFor(restored) !== opening) failures += "$case restored with another opening"
+                    if (native && org.robolectric.shadows.ShadowDialog.getLatestDialog().let { it === oldDialog || !it.isShowing }) failures += "$case native window not restored"
+                    if (h.callbacks.count { it is ContentCloseEvent } != 0 || h.paths.count { it == "/close" } != 0) failures += "$case closed on rotation"
+                    if (h.callbacks.count { it is ContentImpressionEvent } != 1 || h.paths.count { it == "/impression" } != 1) failures += "$case impression=${h.paths.count { it == "/impression" }}"
+                    if (h.paths.count { it == "/visible" } > 1) failures += "$case visible=${h.paths.count { it == "/visible" }}"
+                    if (opening?.hasAppeared != true) failures += "$case did not appear in the new Activity"
+                    if (!h.isRegistered()) failures += "$case registry released on rotation"
+                    if (h.tryShowDirect()) failures += "$case same content stacked after rotation"
+                    if (h.tryShowDirect(content = h.content.copy(contentId = "replacement"))) failures += "$case same campaign stacked after rotation"
+
+                    var dismissed: Boolean? = null
+                    h.sdk.dismissInApp(h.content.contentId) { dismissed = it }
+                    repeat(20) { h.composeWithoutDrawing() }
+                    h.awaitTrackingJobs(); h.flush()
+                    if (dismissed != true) failures += "$case dismiss after rotation=$dismissed"
+                    if (h.callbacks.count { it is ContentCloseEvent } != 1 || h.paths.count { it == "/close" } != 1) failures += "$case close after rotation=${h.paths.count { it == "/close" }}"
+                    // Native modals confirm WRIMP at the latest on explicit close; still exactly one.
+                    if (h.paths.count { it == "/visible" } != 1) failures += "$case visible after close=${h.paths.count { it == "/visible" }}"
+                    if (restored.isAttachedToWindow) failures += "$case restored overlay left attached"
+                    if (h.isRegistered()) failures += "$case registry kept after close"
+                    var again: Boolean? = null
+                    h.sdk.dismissInApp(h.content.contentId) { again = it }; h.flush()
+                    if (again != false) failures += "$case released twice"
+                } finally { h.close() }
+            }
+        }
+        assertEquals("Rotation mismatch cases", emptyList<String>(), failures)
+    }
+
+    @Test fun repeatedRecreationThenRealDestroyClosesOnce() = runBlocking {
+        for (delivery in listOf(DeliveryMethod.FULL_SCREEN, DeliveryMethod.MODAL, DeliveryMethod.BOTTOM_SHEET, DeliveryMethod.SNACK_BAR)) {
+            val h = Harness(delivery = delivery)
+            val native = delivery in listOf(DeliveryMethod.MODAL, DeliveryMethod.BOTTOM_SHEET)
+            try {
+                h.show()
+                if (native) h.drawModalStep() else h.drawContent()
+                repeat(2) {
+                    h.recreate()
+                    if (native) h.drawModalStep() else h.drawContent()
+                }
+                h.awaitTrackingJobs()
+                assertEquals("$delivery no close on rotation", 0, h.callbacks.count { it is ContentCloseEvent })
+                assertEquals("$delivery one impression", 1, h.paths.count { it == "/impression" })
+                h.destroyActivity()
+                repeat(20) { h.composeWithoutDrawing() }
+                h.awaitTrackingJobs(); h.flush()
+                assertEquals("$delivery real destroy closes once", 1, h.callbacks.count { it is ContentCloseEvent })
+                assertEquals("$delivery real destroy close URL once", 1, h.paths.count { it == "/close" })
+                assertFalse("$delivery registry released", h.isRegistered())
+            } finally { h.close() }
+        }
     }
 
     @Test fun attachedContentCannotStackAfterGateExpiryOrDirectShow() = runBlocking {
@@ -576,6 +656,20 @@ class SnackbarEventsTest {
         private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob() + clock)
         private var frameNanos = System.nanoTime()
         private val recomposer = Recomposer(scope.coroutineContext)
+        // A recreated Activity gets a new decor; keep it on this test-owned frame clock.
+        private val compositionHook = object : android.app.Application.ActivityLifecycleCallbacks {
+            override fun onActivityCreated(a: Activity, state: android.os.Bundle?) {
+                a.window.decorView.compositionContext = recomposer
+                // Hosts set their content in onCreate; that also installs the view-tree owners.
+                (a as? ComponentActivity)?.setContentView(android.widget.FrameLayout(a))
+            }
+            override fun onActivityStarted(a: Activity) = Unit
+            override fun onActivityResumed(a: Activity) = Unit
+            override fun onActivityPaused(a: Activity) = Unit
+            override fun onActivityStopped(a: Activity) = Unit
+            override fun onActivitySaveInstanceState(a: Activity, state: android.os.Bundle) = Unit
+            override fun onActivityDestroyed(a: Activity) = Unit
+        }
         val paths = CopyOnWriteArrayList<String>()
         val callbacks = CopyOnWriteArrayList<TrackingEvent>()
         val context get() = activity.get()
@@ -610,6 +704,7 @@ class SnackbarEventsTest {
             runBlocking(Dispatchers.IO) { store.load() }
             scope.launch { recomposer.runRecomposeAndApplyChanges() }
             activity.get().window.decorView.compositionContext = recomposer
+            activity.get().application.registerActivityLifecycleCallbacks(compositionHook)
             content = CampaignContent("snackbar", template, delivery, "native", 1,
                 Variables.fromJson(mapOf(
                     "frameUI" to (if (frameUi) mapOf("container" to mapOf("style" to emptyMap<String, Any>())) else null),
@@ -727,6 +822,13 @@ class SnackbarEventsTest {
             removedDuringConfigurationChange = removedActivity.isChangingConfigurations
             flush()
         }
+        fun recreate() {
+            activity.recreate()
+            activity.visible()
+            activity.windowFocusChanged(true)
+            flush()
+            overlay = currentOverlay()
+        }
         fun destroyActivity() { activity.pause().stop().destroy(); flush() }
         fun focus(value: Boolean) { activity.windowFocusChanged(value); flush() }
         fun background() { activity.pause().stop(); flush() }
@@ -769,6 +871,7 @@ class SnackbarEventsTest {
             sdk.dismissInApp("step-two"); flush()
             org.robolectric.shadows.ShadowDialog.getLatestDialog()?.takeIf { it.isShowing }?.dismiss()
             sdk.dispose(); UserIdTestProcess.stop(sdk)
+            activity.get().application.unregisterActivityLifecycleCallbacks(compositionHook)
             recomposer.cancel(); scope.cancel()
             if (!activity.get().isDestroyed) activity.pause().stop().destroy()
             server.stop(); Logger.errorReportingEnabled = reporting
