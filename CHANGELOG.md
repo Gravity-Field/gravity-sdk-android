@@ -7,6 +7,8 @@
 - Track one close after permanent host removal of appeared in-app overlays or native dialogs; keep removals before appearance silent and avoid counting restored windows as closed.
 
 - Send close tracking once when modal, bottom-sheet or fullscreen close controls share the configured onClose action, including appeared content without a visible-impression URL.
+- Send close tracking once when modal, bottom-sheet or fullscreen close controls share the configured onClose action.
+- Treat non-finite dimensions as absent when parsing size, padding, margin and corner radius, preventing invalid Compose layout.
 
 - Return the chosen campaign’s non-negative `delayTime` in NoShow responses and load callbacks without waiting; parse decimal priority/delay values exactly with Unicode whitespace, normalize negative load-event constructor delays, and demonstrate app-owned delayed rendering.
 
@@ -26,9 +28,10 @@
 - NoShow honors the current fetch setting and stale-content timeout, rejects results after identity or SDK changes, and emits load callbacks and onLoad tracking only for the accepted result. Presentation locks do not block fetching. The example app demonstrates custom rendering, explicit impressions, and fetch error handling.
 - Count snackbar impressions after actual appearance, persist qualified visible impressions through the modal WRIMP path, and avoid duplicate close tracking while preserving dismissal and user-change reservation handling. Attached snackbars keep counting across presentation locks or new screens, and recheck visibility when focus returns. Focus or lifecycle loss immediately restarts the uninterrupted visible-impression interval. Programmatic dismissal reports successful removal before appearance without impression or close events, and reports one close after appearance.
 - Avoid duplicate grid product visibility events after recomposition and column changes.
+- Render a product row or grid with no products (`products` or `slots` absent, or `slots: []`; a container without a type is a row) as nothing, without height, margin, padding or background. Grids no longer keep a placeholder height while products are absent.
 - Limit tall product grid sheets below the status bar without adding gaps to short sheets.
 - Read `gridSettings` with legacy `gridColumns` fallback: 2 columns and spacing 8 by default, valid columns 1–12, invalid or negative spacing falls back to 8. Grid cards remain square regardless of `size`; only `padding` affects the grid, matching iOS and Flutter.
-- Use the host product builder for grid cards; send visible impressions once per identified slot after at least half the card is visible in its clipped viewport. Preserve configured grid placeholder height while products are absent.
+- Use the host product builder for grid cards; send visible impressions once per identified slot after at least half the card is visible in its clipped viewport.
 
 ## 1.2.0
 

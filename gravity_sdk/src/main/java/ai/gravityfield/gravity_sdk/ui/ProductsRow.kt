@@ -26,6 +26,8 @@ internal fun ProductsRow(
     content: CampaignContent,
     campaign: Campaign,
 ) {
+    // No products: no height, margin, padding or background strip, as on iOS/Flutter.
+    if (slots.isEmpty()) return
     val style = element.style
     val height = style.size?.height
     val margin = style.margin

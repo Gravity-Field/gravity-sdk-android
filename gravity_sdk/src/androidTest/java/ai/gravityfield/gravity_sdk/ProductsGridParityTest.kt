@@ -79,11 +79,13 @@ class ProductsGridParityTest {
         assertEquals(Color.Magenta, rule.onNodeWithTag("host").captureToImage().toPixelMap()[1, 1])
     }
 
-    @Test fun absentProductsKeepPlaceholderHeightAndEmptyGridTakesNoSpace() {
+    @Test fun absentOrEmptyProductsGridTakesNoSpace() {
         initialize()
         var mode by mutableIntStateOf(0)
         val base = content(null, mapOf("size" to mapOf("height" to 173),
-            "padding" to mapOf("top" to 5, "bottom" to 5)))
+            "padding" to mapOf("top" to 5, "bottom" to 5),
+            "margin" to mapOf("top" to 7, "bottom" to 7),
+            "backgroundColor" to "#FF0000"))
         rule.setContent {
             val current = when (mode) {
                 0 -> base.copy(products = null)
@@ -99,7 +101,40 @@ class ProductsGridParityTest {
             rule.runOnIdle { mode = value }
             val host = rule.onNodeWithTag("host").getUnclippedBoundsInRoot()
             val footer = rule.onNodeWithTag("footer").getUnclippedBoundsInRoot()
-            assertEquals(if (value == 2) 0f else 173f, (footer.top - host.top).value, 0.5f)
+            assertEquals("mode=$value", 0f, (footer.top - host.top).value, 0.5f)
+        }
+    }
+
+    @Test fun nonFiniteGridHeightWithoutProductsStillTakesNoSpace() = nonFiniteDimension("placeholder")
+    @Test fun nonFiniteSizeActsAsAbsent() = nonFiniteDimension("size")
+    @Test fun nonFinitePaddingActsAsAbsent() = nonFiniteDimension("padding")
+    @Test fun nonFiniteMarginActsAsAbsent() = nonFiniteDimension("margin")
+    @Test fun nonFiniteCornerRadiusRenders() = nonFiniteDimension("cornerRadius")
+
+    private fun nonFiniteDimension(field: String) {
+        initialize()
+        var value by mutableStateOf<Any?>(null)
+        rule.setContent {
+            val style = when (field) {
+                "placeholder", "size" -> mapOf("size" to mapOf("width" to value, "height" to value))
+                "padding", "margin" -> mapOf(field to mapOf("top" to value, "bottom" to value, "left" to value, "right" to value))
+                else -> mapOf(field to value)
+            }
+            val current = if (field == "placeholder") content(null, style).copy(products = null)
+            else content(null).copy(variables = Variables.fromJson(mapOf("elements" to listOf(
+                mapOf("type" to "button", "text" to "Button", "style" to style)))))
+            Column(Modifier.width(240.dp).testTag("dimension-host")) {
+                GravityElements(current, campaign, {})
+                Text("Footer", Modifier.testTag("dimension-footer"))
+            }
+        }
+        val baseline = rule.onNodeWithTag("dimension-footer").getUnclippedBoundsInRoot()
+        for (invalid in listOf("Infinity", "-Infinity", "NaN", "1e400", "Infinitypx",
+            Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NaN)) {
+            rule.runOnIdle { value = invalid }
+            val footer = rule.onNodeWithTag("dimension-footer").getUnclippedBoundsInRoot()
+            assertEquals("$field=$invalid", baseline, footer)
+            rule.onNodeWithTag("dimension-footer").assertIsDisplayed()
         }
     }
 
