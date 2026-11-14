@@ -1257,7 +1257,7 @@ class GravitySDK private constructor(
     ) {
         val action = onClickModel.action
 
-        val closeTrackedByDismissal = content.deliveryMethod == DeliveryMethod.SNACK_BAR && dismissCallback != null &&
+        val closeTrackedByDismissal = dismissCallback != null &&
             action == Action.CLOSE && content.variables?.onClose?.action == Action.CLOSE
         if (!closeTrackedByDismissal) trackEngagementEvent(action, content.events)
 

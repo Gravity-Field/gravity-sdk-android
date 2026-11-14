@@ -271,6 +271,27 @@ class SnackbarEventsTest {
             assertNotNull(h.reserveAgain())
         } finally { h.close() }
     }
+    @Test fun fullscreenCloseActionAndOnCloseSendOneUrlAndOneHostCallback() = runBlocking {
+        val h = Harness(delivery = DeliveryMethod.FULL_SCREEN)
+        try {
+            h.show(); h.drawContent(); h.clickAction()
+            h.awaitPath("/close"); h.awaitTrackingJobs(); h.flush()
+            assertEquals(1, h.paths.count { it == "/close" })
+            assertEquals(1, h.callbacks.count { it is ContentCloseEvent })
+        } finally { h.close() }
+    }
+    @Test fun modalCloseActionAndOnCloseSendOneUrlAndOneHostCallback() = sharedModalClose(DeliveryMethod.MODAL)
+    @Test fun sheetCloseActionAndOnCloseSendOneUrlAndOneHostCallback() = sharedModalClose(DeliveryMethod.BOTTOM_SHEET)
+    private fun sharedModalClose(delivery: DeliveryMethod) = runBlocking {
+        val h = Harness(delivery = delivery)
+        try {
+            h.show(); h.drawModalStep(); h.clickAction(inDialog = true)
+            repeat(60) { h.composeWithoutDrawing() }
+            h.awaitPath("/close"); h.awaitTrackingJobs(); h.flush()
+            assertEquals(1, h.paths.count { it == "/close" })
+            assertEquals(1, h.callbacks.count { it is ContentCloseEvent })
+        } finally { h.close() }
+    }
     @Test fun autoWithoutOnCloseSendsOnlyTheCallbackAndReleasesReservation() = runBlocking {
         val h = Harness(hasOnClose = false)
         try {
@@ -369,7 +390,7 @@ class SnackbarEventsTest {
         } finally { h.close() }
     }
 
-    private class Harness(template: TemplateSystemName = TemplateSystemName.SNACKBAR_1, hasOnClose: Boolean = true, unknownActions: Boolean = false, frameUi: Boolean = true, openStep: Boolean = false) {
+    private class Harness(template: TemplateSystemName = TemplateSystemName.SNACKBAR_1, hasOnClose: Boolean = true, unknownActions: Boolean = false, frameUi: Boolean = true, openStep: Boolean = false, delivery: DeliveryMethod = DeliveryMethod.SNACK_BAR) {
         private val reporting = Logger.errorReportingEnabled
         private val freshProcess = UserIdTestProcess.start()
         private val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup()
@@ -411,7 +432,7 @@ class SnackbarEventsTest {
             runBlocking(Dispatchers.IO) { store.load() }
             scope.launch { recomposer.runRecomposeAndApplyChanges() }
             activity.get().window.decorView.compositionContext = recomposer
-            content = CampaignContent("snackbar", template, DeliveryMethod.SNACK_BAR, "native", 1,
+            content = CampaignContent("snackbar", template, delivery, "native", 1,
                 Variables.fromJson(mapOf(
                     "frameUI" to (if (frameUi) mapOf("container" to mapOf("style" to emptyMap<String, Any>())) else null),
                     "elements" to listOf(mapOf("type" to "text", "text" to "Hello"),
@@ -470,7 +491,7 @@ class SnackbarEventsTest {
                 listener.javaClass.declaredFields.map { it.isAccessible = true; it.get(listener) }
             }.filterIsInstance<ModalImpressionSession>().firstOrNull()
         }
-        fun clickAction() {
+        fun clickAction(inDialog: Boolean = false) {
             fun roots(view: View): Sequence<androidx.compose.ui.platform.ViewRootForTest> = sequence {
                 if (view is androidx.compose.ui.platform.ViewRootForTest) yield(view)
                 if (view is ViewGroup) for (index in 0 until view.childCount) yieldAll(roots(view.getChildAt(index)))
@@ -478,12 +499,14 @@ class SnackbarEventsTest {
             fun nodes(node: androidx.compose.ui.semantics.SemanticsNode): Sequence<androidx.compose.ui.semantics.SemanticsNode> = sequence {
                 yield(node); node.children.forEach { yieldAll(nodes(it)) }
             }
-            val node = roots(requireNotNull(overlay)).flatMap { nodes(it.semanticsOwner.unmergedRootSemanticsNode) }
+            val rootView = if (inDialog) org.robolectric.shadows.ShadowDialog.getLatestDialog().window!!.decorView else requireNotNull(overlay)
+            val node = roots(rootView).flatMap { nodes(it.semanticsOwner.unmergedRootSemanticsNode) }
                 .first { it.config.contains(androidx.compose.ui.semantics.SemanticsActions.OnClick) }
             assertTrue(requireNotNull(node.config[androidx.compose.ui.semantics.SemanticsActions.OnClick].action).invoke())
             flush()
         }
         suspend fun drawModalStep() {
+            repeat(8) { composeWithoutDrawing() }
             withTimeout(30_000) {
                 while (org.robolectric.shadows.ShadowDialog.getLatestDialog()?.isShowing != true) composeWithoutDrawing()
             }
