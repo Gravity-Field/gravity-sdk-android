@@ -632,6 +632,48 @@ class SnackbarEventsTest {
         val h = Harness(frameUi = false)
         try { assertFalse(h.tryShow()); assertNotNull(h.reserveAgain()) } finally { h.close() }
     }
+    @Test fun openStepReplacesTheCurrentStepRegardlessOfCloseOnClick() = runBlocking {
+        val failures = mutableListOf<String>()
+        for (delivery in listOf(DeliveryMethod.FULL_SCREEN, DeliveryMethod.MODAL, DeliveryMethod.BOTTOM_SHEET)) {
+            for (closeOnClick in listOf(null, true, false)) {
+                val case = "$delivery closeOnClick=$closeOnClick"
+                val native = delivery != DeliveryMethod.FULL_SCREEN
+                val h = Harness(delivery = delivery, openStep = true, closeOnClick = closeOnClick)
+                try {
+                    val first = h.show()
+                    val opening = h.openingFor(first)
+                    if (native) h.drawModalStep() else h.drawContent()
+                    h.awaitTrackingJobs()
+                    val firstDialog = if (native) org.robolectric.shadows.ShadowDialog.getLatestDialog() else null
+                    h.clickAction(inDialog = native)
+                    h.drawModalStep()
+                    repeat(30) { h.composeWithoutDrawing() }
+                    h.awaitTrackingJobs(); h.flush()
+                    val overlays = (h.context.window.decorView as ViewGroup).let { decor ->
+                        (0 until decor.childCount).map { decor.getChildAt(it) }.filter { h.openingFor(it) != null }
+                    }
+                    if (first.isAttachedToWindow) failures += "$case step 1 overlay still attached"
+                    if (firstDialog?.isShowing == true) failures += "$case step 1 dialog still showing"
+                    if (overlays.size != 1 || h.openingFor(overlays.single()) !== opening) failures += "$case overlays=${overlays.size}"
+                    if (h.callbacks.count { it is ContentCloseEvent } != 0 || h.paths.count { it == "/close" } != 0) failures += "$case step 1 reported a close"
+                    var dismissedFirst: Boolean? = null
+                    h.sdk.dismissInApp(h.content.contentId) { dismissedFirst = it }; h.flush()
+                    if (dismissedFirst != false) failures += "$case step 1 still registered"
+
+                    var dismissed: Boolean? = null
+                    h.sdk.dismissInApp("step-two") { dismissed = it }
+                    repeat(30) { h.composeWithoutDrawing() }
+                    h.awaitTrackingJobs(); h.flush()
+                    if (dismissed != true) failures += "$case step 2 dismiss=$dismissed"
+                    if (h.callbacks.count { it is ContentCloseEvent } != 1 || h.paths.count { it == "/close" } != 1) failures += "$case closes after step 2=${h.paths.count { it == "/close" }}"
+                    if (h.paths.count { it == "/visible" } > 1) failures += "$case visible=${h.paths.count { it == "/visible" }}"
+                    if ((h.context.window.decorView as ViewGroup).let { d -> (0 until d.childCount).any { h.openingFor(d.getChildAt(it)) != null } }) failures += "$case overlay left after close"
+                } finally { h.close() }
+            }
+        }
+        assertEquals("Step replacement mismatch", emptyList<String>(), failures)
+    }
+
     @Test fun openStepFromVisibleSnackbarToModalKeepsOneDurableOpening() = runBlocking {
         val h = Harness(TemplateSystemName.SNACKBAR_2, openStep = true)
         try {
@@ -648,7 +690,7 @@ class SnackbarEventsTest {
         } finally { h.close() }
     }
 
-    private class Harness(template: TemplateSystemName = TemplateSystemName.SNACKBAR_1, hasOnClose: Boolean = true, unknownActions: Boolean = false, frameUi: Boolean = true, openStep: Boolean = false, delivery: DeliveryMethod = DeliveryMethod.SNACK_BAR, hasVisibleUrl: Boolean = true) {
+    private class Harness(template: TemplateSystemName = TemplateSystemName.SNACKBAR_1, hasOnClose: Boolean = true, unknownActions: Boolean = false, frameUi: Boolean = true, openStep: Boolean = false, delivery: DeliveryMethod = DeliveryMethod.SNACK_BAR, hasVisibleUrl: Boolean = true, closeOnClick: Boolean? = null) {
         private val reporting = Logger.errorReportingEnabled
         private val freshProcess = UserIdTestProcess.start()
         private val activity = Robolectric.buildActivity(ComponentActivity::class.java).setup()
@@ -709,7 +751,7 @@ class SnackbarEventsTest {
                 Variables.fromJson(mapOf(
                     "frameUI" to (if (frameUi) mapOf("container" to mapOf("style" to emptyMap<String, Any>())) else null),
                     "elements" to listOf(mapOf("type" to "text", "text" to "Hello"),
-                        mapOf("type" to "button", "text" to "Action", "onClick" to mapOf("action" to if (openStep) "open_step" else "close", "step" to 2))),
+                        mapOf("type" to "button", "text" to "Action", "onClick" to mapOf("action" to if (openStep) "open_step" else "close", "step" to 2, "closeOnClick" to closeOnClick).filterValues { it != null })),
                     "onImpression" to mapOf("action" to if (unknownActions) "future" else "impression"),
                     "onClose" to (if (hasOnClose) mapOf("action" to if (unknownActions) "future" else "close") else null)).filterValues { it != null }),
                 null, null, null, listOf(

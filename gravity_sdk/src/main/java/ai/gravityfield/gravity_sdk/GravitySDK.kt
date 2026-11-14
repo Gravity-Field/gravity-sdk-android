@@ -841,8 +841,9 @@ class GravitySDK private constructor(
             shouldReportClose = reportClose()
             performDismiss(complete)
         }) { success ->
-            inAppPresentations.remove(registered?.get(), content.contentId)
-            if (success && shouldReportClose) contentEventService.sendContentClosed(content, campaign)
+            val presentation = registered?.get()
+            inAppPresentations.remove(presentation, content.contentId)
+            if (success && shouldReportClose && presentation?.replaced != true) contentEventService.sendContentClosed(content, campaign)
         }
         registered = WeakReference(presentation)
         inAppPresentations.register(presentation, content.contentId, campaign.payload.firstOrNull()?.campaignId) {
@@ -1040,6 +1041,10 @@ class GravitySDK private constructor(
         fun dismiss() {
             presentation.close()
         }
+        fun replace() {
+            presentation.replaced = true
+            presentation.close()
+        }
 
         showOverlay(
             host = host,
@@ -1062,7 +1067,8 @@ class GravitySDK private constructor(
                             campaign,
                             host.context,
                             ::dismiss,
-                            opening
+                            opening,
+                            ::replace,
                         )
                     },
                     item,
@@ -1096,6 +1102,10 @@ class GravitySDK private constructor(
             }
         }
         fun dismiss() {
+            presentation.close()
+        }
+        fun replace() {
+            presentation.replaced = true
             presentation.close()
         }
 
@@ -1142,7 +1152,8 @@ class GravitySDK private constructor(
                             campaign,
                             host.context,
                             dismissCallback = ::dismiss,
-                            opening = opening
+                            opening = opening,
+                            replaceCallback = ::replace,
                         )
                     },
                     item,
@@ -1168,6 +1179,10 @@ class GravitySDK private constructor(
         fun dismiss() {
             presentation.close()
         }
+        fun replace() {
+            presentation.replaced = true
+            presentation.close()
+        }
 
         showOverlay(
             host = host,
@@ -1188,7 +1203,8 @@ class GravitySDK private constructor(
                         campaign,
                         host.context,
                         ::dismiss,
-                        opening
+                        opening,
+                        ::replace,
                     )
                 },
                 item,
@@ -1219,6 +1235,10 @@ class GravitySDK private constructor(
         fun dismiss() {
             presentation.close()
         }
+        fun replace() {
+            presentation.replaced = true
+            presentation.close()
+        }
 
         val onClickCallback = { onClickModel: OnClickModel ->
             onClickHandler(
@@ -1227,7 +1247,8 @@ class GravitySDK private constructor(
                 campaign,
                 host.context,
                 ::dismiss,
-                opening
+                opening,
+                ::replace,
             )
         }
 
@@ -1295,6 +1316,7 @@ class GravitySDK private constructor(
         context: Context,
         dismissCallback: (() -> Unit)? = null,
         opening: ModalImpressionSession? = null,
+        replaceCallback: (() -> Unit)? = null,
     ) {
         val action = onClickModel.action
 
@@ -1379,11 +1401,16 @@ class GravitySDK private constructor(
 
                 val revision = presentationRevision.current
                 ioScope.launch {
+                    var shown = false
                     try {
-                        prepareAndShowBackendContent(activity, targetContent, campaign, revision, item, opening = opening)
+                        shown = prepareAndShowBackendContent(activity, targetContent, campaign, revision, item, opening = opening)
                     } finally {
-                        if (opening != null && onClickModel.closeOnClick) {
-                            withContext(kotlinx.coroutines.NonCancellable + Dispatchers.Main) { closeOldStep() }
+                        if (opening != null) {
+                            withContext(kotlinx.coroutines.NonCancellable + Dispatchers.Main) {
+                                // As on Flutter, the next step replaces the current one whatever
+                                // closeOnClick says; the shared opening keeps it one showing.
+                                if (shown) (replaceCallback ?: dismissCallback)?.invoke() else closeOldStep()
+                            }
                         }
                     }
                 }

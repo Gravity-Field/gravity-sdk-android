@@ -7,6 +7,8 @@ internal class InAppPresentation(
     private val performDismiss: (complete: (Boolean) -> Unit) -> Unit,
     private val didDismiss: (Boolean) -> Unit,
 ) {
+    /** Replaced by the next step of the same showing: dismiss without reporting a close. */
+    var replaced = false
     private var closing = false
     private var result: Boolean? = null
 

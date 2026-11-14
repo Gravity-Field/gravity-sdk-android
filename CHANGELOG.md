@@ -4,6 +4,8 @@
 
 - Prevent duplicate presentations of an attached campaign after reservation expiry or visible-impression acknowledgement; allow showing again after dismissal and preserve step transitions.
 
+- Replace the current modal, bottom-sheet, fullscreen or snackbar step with the next `open_step` step regardless of `closeOnClick`, as on Flutter, instead of stacking it; the replaced step reports no close, and the step that is finally closed reports exactly one.
+
 - Keep appeared modal content mounted across backgrounding even when its visible-impression URL is absent or cannot be queued.
 
 - Track one close after permanent host removal of appeared in-app overlays or native dialogs; keep removals before appearance silent and avoid counting restored windows as closed.
