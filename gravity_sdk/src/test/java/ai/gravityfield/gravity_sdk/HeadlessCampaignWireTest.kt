@@ -778,6 +778,26 @@ class HeadlessCampaignWireTest {
         assertNotNull(pending.await())
     }
 
+    @Test fun automaticVisitTreatsNullPriorityAsZero() = automaticNullPriority(useEvent = false)
+    @Test fun automaticEventTreatsNullPriorityAsZero() = automaticNullPriority(useEvent = true)
+
+    private fun automaticNullPriority(useEvent: Boolean) = runBlocking {
+        campaignIds = """[{"campaignId":"101","priority":-1},{"campaignId":"202"},{"campaignId":"303","priority":0}]"""
+        // Empty choices force traversal of every candidate without opening UI.
+        val controller = Robolectric.buildActivity(Activity::class.java).setup().visible()
+        try {
+            if (useEvent) sdk.triggerEvent(events, page, controller.get())
+            else sdk.trackView(page, controller.get())
+            withTimeout(5000) {
+                while (chosenIds().size < 3) {
+                    shadowOf(Looper.getMainLooper()).idle()
+                    delay(10)
+                }
+            }
+            assertEquals(listOf("202", "303", "101"), chosenIds())
+        } finally { controller.pause().stop().destroy() }
+    }
+
     @Test fun nullPriorityIsZeroAndTiesKeepServerOrder() = runBlocking {
         campaignIds = """[{"campaignId":"101","priority":-1},{"campaignId":"202"},{"campaignId":"303","priority":0}]"""
         contents["303"] = content("303")

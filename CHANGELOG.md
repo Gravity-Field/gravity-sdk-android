@@ -15,6 +15,7 @@
 - Send close tracking once when modal, bottom-sheet or fullscreen close controls share the configured onClose action, including appeared content without a visible-impression URL.
 - Send close tracking once when modal, bottom-sheet or fullscreen close controls share the configured onClose action.
 - Treat non-finite dimensions as absent when parsing size, padding, margin and corner radius, preventing invalid Compose layout.
+- Treat missing campaign priority as zero in automatic presentation, matching NoShow ordering and preserving server order for ties.
 
 - Return the chosen campaign’s non-negative `delayTime` in NoShow responses and load callbacks without waiting; parse decimal priority/delay values exactly with Unicode whitespace, normalize negative load-event constructor delays, and demonstrate app-owned delayed rendering.
 - Return the chosen campaign’s non-negative `delayTime` in NoShow responses and load callbacks without waiting; keep raw JSON priority/delay numbers at double precision and parse decimal strings exactly with Unicode whitespace, normalize negative load-event constructor delays, and demonstrate app-owned delayed rendering.

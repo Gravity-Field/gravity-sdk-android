@@ -708,7 +708,7 @@ class GravitySDK private constructor(
         // Await restore off main rather than skip the first campaign response during startup.
         withContext(deliveryDispatcher) { visibleImpressionStore.load() }
         val activity = findOwner<Activity>(activityContext) ?: return
-        val sortedByPriority = response.campaigns.sortedByDescending { it.priority }
+        val sortedByPriority = response.campaigns.sortedByDescending { it.priority ?: 0 }
         for (campaignId in sortedByPriority) {
             if (!presentationGate.isCurrent(request)) return
             val reservation = presentationGate.reserve(campaignId.campaignId, request) ?: continue
