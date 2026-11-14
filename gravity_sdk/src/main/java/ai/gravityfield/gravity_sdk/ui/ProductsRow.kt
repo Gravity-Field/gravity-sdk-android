@@ -11,12 +11,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -53,17 +55,20 @@ internal fun ProductsRow(
                     bottom = margin.bottom.dp
                 )
             }
+            // As on iOS/Flutter, height is the outer box including padding; the background
+            // fills it and products never draw over neighbouring elements.
             .conditional(height != null) {
                 height(height!!.dp)
             }
+            .conditional(style.backgroundColor != null) {
+                background(color = style.backgroundColor!!)
+            }
+            .clipToBounds()
     ) {
         LazyRow(
             modifier = Modifier
                 .fillMaxWidth()
-                .conditional(style.backgroundColor != null)
-                {
-                    background(color = style.backgroundColor!!)
-                },
+                .conditional(height != null) { fillMaxHeight() },
             contentPadding = paddingValues,
             horizontalArrangement = Arrangement.spacedBy(rowSpacing)
         ) {

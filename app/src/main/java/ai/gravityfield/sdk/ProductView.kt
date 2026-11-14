@@ -116,7 +116,10 @@ class ProductView(context: Context, slot: Slot) : FrameLayout(context) {
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val cardWidth = dpToPx(164f)
-        val cardHeight = dpToPx(250f)
+        // Fit the height the SDK row offers (its height minus padding), like the iOS demo card.
+        val available = MeasureSpec.getSize(heightMeasureSpec)
+        val cardHeight = if (MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.UNSPECIFIED) dpToPx(250f)
+            else minOf(dpToPx(250f), available)
 
         val widthSpec = MeasureSpec.makeMeasureSpec(cardWidth, MeasureSpec.EXACTLY)
         val unspecifiedSpec = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)

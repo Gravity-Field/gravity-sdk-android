@@ -2,6 +2,7 @@ package ai.gravityfield.gravity_sdk
 
 import ai.gravityfield.gravity_sdk.models.*
 import ai.gravityfield.gravity_sdk.network.Campaign
+import ai.gravityfield.gravity_sdk.ui.ProductsRow
 import ai.gravityfield.gravity_sdk.ui.ProductsGrid
 import ai.gravityfield.gravity_sdk.ui.gravity_elements.GravityElements
 import ai.gravityfield.gravity_sdk.ui.product_view_builder.ProductViewBuilder
@@ -77,6 +78,37 @@ class ProductsGridParityTest {
         assertEquals(8f, (second.left - first.right).value, 0.5f)
         InstrumentationRegistry.getInstrumentation().uiAutomation.waitForIdle(500, 5000)
         assertEquals(Color.Magenta, rule.onNodeWithTag("host").captureToImage().toPixelMap()[1, 1])
+    }
+
+    @Test fun productRowMarginStaysOutsideBackgroundAndPaddingStaysInside() {
+        rule.runOnUiThread {
+            rule.activity.actionBar?.hide()
+            GravitySDK.initialize(rule.activity, "row-parity", "row-parity", {}, productViewBuilder = object : ProductViewBuilder {
+                @Composable override fun Build(slot: Slot, content: CampaignContent, campaign: Campaign) {
+                    Box(Modifier.size(30.dp).testTag("row-product").background(Color.Blue))
+                }
+            })
+        }
+        val content = content(slots().take(1), mapOf(
+            "productContainerType" to "row", "backgroundColor" to "#ffff00",
+            "margin" to mapOf("left" to "12px", "right" to 12, "top" to 12, "bottom" to 12),
+            "padding" to mapOf("left" to 8, "right" to 8, "top" to "8px", "bottom" to 8),
+        ))
+        rule.setContent {
+            Column(Modifier.width(200.dp).background(Color.Magenta).testTag("row-host")) {
+                ProductsRow(content.variables!!.elements!!.first(), content.products!!.slots!!, content, campaign)
+            }
+        }
+        val host = rule.onNodeWithTag("row-host").getUnclippedBoundsInRoot()
+        val product = rule.onNodeWithTag("row-product").getUnclippedBoundsInRoot()
+        assertEquals(20f, (product.left - host.left).value, 0.5f)
+        assertEquals(20f, (product.top - host.top).value, 0.5f)
+        InstrumentationRegistry.getInstrumentation().uiAutomation.waitForIdle(500, 5000)
+        val pixels = rule.onNodeWithTag("row-host").captureToImage().toPixelMap()
+        fun sample(x: Float, y: Float) = pixels[(x * pixels.width / 200f).toInt(), (y * pixels.width / 200f).toInt()]
+        assertEquals(Color.Magenta, sample(6f, 6f))
+        assertEquals(Color.Yellow, sample(16f, 16f))
+        assertEquals(Color.Blue, sample(25f, 25f))
     }
 
     @Test fun absentOrEmptyProductsGridTakesNoSpace() {
