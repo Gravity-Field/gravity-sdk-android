@@ -110,6 +110,35 @@ class HeadlessCampaignWireTest {
         { sdk.trackViewNoShow(page) }, { sdk.triggerEventNoShow(events, page) },
     )
 
+    @Test fun standardEventWireBodiesOmitAbsentOptionalFieldsAndKeepEventTime() = runBlocking {
+        sdk.isFetchContentOnTrack = false
+        sdk.triggerEventNoShow(listOf(
+            AddToCartEvent(value = 1.0, productId = "p", quantity = 1),
+            RemoveFromCartEvent(value = 1.0, productId = "p", quantity = 1),
+            SyncCartEvent(value = 1.0),
+            PurchaseEvent(uniqueTransactionId = "t", value = 1.0, cart = emptyList()),
+            AddToWishlistEvent(value = 1.0, productId = "p"),
+            SignUpEvent(cuid = "c"), LoginEvent(cuid = "c"),
+            CustomEvent(type = "x", name = "X"),
+        ), page)
+        assertEquals(listOf("/event"), recorded.map { it.path })
+        val data = recorded.single().body.getJSONArray("data")
+        assertEquals(8, data.length())
+        for (index in 0 until data.length()) {
+            val event = data.getJSONObject(index)
+            assertTrue(event.getString("eventTime").endsWith("Z"))
+            for (key in listOf("currency", "cart", "hashedEmail", "cuid", "cuidType", "customProps")) {
+                val explicitlySupplied = (key == "cart" && index == 3) || (key == "cuid" && index in 5..6)
+                if (explicitlySupplied) {
+                    assertTrue("Explicit $key must be present: $event", event.has(key))
+                    assertFalse("Explicit $key must not be JSON null: $event", event.isNull(key))
+                } else {
+                    assertFalse("Absent $key must be omitted: $event", event.has(key))
+                }
+            }
+        }
+    }
+
     @Test fun chosenDelayIsNormalizedAndRawChooseJsonIsPreservedForBothMethods() = runBlocking {
         contents["101"] = content("101")
         for (fetch in noShowFetches()) {
@@ -205,6 +234,49 @@ class HeadlessCampaignWireTest {
         assertEquals(byId.json, bySelector.json)
         shadowOf(Looper.getMainLooper()).idle()
         assertEquals(listOf(0, 0), callbacks.filterIsInstance<ContentLoadEvent>().map { it.delayTime })
+    }
+
+    @Test fun rawWireDecimalsRoundThroughDoubleBeforeIntegerConversion() = runBlocking {
+        // Android JSONObject normally rounds these literals through Double first.
+        campaignIds = """[{"campaignId":"101","priority":0.99999999999999999999,"delayTime":9},
+            {"campaignId":"202","priority":1,"delayTime":1500.99999999999999999999}]"""
+        // Rounded priorities tie at 1, so the empty first choice falls back to 202.
+        contents["202"] = content("202")
+        for (fetch in noShowFetches()) {
+            recorded.clear()
+            callbacks.clear()
+            val result = fetch()!!
+            assertEquals(listOf("101", "202"), chosenIds())
+            assertEquals(1501, result.delayTime)
+            shadowOf(Looper.getMainLooper()).idle()
+            assertEquals(listOf(1501), callbacks.filterIsInstance<ContentLoadEvent>().map { it.delayTime })
+        }
+    }
+
+    @Test fun rawExponentVectorsSurviveVisitAndEventWithSiblingFallback() = runBlocking {
+        val vectors = linkedMapOf(
+            "1e128" to Int.MAX_VALUE, "1e-129" to 0, "1e-300" to 0,
+            "1e400" to 0, "1e-400" to 0, "-1e400" to 0,
+            "NaN" to 0, "Infinity" to 0, "-Infinity" to 0,
+            "0.99999999999999999999" to 1, "1500.99999999999999999999" to 1501,
+            "0" to 0, "42" to 42, "-42" to 0, "1.9" to 1, "-1.9" to 0,
+        )
+        contents["202"] = content("202")
+        for ((token, delay) in vectors) {
+            campaignIds = """[{"campaignId":"101","priority":$token,"delayTime":$token},
+                {"campaignId":"202","priority":-2147483648,"delayTime":42}]"""
+            for (fetch in noShowFetches()) {
+                contents["101"] = content("101")
+                recorded.clear()
+                val result = fetch()!!
+                assertEquals(token, delay, result.delayTime)
+                assertEquals(token, listOf("101"), chosenIds())
+                contents.remove("101")
+                recorded.clear()
+                assertEquals(token, 42, fetch()!!.delayTime)
+                assertEquals(token, listOf("101", "202"), chosenIds())
+            }
+        }
     }
 
     @Test fun nonFiniteWireNumberKeepsCampaignAndSiblingsForBothMethods() = runBlocking {
