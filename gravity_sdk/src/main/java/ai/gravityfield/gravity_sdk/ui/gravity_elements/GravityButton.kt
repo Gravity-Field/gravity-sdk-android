@@ -7,9 +7,11 @@ import ai.gravityfield.gravity_sdk.LocalAppFont
 import ai.gravityfield.gravity_sdk.extensions.conditional
 import ai.gravityfield.gravity_sdk.models.Element
 import ai.gravityfield.gravity_sdk.models.GravityLayoutWidth
+import ai.gravityfield.gravity_sdk.models.GravityTextStyle
 import ai.gravityfield.gravity_sdk.models.Item
 import ai.gravityfield.gravity_sdk.models.OnClickModel
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -59,9 +61,10 @@ internal fun GravityButton(
     val horizontalAlignment = style.contentAlignment?.toAlignment() ?: Alignment.Center
     val isEnabled = isButtonEnabled(enabled, element.onClick)
 
+    val darkTheme = isSystemInDarkTheme()
     val buttonColors = ButtonDefaults.buttonColors(
         containerColor = style.backgroundColor ?: Color.Unspecified,
-        contentColor = textStyle?.color ?: Color.Unspecified,
+        contentColor = resolveButtonTextColor(textStyle, enabled = true, darkTheme = darkTheme),
     )
     val cornerRadius = style.cornerRadius?.dp ?: DEFAULT_CORNER_RADIUS.dp
     val border = resolveOutlineColor(style.outlineColor, isEnabled)?.let { BorderStroke(1.dp, it) }
@@ -129,8 +132,7 @@ internal fun GravityButton(
                 Text(
                     text = text ?: "",
                     style = TextStyle(
-                        // Unspecified when disabled so the Button's disabledContentColor applies
-                        color = if (isEnabled) textStyle?.color ?: Color.Unspecified else Color.Unspecified,
+                        color = resolveButtonTextColor(textStyle, isEnabled, darkTheme),
                         fontSize = textStyle?.fontSize ?: TextUnit.Unspecified,
                         fontWeight = textStyle?.fontWeight ?: FontWeight.Normal,
                         fontFamily = LocalAppFont.current
@@ -143,6 +145,16 @@ internal fun GravityButton(
 
 internal fun isButtonEnabled(enabled: Boolean, onClick: OnClickModel?): Boolean {
     return enabled && onClick != null
+}
+
+/**
+ * As on iOS, only `textStyle.color` colours the label; without it the label uses the primary
+ * label colour (black, or white in dark mode) instead of Material's onPrimary. Disabled labels
+ * stay Unspecified so the Button's disabledContentColor applies.
+ */
+internal fun resolveButtonTextColor(textStyle: GravityTextStyle?, enabled: Boolean, darkTheme: Boolean): Color {
+    if (!enabled) return Color.Unspecified
+    return textStyle?.color ?: if (darkTheme) Color.White else Color.Black
 }
 
 internal fun resolveOutlineColor(outlineColor: Color?, enabled: Boolean): Color? {
