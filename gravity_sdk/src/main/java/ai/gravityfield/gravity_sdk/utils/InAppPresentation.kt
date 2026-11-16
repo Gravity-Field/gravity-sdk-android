@@ -27,15 +27,30 @@ internal class InAppPresentation(
 
 /** Weak references keep externally removed UI from being retained by the SDK. */
 internal class InAppPresentationRegistry {
-    private data class Entry(val presentation: WeakReference<InAppPresentation>, val campaignId: String?, val isShowing: () -> Boolean) {
+    private data class Entry(
+        val presentation: WeakReference<InAppPresentation>,
+        val campaignId: String?,
+        val coversScreen: Boolean,
+        val isShowing: () -> Boolean,
+    ) {
         fun get() = presentation.get()
     }
     private val entries = mutableMapOf<String, Entry>()
     fun contains(contentId: String) = entries[contentId]?.let { it.get() != null && it.isShowing() } == true
     fun containsCampaign(campaignId: String) = entries.values.any { it.campaignId == campaignId && it.get() != null && it.isShowing() }
-    fun register(presentation: InAppPresentation, contentId: String, campaignId: String? = null, isShowing: () -> Boolean = { true }) {
+    /** A modal, fullscreen or bottom sheet is open; snackbars do not cover the screen. */
+    fun containsScreenCover() = entries.values.any { it.coversScreen && it.get() != null && it.isShowing() }
+    /** Any SDK in-app, including a snackbar, is open. */
+    fun containsAny() = entries.values.any { it.get() != null && it.isShowing() }
+    fun register(
+        presentation: InAppPresentation,
+        contentId: String,
+        campaignId: String? = null,
+        coversScreen: Boolean = true,
+        isShowing: () -> Boolean = { true },
+    ) {
         entries.entries.removeAll { it.value.get() == null }
-        entries[contentId] = Entry(WeakReference(presentation), campaignId, isShowing)
+        entries[contentId] = Entry(WeakReference(presentation), campaignId, coversScreen, isShowing)
     }
     fun remove(presentation: InAppPresentation?, contentId: String) {
         if (entries[contentId]?.get() === presentation) entries.remove(contentId)

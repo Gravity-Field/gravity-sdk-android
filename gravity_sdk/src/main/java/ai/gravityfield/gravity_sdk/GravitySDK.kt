@@ -868,9 +868,10 @@ class GravitySDK private constructor(
             if (success && shouldReportClose && presentation?.replaced != true) contentEventService.sendContentClosed(content, campaign)
         }
         registered = WeakReference(presentation)
-        inAppPresentations.register(presentation, content.contentId, campaign.payload.firstOrNull()?.campaignId) {
-            host.isShowing
-        }
+        inAppPresentations.register(
+            presentation, content.contentId, campaign.payload.firstOrNull()?.campaignId,
+            coversScreen = content.deliveryMethod != DeliveryMethod.SNACK_BAR,
+        ) { host.isShowing }
         return presentation
     }
 
@@ -1066,6 +1067,17 @@ class GravitySDK private constructor(
             (opening == null && campaign.payload.firstOrNull()?.campaignId?.let {
                 inAppPresentations.containsCampaign(it)
             } == true)) return false
+        // One in-app at a time: a new snackbar is skipped while any SDK in-app is open,
+        // a new modal, fullscreen or bottom sheet while another one of those is open.
+        // A visible snackbar does not block them, and next steps are still shown.
+        if (opening == null && (if (content.deliveryMethod == DeliveryMethod.SNACK_BAR) {
+                inAppPresentations.containsAny()
+            } else {
+                inAppPresentations.containsScreenCover()
+            })) {
+            Logger.i(TAG, "In-app already open, skipped content ${content.contentId}")
+            return false
+        }
         val impression = opening ?: modalImpression(content, campaign)
         val host = InAppHost(activity)
         when (content.deliveryMethod) {

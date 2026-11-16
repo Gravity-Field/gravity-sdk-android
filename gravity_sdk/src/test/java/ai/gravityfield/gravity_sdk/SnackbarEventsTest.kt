@@ -535,6 +535,54 @@ class SnackbarEventsTest {
         }
     }
 
+    @Test fun differentCampaignIsSkippedWhileAnInAppIsOpen() = runBlocking {
+        val covering = listOf(DeliveryMethod.MODAL, DeliveryMethod.BOTTOM_SHEET, DeliveryMethod.FULL_SCREEN)
+        for (open in covering) {
+            for (next in covering + DeliveryMethod.SNACK_BAR) {
+                val h = Harness(delivery = open, hasVisibleUrl = false)
+                try {
+                    h.show()
+                    if (open in listOf(DeliveryMethod.MODAL, DeliveryMethod.BOTTOM_SHEET)) h.drawModalStep()
+                    else h.drawContent()
+                    h.awaitTrackingJobs()
+                    val other = h.content.copy(contentId = "other-content", deliveryMethod = next,
+                        templateSystemName = if (next == DeliveryMethod.SNACK_BAR) TemplateSystemName.SNACKBAR_1 else null)
+                    val otherCampaign = Campaign(null, listOf(CampaignVariation("other-campaign", "e", "v", "d", listOf(other))))
+                    assertFalse("$next must not open above $open", h.tryShowDirect(content = other, campaign = otherCampaign))
+                    h.sdk.dismissInApp(h.content.contentId); h.flush()
+                    repeat(40) { h.composeWithoutDrawing() }
+                    assertFalse("$open registry released", h.isRegistered())
+                    assertTrue("$next opens after $open closed", h.tryShowDirect(content = other, campaign = otherCampaign))
+                    h.sdk.dismissInApp(other.contentId); h.flush()
+                    repeat(40) { h.composeWithoutDrawing() }
+                } finally { h.close() }
+            }
+        }
+    }
+
+    @Test fun visibleSnackbarSkipsAnotherSnackbarButNotAModal() = runBlocking {
+        for (next in listOf(DeliveryMethod.MODAL, DeliveryMethod.BOTTOM_SHEET, DeliveryMethod.FULL_SCREEN)) {
+            val h = Harness(hasVisibleUrl = false)
+            try {
+                h.show()
+                h.drawContent()
+                h.awaitTrackingJobs()
+                fun other(id: String, delivery: DeliveryMethod) = h.content.copy(contentId = id, deliveryMethod = delivery,
+                    templateSystemName = if (delivery == DeliveryMethod.SNACK_BAR) TemplateSystemName.SNACKBAR_1 else null)
+                fun campaign(id: String, content: CampaignContent) =
+                    Campaign(null, listOf(CampaignVariation(id, "e", "v", "d", listOf(content))))
+                val snackbar = other("other-snackbar", DeliveryMethod.SNACK_BAR)
+                assertFalse("snackbar must not open above a snackbar",
+                    h.tryShowDirect(content = snackbar, campaign = campaign("other-snackbar-campaign", snackbar)))
+                val modal = other("other-modal", next)
+                assertTrue("$next opens while a snackbar is visible",
+                    h.tryShowDirect(content = modal, campaign = campaign("other-modal-campaign", modal)))
+                h.sdk.dismissInApp(modal.contentId); h.flush()
+                repeat(40) { h.composeWithoutDrawing() }
+            } finally { h.close() }
+        }
+    }
+
     @Test fun appearedModalsWithoutVisibleUrlSurviveBackground() = runBlocking {
         val results = mutableMapOf<DeliveryMethod, Boolean>()
         for (delivery in listOf(DeliveryMethod.FULL_SCREEN, DeliveryMethod.MODAL, DeliveryMethod.BOTTOM_SHEET)) {
@@ -787,7 +835,11 @@ class SnackbarEventsTest {
                 .apply { isAccessible = true }.setLong(sdk.presentationGate, 0)
         }
         fun resume() { activity.start().resume(); activity.windowFocusChanged(true); flush() }
-        fun tryShowDirect(opening: ModalImpressionSession? = null, content: CampaignContent = this.content): Boolean =
+        fun tryShowDirect(
+            opening: ModalImpressionSession? = null,
+            content: CampaignContent = this.content,
+            campaign: Campaign = this.campaign,
+        ): Boolean =
             GravitySDK::class.java.getDeclaredMethod("showBackendContent", Activity::class.java,
                 CampaignContent::class.java, Campaign::class.java, Item::class.java, ModalImpressionSession::class.java)
                 .apply { isAccessible = true }.invoke(sdk, activity.get(), content, campaign, null, opening) as Boolean
