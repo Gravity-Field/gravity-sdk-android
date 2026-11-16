@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.3.1
+
 - Show one in-app at a time: a modal, fullscreen or bottom sheet is skipped while another SDK modal, fullscreen or bottom sheet is open, as on iOS 1.2.0, and a snackbar is skipped while any SDK in-app is open; a visible snackbar does not block a modal, fullscreen or bottom sheet, and next steps of the open in-app are still shown.
 
 ## 1.3.0
